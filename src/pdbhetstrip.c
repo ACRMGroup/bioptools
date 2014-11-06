@@ -1,13 +1,13 @@
 /************************************************************************/
 /**
 
-   \file       hstrip.c
+   \file       pdbhetstrip.c
    
    \version    V1.2
-   \date       22.07.14
-   \brief      Strip hydrogens from a PDB file. Acts as filter
+   \date       06.11.14
+   \brief      Strip het atoms from a PDB file. Acts as filter
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1995-2014
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -46,10 +46,10 @@
 
    Revision History:
    =================
--  V1.0  04.07.94 Original
--  V1.1  15.07.94 Writes TER cards and returns correctly
--  V1.2  22.07.14 Renamed deprecated functions with bl prefix.
+-  V1.0  17.03.95 Original
+-  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.2  06.11.14 Renamed from hetstrip By: ACRM
 
 *************************************************************************/
 /* Includes
@@ -62,11 +62,12 @@
 #include "bioplib/SysDefs.h"
 #include "bioplib/pdb.h"
 #include "bioplib/macros.h"
-
+#include "bioplib/general.h"
 
 /************************************************************************/
 /* Defines and macros
 */
+#define MAXBUFF 160
 
 /************************************************************************/
 /* Globals
@@ -77,6 +78,7 @@
 */
 int main(int argc, char **argv);
 void Usage(void);
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -91,15 +93,53 @@ void Usage(void);
 */
 int main(int argc, char **argv)
 {
-   PDB  *pdb, 
-        *p;
+   PDB  *pdb;
    int  natom;
    FILE *in  = stdin, 
         *out = stdout;
-   char lastchain;
+   char infile[MAXBUFF],
+        outfile[MAXBUFF];
 
+   if(ParseCmdLine(argc, argv, infile, outfile))
+   {
+      if(blOpenStdFiles(infile, outfile, &in, &out))
+      {
+         if((pdb=blReadPDBAtoms(in,&natom))!=NULL)
+         {
+            blWritePDB(out,pdb);
+         }
+      }
+   }
+   else
+   {
+      Usage();
+   }
+   
+
+   return(0);
+}
+
+/************************************************************************/
+/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
+   ----------------------------------------------------------------------
+*//**
+
+   \param[in]      argc        Argument count
+   \param[in]      **argv      Argument array
+   \param[out]     *infile     Input filename (or blank string)
+   \param[out]     *outfile    Output filename (or blank string)
+   \return                     Success
+
+   Parse the command line
+
+-  16.08.94 Original    By: ACRM
+*/
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
+{
    argc--;
    argv++;
+   
+   infile[0] = outfile[0] = '\0';
    
    while(argc)
    {
@@ -108,72 +148,35 @@ int main(int argc, char **argv)
          switch(argv[0][1])
          {
          case 'h':
-            Usage();
-            return(0);
+            return(FALSE);
             break;
          default:
-            Usage();
-            return(1);
+            return(FALSE);
             break;
          }
       }
       else
       {
-         break;
-      }
-      
-      argc--;
-      argv++;
-   }
+         /* Check that there are only 1 or 2 arguments left             */
+         if(argc > 2)
+            return(FALSE);
+         
+         /* Copy the first to infile                                    */
+         strcpy(infile, argv[0]);
+         
+         /* If there's another, copy it to outfile                      */
+         argc--;
+         argv++;
+         if(argc)
+            strcpy(outfile, argv[0]);
 
-   if(argc)
-   {
-      if((in=fopen(argv[0],"r"))==NULL)
-      {
-         fprintf(stderr,"Unable to open input file: %s\n",argv[0]);
-         return(1);
+         return(TRUE);
       }
       argc--;
       argv++;
    }
    
-   if(argc)
-   {
-      if((out=fopen(argv[0],"w"))==NULL)
-      {
-         fprintf(stderr,"Unable to open output file: %s\n",argv[0]);
-         return(1);
-      }
-      argc--;
-      argv++;
-   }
-
-   if(argc)
-   {
-      Usage();
-      return(1);
-   }
-
-   if((pdb=blReadPDB(in,&natom))!=NULL)
-   {
-      lastchain = pdb->chain[0];
-      
-      for(p=pdb; p!=NULL; NEXT(p))
-      {
-         if(p->atnam[0] != 'H')
-         {
-            if(p->chain[0] != lastchain)
-            {
-               lastchain = p->chain[0];
-               fprintf(out,"TER   \n");
-            }
-            blWritePDBRecord(out,p);
-         }
-      }
-      fprintf(out,"TER   \n");
-   }
-
-   return(0);
+   return(TRUE);
 }
 
 /************************************************************************/
@@ -183,14 +186,16 @@ int main(int argc, char **argv)
 
    Prints a usage message
 
--  04.07.94 Original    By: ACRM
--  22.07.14 V1.2 By: CTP
+-  17.03.95 Original    By: ACRM
+-  22.07.14 V1.1 By: CTP
+-  06.11.14 V1.2 By: ACRM
 */
 void Usage(void)
 {            
-   fprintf(stderr,"\nHStrip V1.2 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
-   fprintf(stderr,"Usage: hstrip [<in.pdb>] [<out.pdb>]\n\n");
-   fprintf(stderr,"Removes hydrogens from a PDB file. I/O is through \
+   fprintf(stderr,"\npdbhetstrip V1.2 (c) 1994-2014, Andrew C.R. \
+Martin, UCL\n");
+   fprintf(stderr,"Usage: pdbhetstrip [<in.pdb> [<out.pdb>]]\n\n");
+   fprintf(stderr,"Removes het atoms from a PDB file. I/O is through \
 stdin/stdout if files\n");
    fprintf(stderr,"are not specified.\n\n");
 }

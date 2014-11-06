@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       ChainPDB.c
+   \file       pdbchain.c
    
-   \version    V1.7
-   \date       22.07.14
+   \version    V1.8
+   \date       06.11.14
    \brief      Insert chain labels into a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
@@ -38,7 +38,7 @@
    ============
 
    N.B. This version only supports protein entries (not DNA).
-
+        This version only handles 1-letter chain labels
 
 **************************************************************************
 
@@ -60,6 +60,7 @@
 -  V1.6  30.05.02 Changed PDB field from 'junk' to 'record_type'
 -  V1.7  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.8  06.11.14 Renamed from chainpdb By: ACRM
 
 *************************************************************************/
 /* Includes
@@ -241,20 +242,19 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  16.10.95 V1.5
 -  30.05.02 V1.6
 -  22.07.14 V1.7 By: CTP
+-  06.11.14 V1.8 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nChainPDB V1.7 (c) 1994-2014 Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"\npdbchain V1.8 (c) 1994-2014 Dr. Andrew C.R. Martin, \
 UCL\n");
-   fprintf(stderr,"Freely distributable if no profit is made\n");
-   fprintf(stderr,"Splits a PDB file into chains using distance \
-criteria\n\n");
-   
-   fprintf(stderr,"Usage: chainpdb [-c <chains>] [<infile> \
+   fprintf(stderr,"\nUsage: pdbchain [-c <chains>] [<infile> \
 [<outfile>]]\n");
    fprintf(stderr,"       -c Specify chain names to use\n");
    fprintf(stderr,"       -b If ATOM records follow HETATM records they \
-start a new chain\n\n");
+start a new chain\n");
+   fprintf(stderr,"\nSplits a PDB file into chains using distance \
+criteria\n\n");
    fprintf(stderr,"If files are not specified, stdin and stdout are \
 used.\n");
    fprintf(stderr,"If a chain is to be skipped with -c, use a - \

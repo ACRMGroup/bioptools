@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       transpdb.c
+   \file       pdbtranslate.c
    
-   \version    V1.1
-   \date       22.07.14
+   \version    V1.2
+   \date       06.11.14
    \brief      Simple program to translate PDB files
    
    \copyright  (c) Dr. Andrew C. R. Martin 1995-2014
@@ -49,6 +49,7 @@
 -  V1.0  14.09.95 Original
 -  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.2  06.11.14 Renamed from transpdb  By: ACRM
 
 *************************************************************************/
 /* Includes
@@ -137,12 +138,14 @@ int main(int argc, char **argv)
 
 -  14.09.95 Original    By: ACRM
 -  22.07.14 V1.1 By: CTP
+-  06.11.14 V1.2 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nTransPDB V1.1  (c) 1995-2014 Andrew C.R. Martin\n");
+   fprintf(stderr,"\npdbtranslate V1.2  (c) 1995-2014 Andrew C.R. \
+Martin\n");
    fprintf(stderr,"Freely distributable if no profit is made\n\n");
-   fprintf(stderr,"Usage: transpdb [-x <x>] [-y <y>] [-z <z>] [-h]\n");
+   fprintf(stderr,"Usage: pdbtranslate [-x <x>] [-y <y>] [-z <z>] [-h]\n");
    fprintf(stderr,"              [<input.pdb> [<output.pdb>]]\n");
    fprintf(stderr,"I/O is to stdin/stdout if not specified\n\n");
    fprintf(stderr,"Translates a PDB file\n\n");

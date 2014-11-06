@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       as2bval.c
+   \file       naccess2bval.c
    
-   \version    V1.7
-   \date       15.08.14
+   \version    V1.8
+   \date       06.11.14
    \brief      Sum B-vals over each residue and replace with the
                summed or average value
    
@@ -58,6 +58,7 @@
 -  V1.6  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.7  15.08.14 Updated ReadSolv() to use CLEAR_PDB(). By: CTP
+-  V1.8  06.11.14 Renamed as naccess2bval
 
 *************************************************************************/
 /* Includes
@@ -216,13 +217,14 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 -  03.05.04 V1.4
 -  30.09.05 V1.5
 -  22.07.14 V1.6 By: CTP
+-  06.11.14 V1.8 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nAS2BVal V1.6 (c) 1994-2014, Andrew C.R. Martin, \
+   fprintf(stderr,"\nnaccess2bval V1.8 (c) 1994-2014, Andrew C.R. Martin, \
 UCL\n");
-   fprintf(stderr,"Usage: as2bval [<in.pdb>] [<out.pdb>]\n");
-   fprintf(stderr,"Rewrites the output from accall solvent accessibility \
+   fprintf(stderr,"Usage: naccess2bval [<in.pdb>] [<out.pdb>]\n");
+   fprintf(stderr,"Rewrites the output from naccess solvent accessibility \
 as a standard PDB\n");
    fprintf(stderr,"format file with accessibility in the B-val column \
 and radius in the\n");

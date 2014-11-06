@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       patchpdbnum.c
+   \file       pdbpatchnumbering.c
    
-   \version    V1.4
-   \date       22.07.14
+   \version    V1.5
+   \date       06.11.14
    \brief      Patch the numbering of a PDB file from a file of numbers
                and sequence (as created by KabatSeq, etc)
    
@@ -55,6 +55,7 @@
 -  V1.3  28.08.13 Modified for new ParseResSpec()
 -  V1.4  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.5  06.11.14 Renamed from patchpdbnum By: ACRM
 
 *************************************************************************/
 /* Includes
@@ -127,13 +128,15 @@ int main(int argc, char **argv)
       {
          if((patchfp=fopen(patchfile,"r"))==NULL)
          {
-            fprintf(stderr,"patchpdbnum: Unable to open patch file\n");
+            fprintf(stderr,"pdbpatchnumbering: Unable to open patch \
+file\n");
             return(1);
          }
 
          if((patches = ReadPatchFile(patchfp))==NULL)
          {
-            fprintf(stderr,"patchpdbnum: Unable to read patch file\n");
+            fprintf(stderr,"pdbpatchnumbering: Unable to read patch \
+file\n");
             return(1);
          }
 
@@ -145,7 +148,7 @@ int main(int argc, char **argv)
             }
             else
             {
-               fprintf(stderr,"patchpdbnum: Patching failed\n");
+               fprintf(stderr,"pdbpatchnumbering: Patching failed\n");
                return(1);
             }
 
@@ -153,7 +156,8 @@ int main(int argc, char **argv)
          }
          else
          {
-            fprintf(stderr,"patchpdbnum: No atoms read from PDB file\n");
+            fprintf(stderr,"pdbpatchnumbering: No atoms read from PDB \
+file\n");
          }
 
          FREELIST(patches, PATCH);
@@ -333,16 +337,16 @@ PATCH *ReadPatchFile(FILE *fp)
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPatchPDBNum V1.4 (c) 1995-2014, Dr. Andrew C.R. \
-Martin, UCL\n");
+   fprintf(stderr,"\nPdbpatchnumbering V1.4 (c) 1995-2014, Dr. Andrew \
+C.R. Martin, UCL\n");
 
-   fprintf(stderr,"\nUsage: patchpdbnum <patchfile> [<in.pdb> \
+   fprintf(stderr,"\nUsage: pdbpatchnumbering <patchfile> [<in.pdb> \
 [<out.pdb>]]\n");
    fprintf(stderr,"PDB file I/O is through stdin/stdout if files are not \
 specified.\n");
 
-   fprintf(stderr,"\nPatchPDBNum patches the numbering of a PDB file \
-from a patch file\n");
+   fprintf(stderr,"\npdbpatchnumbering patches the numbering of a PDB \
+file from a patch file\n");
    fprintf(stderr,"containing residue numbers in the form [c]num[i] \
 (where c is an optional\n");
    fprintf(stderr,"chain name, num is the residue number and i is an \
@@ -443,8 +447,8 @@ BOOL ApplyPatches(PDB *pdb, PATCH *patches)
             {
                if(p->chain[0] != pdbchain)
                {
-                  fprintf(stderr,"patchpdbnum: Chain %c too short for \
-patches\n",pdbchain);
+                  fprintf(stderr,"pdbpatchnumbering: Chain %c too short \
+for patches\n",pdbchain);
                   return(FALSE);
                }
             }

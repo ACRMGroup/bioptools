@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       findresrange.c
+   \file       pdbfindresrange.c
    
-   \version    V1.2
-   \date       22.07.14
+   \version    V1.3
+   \date       06.11.14
    \brief      Find a residue range given a key residue and a number
                of residues on either side
    
@@ -51,6 +51,7 @@
 -  V1.1   02.06.10  Fixed junk printing when out of range
 -  V1.2   22.07.14  Renamed deprecated functions with bl prefix.
                     Added doxygen annotation. By: CTP
+-  V1.3   06.11.14  Renamed from findresrange
 
 *************************************************************************/
 /* Includes
@@ -303,11 +304,13 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    Prints a usage message
 
 -  22.07.14 V1.2 By: CTP
+-  06.11.14 V1.3 By: ACRM
 */
 void Usage(void)
 {
-   printf("\nfindresrange V1.2 (c) 2010-2014 UCL, Andrew C.R. Martin\n");
-   printf("\nUsage: findresrange keyres width [input.pdb \
+   printf("\npdbfindresrange V1.3 (c) 2010-2014 UCL, Andrew C.R. \
+Martin\n");
+   printf("\nUsage: pdbfindresrange keyres width [input.pdb \
 [output.txt]]\n");
    printf("\nTakes a PDB file as input and given:\n");
    printf("1. a key residue (keyres) specified in the format \

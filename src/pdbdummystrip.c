@@ -1,13 +1,13 @@
 /************************************************************************/
 /**
 
-   \file       countpdb.c
+   \file       pdbdummystrip.c
    
-   \version    V1.3
-   \date       22.07.14
-   \brief      Count residues and atoms in a PDB file
+   \version    V1.2
+   \date       06.11.14
+   \brief      Strips atoms with NULL coordinates
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1996-2014
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -46,23 +46,23 @@
 
    Revision History:
    =================
--  V1.0  16.08.94 Original
--  V1.1  24.08.94 Changed to call OpenStdFiles()
--  V1.2  30.05.02 Changed PDB field from 'junk' to 'record_type'
--  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
+-  V1.0  13.11.96 Original    By: ACRM
+-  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.2  06.11.14 Renamed from nullstrip. This replaces an older program
+                  called pdbstrip
 
 *************************************************************************/
 /* Includes
 */
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include "bioplib/macros.h"
+#include <math.h>
+
 #include "bioplib/SysDefs.h"
 #include "bioplib/MathType.h"
 #include "bioplib/pdb.h"
+#include "bioplib/macros.h"
 #include "bioplib/general.h"
 
 /************************************************************************/
@@ -77,21 +77,19 @@
 /************************************************************************/
 /* Prototypes
 */
-int  main(int argc, char **argv);
+int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile);
+PDB *StripNulls(PDB *pdb);
 void Usage(void);
-void DoCount(PDB *pdb, int *nchain, int *nres, int *natom, int *nhyd,
-             int *nhet);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
 *//**
 
-   Main program for counting residues & atoms
+   Main program for stripping NULL coordinates
 
--  16.08.94 Original    By: ACRM
--  24.08.94 Changed to call OpenStdFiles()
+-  03.11.96 Original    By: ACRM
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
@@ -101,33 +99,26 @@ int main(int argc, char **argv)
    char infile[MAXBUFF],
         outfile[MAXBUFF];
    PDB  *pdb;
-   int  nchain, nres, natom, nhyd, nhet;
-        
+   int  natoms;
+   
    if(ParseCmdLine(argc, argv, infile, outfile))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb=blReadPDB(in, &natom))==NULL)
+         if((pdb = blReadPDB(in,&natoms)) != NULL)
          {
-            fprintf(stderr,"No atoms read from input file\n");
+            pdb = StripNulls(pdb);
+            blWritePDB(out, pdb);
          }
          else
          {
-            DoCount(pdb, &nchain, &nres, &natom, &nhyd, &nhet);
-            fprintf(out,"Chains: %d Residues: %d Atoms: %d Het Atoms: %d \
-Total Hydrogens: %d\n", nchain, nres, natom, nhet, nhyd);
+            fprintf(stderr,"No atoms read from PDB file\n");
          }
-      }
-      else
-      {
-         Usage();
-         return(1);
       }
    }
    else
    {
       Usage();
-      return(1);
    }
    
    return(0);
@@ -135,24 +126,24 @@ Total Hydrogens: %d\n", nchain, nres, natom, nhet, nhyd);
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
-   ----------------------------------------------------------------------
+   ---------------------------------------------------------------------
 *//**
 
-   \param[in]      argc        Argument count
-   \param[in]      **argv      Argument array
-   \param[out]     *infile     Input filename (or blank string)
-   \param[out]     *outfile    Output filename (or blank string)
-   \return                     Success
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \return                     Success?
 
    Parse the command line
-
--  16.08.94 Original    By: ACRM
+   
+-  13.11.96 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 {
    argc--;
    argv++;
-   
+
    infile[0] = outfile[0] = '\0';
    
    while(argc)
@@ -161,9 +152,6 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
       {
          switch(argv[0][1])
          {
-         case 'h':
-            return(FALSE);
-            break;
          default:
             return(FALSE);
             break;
@@ -183,7 +171,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
          argv++;
          if(argc)
             strcpy(outfile, argv[0]);
-
+            
          return(TRUE);
       }
       argc--;
@@ -194,85 +182,72 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 }
 
 /************************************************************************/
+/*>PDB *StripNulls(PDB *pdb)
+   -------------------------
+*//**
+
+   Strip NULL coordinate atoms from a PDB linked list
+
+-  13.11.96 Original   By: ACRM
+*/
+PDB *StripNulls(PDB *pdb)
+{
+   PDB *p, *prev;
+   
+   /* Remove from start                                                 */
+   for(p=pdb; p!=NULL;)
+   {
+      if((p->x == (REAL)9999.0) &&
+         (p->y == (REAL)9999.0) &&
+         (p->z == (REAL)9999.0))
+      {
+         pdb = p->next;
+         free(p);
+      }
+      else
+      {
+         break;
+      }
+      p=pdb;
+   }
+
+   /* Remove rest                                                       */
+   prev = pdb;
+   for(p=pdb; p!=NULL; NEXT(p))
+   {
+      if((p->x == (REAL)9999.0) &&
+         (p->y == (REAL)9999.0) &&
+         (p->z == (REAL)9999.0))
+      {
+         prev->next = p->next;
+         free(p);
+         p=prev;
+      }
+      prev = p;
+   }
+   
+   return(pdb);
+}
+
+/************************************************************************/
 /*>void Usage(void)
    ----------------
 *//**
 
-   Print a usage message
+   Prints a usage message
 
--  16.08.94 Original    By: ACRM
--  22.07.14 V1.3 By: CTP
+-  13.11.96 Original    By: ACRM
+-  22.07.14 V1.1 By: CTP
+-  06.11.14 V1.2 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nCountPDB V1.3 (c) 1994-2014 Dr. Andrew C.R. Martin, \
-UCL\n");
-   fprintf(stderr,"Freely distributable if no profit is made\n\n");
-   fprintf(stderr,"Usage: countpdb [<infile>] [<outfile>]\n\n");
-   fprintf(stderr,"If files are not specified, stdin and stdout are \
-used.\n");
-   fprintf(stderr,"Counts chains, residues & atoms in a PDB file.\n\n");
-}
+   fprintf(stderr,"\npdbdummystrip V1.2 (c) 1996-2014, Dr. Andrew C.R. \
+Martin, UCL\n");
 
-/************************************************************************/
-/*>void DoCount(PDB *pdb, int *nchain, int *nres, int *natom, int *nhyd,
-                int *nhet)
-   ---------------------------------------------------------------------
-*//**
+   fprintf(stderr,"\nUsage: pdbdummystrip [in.pdb [out.pdb]]\n");
 
-   Does the actual work of counting 
-
--  16.08.94 Original    By: ACRM
-*/
-void DoCount(PDB *pdb, int *nchain, int *nres, int *natom, int *nhyd,
-             int *nhet)
-{
-   PDB *p;
-   char LastChain,
-        LastIns;
-   int  LastRes;
-
-   LastChain = '-';
-   LastIns   = '-';
-   LastRes   = -999;
-
-   *nchain   = 0;
-   *nres     = 0;
-   *natom    = 0;
-   *nhyd     = 0;
-   *nhet     = 0;
-   
-   for(p=pdb; p!=NULL; NEXT(p))
-   {
-      if(!strncmp(p->record_type,"ATOM  ",6))
-         (*natom)++;
-      else if(!strncmp(p->record_type,"HETATM",6))
-         (*nhet)++;
-      
-      if(p->atnam[0] == 'H') 
-         (*nhyd)++;
-      
-      if(p->chain[0] != LastChain)
-      {
-         /* Chain has changed & so, by definition has the residue       */
-         if(!strncmp(p->record_type,"ATOM  ",6))
-         {
-            (*nchain)++;
-            (*nres)++;
-         }
-
-         LastChain = p->chain[0];
-         LastRes   = p->resnum;
-         LastIns   = p->insert[0];
-      }
-      else if((p->insert[0] != LastIns) ||
-              (p->resnum    != LastRes))
-      {
-         if(!strncmp(p->record_type,"ATOM  ",6))
-            (*nres)++;
-         
-         LastRes   = p->resnum;
-         LastIns   = p->insert[0];
-      }
-   }
+   fprintf(stderr,"\nRemoves atoms from a PDB file which have NULL \
+coordinates (i.e.\n");
+   fprintf(stderr,"x = y = z = 9999.0)\n");
 }

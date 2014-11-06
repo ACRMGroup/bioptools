@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       atomsel.c
+   \file       pdbatomsel.c
    
-   \version    V1.3
-   \date       19.08.14
+   \version    V1.4
+   \date       06.11.14
    \brief      Select atoms from a PDB file. Acts as filter
    
    \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
@@ -51,6 +51,7 @@
 -  V1.2  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.3  19.08.14 Removed unused variables in ParseCmdLine() By: CTP
+-  V1.4  06.11.14 Renamed from atomsel By: ACRM
 
 *************************************************************************/
 /* Includes
@@ -181,11 +182,12 @@ list.\n");
 -  15.07.94 Original    By: ACRM
 -  24.08.94 V1.1
 -  22.07.14 V1.2 By: CTP
+-  06.11.14 V1.4 By: ACRM
 */
 void Usage(void)
 {            
-   fprintf(stderr,"\nAtomSel V1.2 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
-   fprintf(stderr,"Usage: atomsel [-atom] [-atom...] [<in.pdb>] \
+   fprintf(stderr,"\npdbatomsel V1.4 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"Usage: pdbatomsel [-atom] [-atom...] [<in.pdb>] \
 [<out.pdb>]\n\n");
    fprintf(stderr,"Selects specfied atom types from a PDB file. \
 Assumes C-alpha if no atoms\n");

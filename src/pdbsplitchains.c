@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       splitchains.c
+   \file       pdbsplitchains.c
    
-   \version    V1.2
-   \date       22.07.14
+   \version    V1.3
+   \date       06.11.14
    \brief      Split a PDB file into separate chains
    
    \copyright  (c) UCL / Dr. Andrew C. R. Martin 1997-2014
@@ -50,6 +50,7 @@
 -  V1.1    16.01.14  Fixed to handle HETATMs properly
 -  V1.2    22.07.14  Renamed deprecated functions with bl prefix.
                      Added doxygen annotation. By: CTP
+-  V1.3    06.11.14  Renamed from splitchains By: ACRM
 
 *************************************************************************/
 /* Includes
@@ -120,7 +121,7 @@ int main(int argc, char **argv)
             if(!WriteEachPDBChain(InFile,pdb,current))
             {
                if(!gQuiet)
-                  fprintf(stderr,"splitchains: Failed to write all \
+                  fprintf(stderr,"pdbsplitchains: Failed to write all \
 output files\n");
             }
          }
@@ -257,7 +258,7 @@ BOOL WriteEachPDBChain(char *InFile, PDB *pdb, BOOL current)
          if((fp=fopen(OutFile, "w"))==NULL)
          {
             if(!gQuiet)
-               fprintf(stderr,"splitchains: Could not write output \
+               fprintf(stderr,"pdbsplitchains: Could not write output \
 file: %s\n", OutFile);
             return(FALSE);
          }
@@ -265,7 +266,7 @@ file: %s\n", OutFile);
       else
       {
          if(!gQuiet)
-            fprintf(stderr,"splitchains: No memory to build output \
+            fprintf(stderr,"pdbsplitchains: No memory to build output \
 filename\n");
          return(FALSE);
       }
@@ -301,14 +302,14 @@ filename\n");
 */
 void Usage(void)
 {
-   fprintf(stderr,"SplitChains V1.2 (c) 1997-2014 \
+   fprintf(stderr,"pdbsplitchains V1.3 (c) 1997-2014 \
 Dr. Andrew C.R. Martin, UCL\n");
 
-   fprintf(stderr,"\nUsage: splitchains [-c][-q] [in.pdb]\n");
+   fprintf(stderr,"\nUsage: pdbsplitchains [-c][-q] [in.pdb]\n");
    fprintf(stderr,"       -c  Output to current directory\n");
    fprintf(stderr,"       -q  Quiet - no error messages\n");
 
-   fprintf(stderr,"\nSplitChains takes a PDB file (of the specified name \
+   fprintf(stderr,"\npdbsplitchains takes a PDB file (of the specified name \
 or from stdin if a\n");
    fprintf(stderr,"filename is not given) and creates separate output \
 files for each\n");

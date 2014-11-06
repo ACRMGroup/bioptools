@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       patchbval.c
+   \file       pdbpatchbval.c
    
-   \version    V1.3
-   \date       22.07.14
+   \version    V1.4
+   \date       06.11.14
    \brief      Patch the b-value (or occupancy) column using values from 
                a file
    
@@ -53,6 +53,7 @@
 -  V1.2  28.08.13 Modified for new ParseResSpec()
 -  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.4  06.11.14 Renamed from patchbval
 
 *************************************************************************/
 /* Includes
@@ -130,21 +131,22 @@ int main(int argc, char **argv)
             {
                if(!ApplyPatches(in, out, patchlist, occup, verbose))
                {
-                  fprintf(stderr,"PatchBVal: Patching failed!\n");
+                  fprintf(stderr,"pdbpatchbval: Patching failed!\n");
                   return(1);
                }
                /* Normal exit from here!                                */
             }
             else
             {
-               fprintf(stderr,"PatchBVal: Unable to read patch data\n");
+               fprintf(stderr,"pdbpatchbval: Unable to read patch \
+data\n");
                return(1);
             }
          }
          else
          {
-            fprintf(stderr,"PatchBVal: Unable to open patch file: %s\n",
-                    datafile);
+            fprintf(stderr,"pdbpatchbval: Unable to open patch file: \
+%s\n", datafile);
             return(1);
          }
       }
@@ -404,20 +406,21 @@ BOOL ParseCmdLine(int argc, char **argv, char *datafile, char *infile,
 -  29.05.96 Original   By: ACRM
 -  28.08.13 V1.2
 -  22.07.14 V1.3 By: CTP
+-  06.11.14 V1.4 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPatchBVal V1.3 (c) 1996-2014, Dr. Andrew C. R. \
+   fprintf(stderr,"\npdbpatchbval V1.4 (c) 1996-2014, Dr. Andrew C.R. \
 Martin, UCL\n");
 
-   fprintf(stderr,"\nUsage: patchbval [-o] [-v] patchfile [in.pdb \
+   fprintf(stderr,"\nUsage: pdbpatchbval [-o] [-v] patchfile [in.pdb \
 [out.pdb]]\n");
    fprintf(stderr,"       -o  Place the patches in the occupancy \
 column\n");
    fprintf(stderr,"       -v  Verbose: report failed patches\n");
 
-   fprintf(stderr,"\nPatchBVal takes a patch file containing residue \
-specifications and\n");
+   fprintf(stderr,"\npdbpatchbval takes a patch file containing \
+residue specifications and\n");
    fprintf(stderr,"values one to a line and patches the B-value (or \
 occupancy) for that\n");
    fprintf(stderr,"residue with the specified values. The residue \

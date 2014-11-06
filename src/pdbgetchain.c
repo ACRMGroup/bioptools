@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       getchain.c
+   \file       pdbgetchain.c
    
-   \version    V1.6
-   \date       22.07.14
+   \version    V1.7
+   \date       06.11.14
    \brief      Extract chains from a PDB file
    
    \copyright  (c) UCL / Dr. Andrew C. R. Martin 1997-2014
@@ -56,6 +56,7 @@
 -  V1.5  29.06.09 Added -a parameter for ATOMs only (discards HETATMs)
 -  V1.6  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.7  06.11.14 Renamed from getchain  By: ACRM
 
 
 *************************************************************************/
@@ -332,13 +333,15 @@ BOOL WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains)
 -  22.05.09 V1.4
 -  29.06.09 V1.5
 -  22.07.14 V1.6 By: CTP
+-  06.11.14 V1.7 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\ngetchain V1.6 (c) 1997-2014 Dr. Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\npdbgetchain V1.7 (c) 1997-2014 Dr. Andrew C.R. \
+Martin, UCL\n");
 
-   fprintf(stderr,"\nUsage: getchain [-n] [-l] [-k] [-a] chains [in.pdb \
-[out.pdb]]\n");
+   fprintf(stderr,"\nUsage: pdbgetchain [-n] [-l] [-k] [-a] chains \
+[in.pdb [out.pdb]]\n");
    fprintf(stderr,"       -n Specify chains numerically: 1 is the first \
 chain, 2 the second,\n");
    fprintf(stderr,"          etc. Maximum chain number is therefore 0 \
@@ -348,7 +351,7 @@ chain, 2 the second,\n");
    fprintf(stderr,"       -k Retain PDB headers\n");
    fprintf(stderr,"       -a ATOMs only (discard HETATMs)\n");
 
-   fprintf(stderr,"\nGetchain reads a PDB file and write out only those \
+   fprintf(stderr,"\npdbgetchain reads a PDB file and write out only those \
 chains specified\n");
    fprintf(stderr,"on the command line. If input and output filenames \
 are not given\n");

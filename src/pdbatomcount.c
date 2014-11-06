@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       atomcount.c
+   \file       pdbatomcount.c
    
-   \version    V1.4
-   \date       19.08.14
+   \version    V1.5
+   \date       06.11.14
    \brief      Count atoms neighbouring each atom in a PDB file
                Results output in B-val column
    
@@ -55,6 +55,7 @@
                   Added doxygen annotation. By: CTP
 -  V1.4  19.08.14 Fixed call to renamed function: blStripWatersPDBAsCopy()
                   By: CTP
+-  V1.6  06.11.14 Renamed from atomcount
 
 *************************************************************************/
 /* Includes
@@ -509,12 +510,13 @@ BOOL ResSep(PDB *pdb, PDB *pr, PDB *qr)
 -  24.08.94 V1.1
 -  29.04.08 V1.2
 -  22.07.14 V1.3 By: CTP
+-  06.11.14 V1.5 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nAtomCount V1.3 (c) 1994-2014, Andrew C.R. Martin, \
-UCL\n");
-   fprintf(stderr,"Usage: atomcount [-r <rad>] [-d|-b|-c|-n] [-w] \
+   fprintf(stderr,"\npdbatomcount V1.5 (c) 1994-2014, Andrew C.R. \
+Martin, UCL\n");
+   fprintf(stderr,"Usage: pdbatomcount [-r <rad>] [-d|-b|-c|-n] [-w] \
 [<in.pdb>] [<out.pdb>]\n");
    fprintf(stderr,"                 -r Specify radius (Default: %.2f or \
 %.2f with -c/-n)\n", DEFRAD, DEFCRAD);

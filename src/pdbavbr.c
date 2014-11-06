@@ -1,9 +1,9 @@
 /************************************************************************/
 /**
 
-   \file       avbr.c
+   \file       pdbavbr.c
    
-   \version    V1.1
+   \version    V1.2
    \date       22.07.14
    \brief      Calc means and SDs of BValues by residue type
    
@@ -49,6 +49,7 @@
 -  V1.0  07.10.94 Original
 -  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.2  06.11.14 Renamed from avbr
 
 *************************************************************************/
 /* Includes
@@ -162,11 +163,13 @@ int main(int argc, char **argv)
 
 -  07.10.94 Original    By: ACRM
 -  22.07.14 V1.1 By: CTP
+-  06.11.14 V1.2 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nabvr V1.1 (c) 1994-2014, Dr. Andrew C.R. Martin, UCL\n");
-   fprintf(stderr,"Usage: abvr [-n] [-m maxval] [-b nbin] [in.pdb] \
+   fprintf(stderr,"\npdbavbr V1.2 (c) 1994-2014, Dr. Andrew C.R. \
+Martin, UCL\n");
+   fprintf(stderr,"Usage: pdbavbr [-n] [-m maxval] [-b nbin] [in.pdb] \
 [output.txt]\n");
    fprintf(stderr,"       -n  Normalise output bars (sum will be 1.0)\n");
    fprintf(stderr,"       -m  Specify max value on x-axis\n");

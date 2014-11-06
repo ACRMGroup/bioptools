@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       addhet.c
+   \file       pdbaddhet.c
    
-   \version    V2.1
-   \date       22.07.14
+   \version    V2.2
+   \date       06.11.14
    \brief      Add HETATMs back into a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 2002-2014
@@ -49,6 +49,7 @@
 -  V2.0  08.07.02    Version 2 original   By: ACRM
 -  V2.1  22.07.14    Renamed deprecated functions with bl prefix.
                      Added doxygen annotation. By: CTP
+-  V2.2  06.11.14    Changed name from addhet to pdbaddhet
 
 *************************************************************************/
 /* Includes */
@@ -93,7 +94,7 @@ int main (int argc, char *argv[])
    /* check correct number of files are specified on command line */
    if(argc !=4)
    {
-      fprintf(stderr, "Usage: addhet complete.pdb domain.pdb \
+      fprintf(stderr, "Usage: pdbaddhet complete.pdb domain.pdb \
 domhet.pdb\n");
       exit(1);
    }

@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       numpdb.c
+   \file       setpdbnumbering.c
    
-   \version    V1.1
-   \date       22.07.14
+   \version    V1.2
+   \date       06.11.14
    \brief      Apply standard numbering to a set of PDB files
    
    \copyright  (c) Dr. Andrew C. R. Martin 1996-2014
@@ -56,6 +56,7 @@
 
 -  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.2  06.11.14 Renamed from numpdb By: ACRM
 
 *************************************************************************/
 /* Includes
@@ -169,13 +170,14 @@ int main(int argc, char **argv)
 
 -  05.02.96 Original    By: ACRM
 -  22.07.14 V1.1 By: CTP
+-  06.11.14 V1.2 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nNumPDB V1.1, (c) 1996-2014 Dr. Andrew C.R. Martin, \
-UCL\n");
+   fprintf(stderr,"\nsetpdbnumbering V1.2, (c) 1996-2014 Dr. Andrew C.R. \
+Martin, UCL\n");
 
-   fprintf(stderr,"\nUsage: numpdb <alnfile>\n");
+   fprintf(stderr,"\nUsage: setpdbnumbering <alnfile>\n");
 
    fprintf(stderr,"\nApplies a standard numbering scheme to a set of PDB \
 files. The input \n");

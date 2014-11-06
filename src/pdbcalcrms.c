@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       rmspdb.c
+   \file       pdbcalcrms.c
    
-   \version    V1.2
-   \date       19.08.14
+   \version    V1.3
+   \date       06.11.14
    \brief      Calculate RMS between 2 PDB files. Does no fitting.
    
    \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
@@ -51,6 +51,7 @@
                   Added doxygen annotation. By: CTP
 -  V1.2  19.08.14 Added AsCopy suffix to calls to blSelectAtomsPDB() and 
                   blStripHPDBAsCopy By: CTP
+-  V1.3  06.11.14 Renamed from rmspdb
 
 *************************************************************************/
 /* Includes
@@ -342,11 +343,13 @@ BOOL ParseCmdLine(int argc, char **argv, char *file1, char *file2,
 
 -  01.11.94 Original    By: ACRM
 -  22.07.14 V1.1 By: CTP
+-  06.11.14 V1.3 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nRmsPDB V1.1 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
-   fprintf(stderr,"Usage: rmspdb [-h] [-c] [-b] [-m] <in1.pdb> \
+   fprintf(stderr,"\npdbcalcrms V1.3 (c) 1994-2014, Andrew C.R. \
+Martin, UCL\n");
+   fprintf(stderr,"Usage: pdbcalcrms [-h] [-c] [-b] [-m] <in1.pdb> \
 <in2.pdb>\n");
    fprintf(stderr,"                -h Include hydrogens\n");
    fprintf(stderr,"                -c CAs only\n");

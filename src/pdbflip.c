@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       flip.c
+   \file       pdbflip.c
    
-   \version    V1.2
-   \date       19.08.14
+   \version    V1.3
+   \date       06.11.14
    \brief      Standardise equivalent atom labelling
    
    \copyright  (c) Dr. Andrew C. R. Martin 1996-2014
@@ -50,6 +50,7 @@
 -  V1.1   22.07.14 Renamed deprecated functions with bl prefix.
                    Added doxygen annotation. By: CTP
 -  V1.2   19.08.14 Removed unused variable in DoFlipping() By: CTP
+-  V1.3   06.11.14 Renamed from flip
 
 *************************************************************************/
 /* Includes
@@ -218,13 +219,15 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
 -  08.11.96 Original   By: ACRM
 -  22.07.14 V1.1 By: CTP
+-  06.11.14 V1.2 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nflip V1.1 (c) 2014 Dr. Andrew C.R. Martin, UCL\n");
-   fprintf(stderr,"\nUsage: flip [in.pdb [out.pdb]]\n");
+   fprintf(stderr,"\npdbflip V1.2 (c) 2014 Dr. Andrew C.R. Martin, \
+UCL\n");
+   fprintf(stderr,"\nUsage: pdbflip [in.pdb [out.pdb]]\n");
 
-   fprintf(stderr,"\nFlip is a rather crude and simple program for \
+   fprintf(stderr,"\npdbflip is a rather crude and simple program for \
 correcting the atom\n");
    fprintf(stderr,"naming of equivalent atoms about freely rotable \
 bonds. Currently\n");

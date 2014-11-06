@@ -1,13 +1,13 @@
 /************************************************************************/
 /**
 
-   \file       rotate.c
+   \file       pdbrotate.c
    
-   \version    V1.3
-   \date       22.07.14
-   \brief      Simple program to rotate PDB files
+   \version    V1.4
+   \date       06.11.14
+   \brief      Simple program to pdbrotate PDB files
    
-   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1994-7-2014
+   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1994-2014
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -51,6 +51,7 @@
 -  V1.2  29.09.97 Added -n option
 -  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.4  06.11.14 Renamed from rotate  By: ACRM
 
 *************************************************************************/
 /* Includes
@@ -188,7 +189,8 @@ int main(int argc, char **argv)
 
    if(!DoCentre && !GotMatrix)
    {
-      fprintf(stderr,"rotate: Error -n may may only bed used with -m\n");
+      fprintf(stderr,"pdbrotate: Error -n may may only be used \
+with -m\n");
       return(1);
    }
    
@@ -325,19 +327,23 @@ BOOL BuildRotInstruct(ROTLIST **pRotList, char direction, char *amount)
 -  21.07.95 V1.1 Added -m
 -  29.09.97 V1.2 Added -n
 -  22.07.14 V1.3 By: CTP
+-  06.11.14 V1.4 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nRotate V1.3  (c) 1994-2014 Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\npdbrotate V1.4  (c) 1994-2014 Andrew C.R. \
+Martin, UCL\n");
    fprintf(stderr,"Freely distributable if no profit is made\n\n");
-   fprintf(stderr,"Usage: rotate [-m 11 12 13 21 22 23 31 32 33] [-h]\n");
+   fprintf(stderr,"Usage: pdbrotate [-m 11 12 13 21 22 23 31 32 33] \
+[-h]\n");
    fprintf(stderr,"              [-n] [<input.pdb> [<output.pdb>]]\n");
    fprintf(stderr,"       --or--\n");
-   fprintf(stderr,"       rotate [-x <ang>] [-y <ang>] [-z <ang>] \
+   fprintf(stderr,"       pdbrotate [-x <ang>] [-y <ang>] [-z <ang>] \
 [-h]\n");
    fprintf(stderr,"              [<input.pdb> [<output.pdb>]]\n\n");
    fprintf(stderr,"       -m           Specify rotation matrix\n");
-   fprintf(stderr,"       -n           Do not move to CofG before applying\
+   fprintf(stderr,"       -n           Do not move to CofG before \
+applying\
  matrix\n");
    fprintf(stderr,"       -x, -y, -z   Specify rotations (in degrees)\n");
    fprintf(stderr,"       -h           This help message\n");

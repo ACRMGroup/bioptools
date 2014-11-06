@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       sumbval.c
+   \file       pdbsumbval.c
    
-   \version    V1.3
-   \date       22.07.14
+   \version    V1.4
+   \date       06.11.14
    \brief      Sum B-vals over each residue and replace with the
                summed or average value
    
@@ -52,6 +52,7 @@
 -  V1.2  24.08.94 Changed to call OpenStdFiles()
 -  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.4  06.11.14 Renamed from sumbval  By: ACRM
 
 *************************************************************************/
 /* Includes
@@ -213,11 +214,13 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  06.07.94 V1.1
 -  24.08.94 V1.2
 -  22.07.14 V1.3 By: CTP
+-  06.11.14 V1.4 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nSumBVal V1.3 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
-   fprintf(stderr,"Usage: sumbval [-a] [-s] [-q] [<in.pdb>] \
+   fprintf(stderr,"\npdbsumbval V1.4 (c) 1994-2014, Andrew C.R. \
+Martin, UCL\n");
+   fprintf(stderr,"Usage: pdbsumbval [-a] [-s] [-q] [<in.pdb>] \
 [<out.pdb>]\n");
    fprintf(stderr,"                -a Average over the residues\n");
    fprintf(stderr,"                -s Separate s/c and m/c\n");

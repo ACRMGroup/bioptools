@@ -1,13 +1,13 @@
 /************************************************************************/
 /**
 
-   \file       renumpdb.c
+   \file       pdbrenum.c
    
-   \version    V1.9
-   \date       22.07.14
+   \version    V1.10
+   \date       06.11.14
    \brief      Renumber a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1994-6-2014
+   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1994-2014
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -58,6 +58,7 @@
 -  V1.8  14.11.96 -r wasn't working with blank chain names
 -  V1.9  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.10 06.11.14 Renamed from renumpdb  By: ACRM
 
 *************************************************************************/
 /* Includes
@@ -319,13 +320,14 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  13.05.96 V1.7
 -  14.11.96 V1.8
 -  22.07.14 V1.9 By: CTP
+-  06.11.14 V1.10 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nRenumPDB V1.9 (c) 1994-2014 Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"\npdbrenum V1.10 (c) 1994-2014 Dr. Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"Freely distributable if no profit is made\n\n");
-   fprintf(stderr,"Usage: renumpdb [-s] [-k] [-c <chains>] [-n] [-d] \
+   fprintf(stderr,"Usage: pdbrenum [-s] [-k] [-c <chains>] [-n] [-d] \
 [-r <num>,<num>...] [-a <num> ]\n                \
 [<infile>] [<outfile>]\n");
    fprintf(stderr,"       -s Renumber sequentially throughout \

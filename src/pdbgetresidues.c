@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       getresidues.c
+   \file       pdbgetresidues.c
    
-   \version    V1.1
-   \date       22.07.14
+   \version    V1.2
+   \date       06.11.14
    \brief      Extract a set of residues from a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 2010-2014
@@ -46,9 +46,10 @@
 
    Revision History:
    =================
--  V1.0  15.06.10  Original
+-  V1.0  15.06.10 Original
 -  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.2  06.11.14 Renamed from getresidues
 
 *************************************************************************/
 /* Includes
@@ -122,14 +123,14 @@ int main(int argc, char **argv)
          {
             if((pdb=blReadPDB(in, &natom))==NULL)
             {
-               fprintf(stderr,"Error: getresidues - No atoms read from \
+               fprintf(stderr,"Error: pdbgetresidues - No atoms read from \
 PDB file\n");
                return(1);
             }
             
             if((reslist = ReadResidueList(rfp))==NULL)
             {
-               fprintf(stderr,"Error: getresidues - Failed to read \
+               fprintf(stderr,"Error: pdbgetresidues - Failed to read \
 residues from list\n");
                return(1);
             }
@@ -297,17 +298,18 @@ BOOL ParseCmdLine(int argc, char **argv, char *resfile,
 
    Prints a usage message
 
--  22.07.14 V1.6 By: CTP
+-  22.07.14 V1.1 By: CTP
+-  06.11.14 V1.2 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\ngetresidues V1.1 (c) 2010-2014, UCL, Dr. Andrew C.R. \
-Martin\n");
-   fprintf(stderr,"\nUsage: getresidues resfile [in.pdb [out.pdb]]\n");
+   fprintf(stderr,"\npdbgetresidues V1.2 (c) 2010-2014, UCL, Dr. Andrew \
+C.R. Martin\n");
+   fprintf(stderr,"\nUsage: pdbgetresidues resfile [in.pdb [out.pdb]]\n");
 
    fprintf(stderr,"\nresfile is a file listing residue specifications in \
 the format \n");
-   fprintf(stderr,"[c][.]nnn[i]\n");
+   fprintf(stderr,"[c[.]]nnn[i]\n");
    fprintf(stderr,"where [c] is an optional chain specification which \
 may be followed by a \n");
    fprintf(stderr,"full stop (required if the chain label is a number), \

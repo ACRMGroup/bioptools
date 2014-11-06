@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       GetPDB.c
+   \file       pdbgetzone.c
    
-   \version    V1.5
-   \date       19.08.14
+   \version    V1.6
+   \date       06.11.14
    \brief      Extract a numbered zone from a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 1996-2014
@@ -59,6 +59,8 @@
                     Added doxygen annotation. By: CTP
 -  V1.5   19.08.14  Fixed call to renamed function: 
                     blExtractZonePDBAsCopy() By: CTP
+-  V1.6   06.11.14  Renamed from getpdb  By: ACRM
+
 *************************************************************************/
 /* Includes
 */
@@ -122,7 +124,7 @@ int main(int argc, char **argv)
 
          if((pdb=blReadPDB(in, &natom))==NULL)
          {
-            fprintf(stderr,"getpdb: No atoms read from PDB file\n");
+            fprintf(stderr,"pdbgetzone: No atoms read from PDB file\n");
             return(1);
          }
          
@@ -142,20 +144,20 @@ int main(int argc, char **argv)
          }
          if(!ParseResSpec1Result)
          {
-            fprintf(stderr,"getpdb: Illegal residue specification (%s)\n",
-                    Zone1);
+            fprintf(stderr,"pdbgetzone: Illegal residue specification \
+(%s)\n", Zone1);
             return(1);
          }
          if(!ParseResSpec2Result)
          {
-            fprintf(stderr,"getpdb: Illegal residue specification (%s)\n",
-                    Zone2);
+            fprintf(stderr,"pdbgetzone: Illegal residue specification \
+(%s)\n", Zone2);
             return(1);
          }
          if((pdb = blExtractZonePDBAsCopy(pdb, chain1, res1, insert1,
                                           chain2, res2, insert2))==NULL)
          {
-            fprintf(stderr,"getpdb: Zone not found (%s or %s)\n",
+            fprintf(stderr,"pdbgetzone: Zone not found (%s or %s)\n",
                     Zone1, Zone2);
             return(1);
          }
@@ -273,15 +275,16 @@ BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
    Prints a usage message
 
 -  22.07.14 V1.4 By: CTP
+-  06.11.14 V1.6 By: ACRM
 */
 void Usage(void)
 {
    fprintf(stderr,"\n");
-   fprintf(stderr,"GetPDB V1.4 (c) 1996-2014, Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"pdbgetzone V1.6 (c) 1996-2014, Dr. Andrew C.R. Martin, \
 UCL.\n");
    fprintf(stderr,"            Modified by Tony Lewis, UCL, 2005\n");
 
-   fprintf(stderr,"\nUsage: getpdb [-l] start end [in.pdb [out.pdb]]\n");
+   fprintf(stderr,"\nUsage: pdbgetzone [-l] start end [in.pdb [out.pdb]]\n");
    fprintf(stderr,"       -l  Do not uppercase residue \
 specifications.\n");
    fprintf(stderr,"           Default behaviour is to uppercase \
@@ -293,7 +296,7 @@ form [c]nnn[i]\n");
 a residue number\n");
    fprintf(stderr,"and [i] is an optional insertion code.\n");
 
-   fprintf(stderr,"\nGetPDB extracts a specified zone from a PDB file \
+   fprintf(stderr,"\npdbgetzone extracts a specified zone from a PDB file \
 writing it out in\n");
    fprintf(stderr,"PDB format. I/O is through standard input/output if \
 filenames are\n");

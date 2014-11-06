@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       checkforres.c
+   \file       pdbcheckforres.c
    
-   \version    V1.3
-   \date       22.07.14
+   \version    V1.4
+   \date       06.11.14
    \brief      Checks whether a specified residue exists in a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 2011-2014
@@ -53,6 +53,7 @@
 -  V1.2   28.08.13  Modified for new ParseResSpec()
 -  V1.3   22.07.14  Renamed deprecated functions with bl prefix.
                     Added doxygen annotation. By: CTP
+-  V1.4   06.11.14  Renamed from checkforres
 
 *************************************************************************/
 /* Includes
@@ -126,7 +127,7 @@ int main(int argc, char **argv)
          
          if(pdb==NULL)
          {
-            fprintf(stderr,"checkforres: No atoms read from PDB file\n");
+            fprintf(stderr,"pdbcheckforres: No atoms read from PDB file\n");
             return(1);
          }
          
@@ -142,8 +143,8 @@ int main(int argc, char **argv)
          }
          if(!ParseResSpecResult)
          {
-            fprintf(stderr,"checkforres: Illegal residue specification (%s)\n",
-                    resid);
+            fprintf(stderr,"pdbcheckforres: Illegal residue \
+specification (%s)\n", resid);
             return(1);
          }
 
@@ -267,12 +268,14 @@ BOOL ParseCmdLine(int argc, char **argv, char *resid,
    Prints a usage message
 
 -  22.07.14 V1.3 By: CTP
+-  06.11.14 V1.4 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\ncheckforres V1.3 (c) 2011-2014, UCL, Dr. Andrew C.R. \
-Martin\n");
-   fprintf(stderr,"Usage: checkforres [-l][-H] resid [in.pdb [out.txt]]\n");
+   fprintf(stderr,"\npdbcheckforres V1.4 (c) 2011-2014, UCL, Dr. \
+Andrew C.R. Martin\n");
+   fprintf(stderr,"Usage: pdbcheckforres [-l][-H] resid [in.pdb \
+[out.txt]]\n");
    fprintf(stderr,"       -l  Do not uppercase residue \
 specifications.\n");
    fprintf(stderr,"           Default behaviour is to uppercase \

@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       centralres.c
+   \file       pdbcentralres.c
    
-   \version    V1.1
-   \date       22.07.14
+   \version    V1.2
+   \date       06.11.14
    \brief      Find the residue nearest the centroid of a protein
    
    \copyright  (c) Dr. Andrew C. R. Martin 2012-2014
@@ -49,6 +49,7 @@
 
 -  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.2  06.11.14 Renamed as pdbcentralres By: ACRM
 
 *************************************************************************/
 /* Includes
@@ -202,12 +203,13 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 
 -  08.11.96 Original   By: ACRM
 -  22.07.14 V1.1 By: CTP
+-  06.11.14 V1.2 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\ncentralres V1.1 (c) 2012-2014 UCL, \
+   fprintf(stderr,"\npdbcentralres V1.2 (c) 2012-2014 UCL, \
 Dr. Andrew C.R. Martin\n");
-   fprintf(stderr,"\nUsage: centralres [in.pdb [out.pdb]]\n");
+   fprintf(stderr,"\nUsage: pdbcentralres [in.pdb [out.pdb]]\n");
 
    fprintf(stderr,"Identifies the residue closest to the centroid \
 of a protein.\n\n");

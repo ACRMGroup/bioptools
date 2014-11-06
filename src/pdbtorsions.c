@@ -1,14 +1,14 @@
 /************************************************************************/
 /**
 
-   \file       torsions.c
+   \file       pdbtorsions.c
    
-   \version    V1.4
-   \date       19.08.14
+   \version    V1.5
+   \date       06.11.14
    \brief      Generate a complete set of backbone torsion angles for a 
                protein.
    
-   \copyright  (c) Andrew C.R. Martin 1994-5-2014
+   \copyright  (c) Andrew C.R. Martin 1994-2014
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure and Modelling Unit,
@@ -59,6 +59,7 @@
                   Added doxygen annotation. By: CTP
 -  V1.4  19.08.14 Added AsCopy suffix to call to blSelectAtomsPDB() 
                   By: CTP
+-  V1.5  06.11.14 Renamed from torsions
 
 *************************************************************************/
 /* Includes
@@ -361,14 +362,15 @@ void ShowTorsions(FILE *out, PDB *pdb, REAL *tors, BOOL Radians,
 -  16.08.94 Added -m
 -  12.06.95 Added -c
 -  22.07.14 V1.3 By: CTP
+-  06.11.14 V1.5 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\ntorsions V1.3. (c) 1994-2014 Andrew Martin, UCL. \
+   fprintf(stderr,"\npdbtorsions V1.5 (c) 1994-2014 Andrew Martin, UCL. \
 Freely Distributable\n");
    fprintf(stderr,"Generates a set of backbone torsions from a PDB \
 file.\n\n");
-   fprintf(stderr,"Usage: torsions [-h] [-r] [<in.pdb> [<out.tor>]]\n");
+   fprintf(stderr,"Usage: pdbtorsions [-h] [-r] [<in.pdb> [<out.tor>]]\n");
    fprintf(stderr,"       -h   This help message\n");
    fprintf(stderr,"       -r   Give results in radians\n");
    fprintf(stderr,"       -m   Output format required by Martin \

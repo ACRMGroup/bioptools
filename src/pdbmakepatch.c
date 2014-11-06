@@ -1,10 +1,10 @@
 /************************************************************************/
 /**
 
-   \file       makepatch.c
+   \file       pdbmakepatch.c
    
-   \version    V1.9
-   \date       19.08.14
+   \version    V1.10
+   \date       06.11.14
    \brief      Build patches around a surface atom
    
    \copyright  (c) UCL / Dr. Andrew C. R. Martin 2009-2014
@@ -57,27 +57,28 @@
    Revision History:
    =================
 
--  V1.0 01.06.09  Original    By: ACRM
--  V1.1 02.06.09  -s command line option added   By: Anja
-                  checking for solvent vector in FlagWholeResidues added
-                  (This is the same as Anja's working_makepatch.c dated
+-  V1.0  01.06.09  Original    By: ACRM
+-  V1.1  02.06.09  -s command line option added   By: Anja
+                   checking for solvent vector in FlagWholeResidues added
+                   (This is the same as Anja's working_makepatch.c dated
                    16.12.09)
--  V1.2 26.06.11  Just a cleanup of V1.1 with comments added on the new
-                  code  By: ACRM
--  V1.3 09.05.13  Added -c option
--  V1.4 02.10.13  Added -m option
--  V1.5 02.10.13  Modified Anya's code to use the SetFlag() GetFlag()
-                  routines that use the 'extras' field rather than the
-                  'bval' field.
--  V1.6 04.11.13  Added check that central residue is found in 
-                  FlagSolvVecAngles()
--  V1.7 05.11.13  CalcMassCentre() now takes the number of atoms as a
-                  parameter and checks that it doesn't go off the atoms
-                  array. Was core dumping on very small PDB files
--  V1.8 22.07.14  Renamed deprecated functions with bl prefix.
-                  Added doxygen annotation. By: CTP
--  V1.9 19.08.14  Added AsCopy suffix to call to blSelectAtomsPDB() 
-                  By: CTP
+-  V1.2  26.06.11  Just a cleanup of V1.1 with comments added on the new
+                   code  By: ACRM
+-  V1.3  09.05.13  Added -c option
+-  V1.4  02.10.13  Added -m option
+-  V1.5  02.10.13  Modified Anya's code to use the SetFlag() GetFlag()
+                   routines that use the 'extras' field rather than the
+                   'bval' field.
+-  V1.6  04.11.13  Added check that central residue is found in 
+                   FlagSolvVecAngles()
+-  V1.7  05.11.13  CalcMassCentre() now takes the number of atoms as a
+                   parameter and checks that it doesn't go off the atoms
+                   array. Was core dumping on very small PDB files
+-  V1.8  22.07.14  Renamed deprecated functions with bl prefix.
+                   Added doxygen annotation. By: CTP
+-  V1.9  19.08.14  Added AsCopy suffix to call to blSelectAtomsPDB() 
+                   By: CTP
+-  V1.10 06.11.14  Renamed from makepatch
 
 *************************************************************************/
 /* Includes
@@ -178,7 +179,7 @@ int main(int argc, char **argv)
       {
          if((pdb=blReadPDB(in, &natom))==NULL)
          {
-            fprintf(stderr,"makepatch: (Error) No atoms read from PDB \
+            fprintf(stderr,"pdbmakepatch: (Error) No atoms read from PDB \
 file\n");
             return(1);
          }
@@ -235,13 +236,14 @@ file\n");
 -  04.11.13  V1.6
 -  05.11.13  V1.7
 -  22.07.14  V1.8 By: CTP
+-  06.11.14  V1.10 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nmakepatch V1.8 Andrew C.R. Martin, Anja Baresic, \
-UCL 2009-2014\n");
+   fprintf(stderr,"\npdbmakepatch V1.10 Andrew C.R. Martin, Anja \
+Baresic, UCL 2009-2014\n");
 
-   fprintf(stderr,"\nUsage: makepatch [-r radius] [-t tolerance] [-c] \
+   fprintf(stderr,"\nUsage: pdbmakepatch [-r radius] [-t tolerance] [-c] \
 [-m minaccess] resspec atomname \n");
    fprintf(stderr,"                 [in.pdb [out.pdb]]\n");
    fprintf(stderr,"       -r  Specify radius for considering atoms \
@@ -252,12 +254,12 @@ consider them as \n");
            (REAL)DEF_TOLERANCE, (REAL)DEF_RING_TOLERANCE);
    fprintf(stderr,"       -s  Print a summary of all residues in a \
 patch\n");
-   fprintf(stderr,"       -c  Ring of contacting residues immediately around \
-the central one only\n");
+   fprintf(stderr,"       -c  Ring of contacting residues immediately \
+around the central one only\n");
    fprintf(stderr, "       -m  Specify minimum accessibility to consider a \
 residue to be on the surface\n");
 
-   fprintf(stderr,"\nmakepatch takes a PDB file where the B-values have \
+   fprintf(stderr,"\npdbmakepatch takes a PDB file where the B-values have \
 been replaced by\n");
    fprintf(stderr,"accessibility and the occupancy by VDW radii. Such a \
 file can be\n");
@@ -313,7 +315,7 @@ void MakePatches(PDB *pdb, char *CentreRes, char *CentreAtom,
    }
    if(!Found)
    {
-      fprintf(stderr, "makepatch: (Error) Couldn't find Residue %s \
+      fprintf(stderr, "pdbmakepatch: (Error) Couldn't find Residue %s \
 Atom %s\n",
               CentreRes, CentreAtom);
       exit(1);
@@ -393,8 +395,9 @@ Atom %s\n",
 #ifdef DEBUG
                                  else
                                  {
-                                    fprintf(stderr, "makepatch: (Debug) \
-Residue %s%d%s failed on angle test\n", q->chain, q->resnum, q->insert);
+                                    fprintf(stderr, "pdbmakepatch: \
+(Debug) Residue %s%d%s failed on angle test\n", 
+                                            q->chain, q->resnum, q->insert);
                                  }
 #endif
                               }
@@ -757,7 +760,7 @@ void FlagSolvVecAngles(PDB *CA, char *Central, int natom)
    /* for Central                                                       */
    if((patchCentre = blFindResidueSpec(CA, Central))==NULL)
    {
-      fprintf(stderr, "makepatch: (Error) Couldn't find Residue %s\n", 
+      fprintf(stderr, "pdbmakepatch: (Error) Couldn't find Residue %s\n", 
               Central);
       exit(1);
    }
@@ -786,7 +789,7 @@ void FlagSolvVecAngles(PDB *CA, char *Central, int natom)
          ClearFlag(current);
 
 #ifdef DEBUG
-         fprintf(stderr,"makepatch: (Debug) %s%d%s was eliminated by \
+         fprintf(stderr,"pdbmakepatch: (Debug) %s%d%s was eliminated by \
 solvvec FlagSolvVecAngles\n", 
                  current->chain, current->resnum, current->insert);
 #endif
