@@ -1,36 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    dummystrip
-   File:       dummystrip.c
+   \file       dummystrip.c
    
-   Version:    V1.0
-   Date:       04.07.94
-   Function:   Remove dummy atoms from a PDB file
+   \version    V1.1
+   \date       22.07.14
+   \brief      Remove dummy atoms from a PDB file
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1994
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0372) 275775
-   EMail:      INTERNET: amartin@scitec.adsp.sub.org
-                         martin@bsm.bioc.ucl.ac.uk
-               UUCP:     ...{uunet|rutgers}!cbmehq!cbmuk!scitec!amartin
-               JANET:    martin@uk.ac.ucl.bioc.bsm
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -49,6 +46,9 @@
 
    Revision History:
    =================
+   
+-  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -79,9 +79,12 @@ void Usage(void);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for stripping dummy atoms
 
-   04.07.94 Original    By: ACRM
+-  04.07.94 Original    By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -146,14 +149,14 @@ int main(int argc, char **argv)
       return(1);
    }
 
-   if((pdb=ReadPDB(in,&natom))!=NULL)
+   if((pdb=blReadPDB(in,&natom))!=NULL)
    {
       for(p=pdb;p!=NULL;NEXT(p))
       {
          if(!(p->x > 9998.9 && p->x < 9999.1) &&
              (p->y > 9998.9 && p->y < 9999.1) &&
              (p->z > 9998.9 && p->z < 9999.1))
-            WritePDBRecord(out,p);
+            blWritePDBRecord(out,p);
       }
    }
 }
@@ -161,13 +164,16 @@ int main(int argc, char **argv)
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   04.07.94 Original    By: ACRM
+-  04.07.94 Original    By: ACRM
+-  22.07.14 V1.1 By: CTP
 */
 void Usage(void)
 {            
-   fprintf(stderr,"\nDummyStrip V1.0 (c) 1994, Andrew C.R. Martin, \
+   fprintf(stderr,"\nDummyStrip V1.1 (c) 1994-2014, Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"Usage: dummystrip [<in.pdb>] [<out.pdb>]\n\n");
    fprintf(stderr,"Removes dummy atoms from a PDB file. I/O is through \

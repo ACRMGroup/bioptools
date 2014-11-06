@@ -1,32 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    getchain
-   File:       getchain.c
+   \file       getchain.c
    
-   Version:    V1.5
-   Date:       29.06.09
-   Function:   Extract chains from a PDB file
+   \version    V1.6
+   \date       22.07.14
+   \brief      Extract chains from a PDB file
    
-   Copyright:  (c) UCL / Dr. Andrew C. R. Martin 1997-2009
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) UCL / Dr. Andrew C. R. Martin 1997-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   EMail:      andrew@bioinf.org.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -45,14 +46,17 @@
 
    Revision History:
    =================
-   V1.0  07.02.97 Original   By: ACRM
-   V1.1  24.07.97 Modified such that if the chain is specified as `0'
+-  V1.0  07.02.97 Original   By: ACRM
+-  V1.1  24.07.97 Modified such that if the chain is specified as `0'
                   gets that chain if it exists; otherwise gets everything
-   V1.2  06.01.99 Added -n parameter which gets chains by sequential
+-  V1.2  06.01.99 Added -n parameter which gets chains by sequential
                   number
-   V1.3  06.04.09 Added -l parameter which retains lower case chain names
-   V1.4  21.05.09 Changed to use ReadWholePDB() with -k
-   V1.5  29.06.09 Added -a parameter for ATOMs only (discards HETATMs)
+-  V1.3  06.04.09 Added -l parameter which retains lower case chain names
+-  V1.4  21.05.09 Changed to use ReadWholePDB() with -k
+-  V1.5  29.06.09 Added -a parameter for ATOMs only (discards HETATMs)
+-  V1.6  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
+
 
 *************************************************************************/
 /* Includes
@@ -71,7 +75,7 @@
 /* Converts an integer to a character representation of that integer.
    The input integer is expected to be between 1 and 10. Behaviour
    is undefined outside this range.
-   06.01.99 Original  By: ACRM
+-  06.01.99 Original  By: ACRM
 */
 #define ITOCHAR(x) ((x)==10?'0':'0'+(char)(x))
 
@@ -95,12 +99,15 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for extracting selected chains from a PDB file
 
-   07.02.97 Original   By: ACRM
-   06.04.09 Added lowercase option
-   22.05.09 Added keepHeader
-   29.06.09 Added atomsOnly
+-  07.02.97 Original   By: ACRM
+-  06.04.09 Added lowercase option
+-  22.05.09 Added keepHeader
+-  29.06.09 Added atomsOnly
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -124,16 +131,16 @@ int main(int argc, char **argv)
          UPPER(chains);
       }
       
-      if(OpenStdFiles(InFile, OutFile, &in, &out))
+      if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
          /* 29.06.09 Added atomsOnly option                             */
          if(atomsOnly)
          {
-            wpdb=ReadWholePDBAtoms(in);
+            wpdb=blReadWholePDBAtoms(in);
          }
          else
          {
-            wpdb=ReadWholePDB(in);
+            wpdb=blReadWholePDB(in);
          }
          
          if((wpdb == NULL)||
@@ -160,23 +167,25 @@ int main(int argc, char **argv)
 /*>void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, 
                        BOOL numeric, BOOL keepHeader)
    ------------------------------------------------------------
-   Input:   FILE     *out      Output file pointer
-            WHOLEPDB *pdb      WHOLEPDB structure containing PDB linked 
-                               list
-            char     *chains   Chain names to be written to output file
-            BOOL     numeric   Chains are specified numerically
+*//**
 
-   Like WritePDB(), but takes a list of chain names to be written. Other
+   \param[in]      *out      Output file pointer
+   \param[in]      *pdb      WHOLEPDB structure containing PDB linked 
+   \param[in]      Input:   char     *chains   Chain names to be written to output file
+   \param[in]      numeric   Chains are specified numerically
+
+   Like blWritePDB(), but takes a list of chain names to be written. Other
    chains are not written to the output.
 
    If chain `0' is specified and no chain 0 exists, then the empty chain
    name is written
 
-   07.02.97 Original   By: ACRM
-   24.07.97 Modified to handle chain 0 as being the empty chain if
+-  07.02.97 Original   By: ACRM
+-  24.07.97 Modified to handle chain 0 as being the empty chain if
             chain 0 doesn't exist
-   06.01.99 Added numeric parameter
-   22.05.09 Now takes WHOLEPDB rather than PDB with keepHeader
+-  06.01.99 Added numeric parameter
+-  22.05.09 Now takes WHOLEPDB rather than PDB with keepHeader
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric,
                     BOOL keepHeader)
@@ -189,7 +198,7 @@ void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric,
    
    if(keepHeader)
    {
-      WriteWholePDBHeader(out, wpdb);
+      blWriteWholePDBHeader(out, wpdb);
    }
 
    if(numeric)
@@ -209,7 +218,7 @@ void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric,
                /* Chain change, insert TER card                         */
                fprintf(out,"TER   \n");
             }
-            WritePDBRecord(out,p);
+            blWritePDBRecord(out,p);
             PrevChain = p->chain[0];
             Written = TRUE;
          }
@@ -231,7 +240,7 @@ void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric,
          {
             if(p->chain[0] == ' ')
             {
-               WritePDBRecord(out,p);
+               blWritePDBRecord(out,p);
                Written = TRUE;
             }
          }
@@ -246,7 +255,7 @@ void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric,
 
    if(keepHeader)
    {
-      WriteWholePDBTrailer(out, wpdb);
+      blWriteWholePDBTrailer(out, wpdb);
    }
 }
 
@@ -254,15 +263,18 @@ void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric,
 /************************************************************************/
 /*>BOOL WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains)
    --------------------------------------------------------------
-   Input:   FILE    *out     Output file pointer
-            PDB     *pdb     PDB linked list
-            char    *chains  Chain numbers to be written to output file
+*//**
 
-   Like WritePDB(), but takes a list of chain numbers to be written. 1
+   \param[in]      *out     Output file pointer
+   \param[in]      *pdb     PDB linked list
+   \param[in]      *chains  Chain numbers to be written to output file
+
+   Like blWritePDB(), but takes a list of chain numbers to be written. 1
    is the first chain, 2 the second up to 0 being the 10th. Other
    chains are not written to the output.
 
-   06.01.99 Original   By: ACRM
+-  06.01.99 Original   By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 BOOL WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains)
 {
@@ -297,7 +309,7 @@ BOOL WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains)
       }
       if(strchr(chains,ThisChainChar))
       {
-         WritePDBRecord(out,p);
+         blWritePDBRecord(out,p);
          Written = TRUE;
       }
    }
@@ -309,18 +321,21 @@ BOOL WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains)
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   07.02.97 Original   By: ACRM
-   24.07.97 V1.1
-   06.01.98 V1.2
-   06.04.09 V1.3
-   22.05.09 V1.4
-   29.06.09 V1.5
+-  07.02.97 Original   By: ACRM
+-  24.07.97 V1.1
+-  06.01.98 V1.2
+-  06.04.09 V1.3
+-  22.05.09 V1.4
+-  29.06.09 V1.5
+-  22.07.14 V1.6 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\ngetchain V1.5 (c) 1997-2009 Dr. Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\ngetchain V1.6 (c) 1997-2014 Dr. Andrew C.R. Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: getchain [-n] [-l] [-k] [-a] chains [in.pdb \
 [out.pdb]]\n");
@@ -349,24 +364,26 @@ that name then any chain\n");
                      char *chains, BOOL *numeric, BOOL *lowercase,
                      BOOL *keepHeader, BOOL *atomsOnly)
    ----------------------------------------------------------------------
-   Input:   int    argc        Argument count
-            char   **argv      Argument array
-   Output:  char   *infile     Input filename (or blank string)
-            char   *outfile    Output filename (or blank string)
-            char   *chains     Chain names to be written
-            BOOL   *numeric    Chains are specified numerically
-            BOOL   *lowercase  Chain names may be in lower case
-            BOOL   *keepHeader Keep PDB headers
-            BOOL   *atomsOnly  Discard HETATMs
-   Returns: BOOL               Success
+*//**
+
+   \param[in]      argc        Argument count
+   \param[in]      **argv      Argument array
+   \param[out]     *infile     Input filename (or blank string)
+   \param[out]     *outfile    Output filename (or blank string)
+   \param[out]     *chains     Chain names to be written
+   \param[out]     *numeric    Chains are specified numerically
+   \param[out]     *lowercase  Chain names may be in lower case
+   \param[out]     *keepHeader Keep PDB headers
+   \param[out]     *atomsOnly  Discard HETATMs
+   \return                     Success
 
    Parse the command line
 
-   07.02.97 Original    By: ACRM
-   06.01.99 Added -n and numeric parameter
-   06.04.09 Added -l lowercase option
-   22.05.09 Added -k option
-   29.06.09 Added -a option
+-  07.02.97 Original    By: ACRM
+-  06.01.99 Added -n and numeric parameter
+-  06.04.09 Added -l lowercase option
+-  22.05.09 Added -k option
+-  29.06.09 Added -a option
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   char *chains, BOOL *numeric, BOOL *lowercase,

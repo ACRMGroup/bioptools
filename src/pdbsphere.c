@@ -1,34 +1,35 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    pdbsphere
-   File:       pdbsphere.c
+   \file       pdbsphere.c
    
-   Version:    V1.8
-   Date:       27.07.12
-   Function:   Output all aminoacids within range from central aminoacid 
+   \version    V1.9
+   \date       22.07.14
+   \brief      Output all aminoacids within range from central aminoacid 
                in a PDB file
    
-   Copyright:  (c) UCL/Anja Baresic/Dr. Andrew C.R. Martin
-   Author:     Anja Baresic/Dr. Andrew C.R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) UCL/Anja Baresic/Dr. Andrew C.R. Martin-2014
+   \author     Anja Baresic/Dr. Andrew C.R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
- 
-   Email:      anya@biochem.ucl.ac.uk; andrew@bioinf.org.uk
-               
+   \par
+               anya@biochem.ucl.ac.uk
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
+
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -50,22 +51,24 @@
 
    Revision History:
    =================
-   V1.0  23.10.07  Original
-   V1.1  05.11.07  Added -r, -s, -h command line options
-   V1.2  17.12.07  Summary output format changed to 
+-  V1.0  23.10.07  Original
+-  V1.1  05.11.07  Added -r, -s, -h command line options
+-  V1.2  17.12.07  Summary output format changed to 
                    [chain]:resnum:[insert]
                    By: Anja
-   V1.5  17.05.11  Default summary output format changed to 
+-  V1.5  17.05.11  Default summary output format changed to 
                    [chain].resnum[insert] (as used by ProFit et al)
                    Use -c to get colon separated format. Cleaned up
                    usage message
                    Various code cleanup
                    Changed to use PDB->extras rather than PDB->occ
-   V1.6  26.10.11  Modified to take -H flag which causes the program to
+-  V1.6  26.10.11  Modified to take -H flag which causes the program to
                    assume the residue spec is for a HETATM instead of an
                    ATOM
-   V1.7  14.05.12  Added -a option
-   V1.8  27.07.12  Fixed bug in handling (lack of) -a
+-  V1.7  14.05.12  Added -a option
+-  V1.8  27.07.12  Fixed bug in handling (lack of) -a
+-  V1.9  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 **************************************************************************/
 /* Includes
@@ -101,6 +104,8 @@ void Usage(void);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Takes a PDB file and a central residue ID in [chain[.]]num[insert] 
    format and writes a PDB file containing only those residues within
    a specified radius (default 8A, override with -r). Summary output
@@ -126,9 +131,9 @@ int main(int argc, char **argv)
    if (ParseCmdLine(argc, argv, resspec, InFile, OutFile, &summary, 
                     &radiusSq, &colons, &isHet, &doAuto))
    {
-      if (OpenStdFiles(InFile, OutFile, &in, &out))
+      if (blOpenStdFiles(InFile, OutFile, &in, &out))
       {
-         if((pdb=ReadPDB(in, &natom))==NULL)
+         if((pdb=blReadPDB(in, &natom))==NULL)
          {
             fprintf(stderr,"Error: (pdbsphere) No atoms read from PDB \
 file\n");
@@ -141,7 +146,7 @@ file\n");
 
             if(doAuto)
             {
-               for(central=pdb; central!=NULL; central=FindNextResidue(central))
+               for(central=pdb; central!=NULL; central=blFindNextResidue(central))
                {
                   FlagResiduesInRange(pdb, central, radiusSq);
                   fprintf(out, "%s %s%d%s:",central->resnam, 
@@ -156,11 +161,11 @@ file\n");
             {
                if(isHet)
                {
-                  central=FindHetatmResidueSpec(pdb, resspec);
+                  central=blFindHetatmResidueSpec(pdb, resspec);
                }
                else
                {
-                  central=FindResidueSpec(pdb, resspec);
+                  central=blFindResidueSpec(pdb, resspec);
                }
                
                if(central==NULL)
@@ -196,16 +201,17 @@ found in %s\n", resspec, InFile);
 /**********************************************************************/
 /*>void FlagResiduesInRange(PDB *pdb, PDB *central, REAL *radiusSq)
    ----------------------------------------------------------------
-   Input:   PDB    *pdb     
-            PDB    *central    Pointer to the first atom of a central 
-                               residue
-            REAL   radiusSq    To be flagged, atom has to be within that 
-                               range (radius is squared for speed)
+*//**
+
+   \param[in]      *pdb     
+   \param[in]      *central    Pointer to the first atom of a central 
+   \param[in]      Input:   REAL   radiusSq    To be flagged, atom has to be within that 
+   \param[in]      (radius is squared for speed)
 
    If any atom in a residue is within range from *central, marks all 
    atoms in that residue (sets extras field to 1) 
 
-   17.05.11 Changed double to REAL and use extras field rather than occ
+-  17.05.11 Changed double to REAL and use extras field rather than occ
             By: ACRM
 */
 void FlagResiduesInRange(PDB *pdb, PDB *central, REAL radiusSq)
@@ -218,12 +224,12 @@ void FlagResiduesInRange(PDB *pdb, PDB *central, REAL radiusSq)
    BOOL aaInRange;
       
 
-   nextPRes=FindNextResidue(central);
+   nextPRes=blFindNextResidue(central);
   
    for (current=pdb; current!=NULL; current=nextCurrentRes)
    {
       aaInRange=FALSE;
-      nextCurrentRes=FindNextResidue(current);
+      nextCurrentRes=blFindNextResidue(current);
       
       for (q=current; q!=nextCurrentRes; NEXT(q))
       {            
@@ -252,12 +258,15 @@ void FlagResiduesInRange(PDB *pdb, PDB *central, REAL radiusSq)
 /************************************************************************/
 /*>void WriteAtoms(PDB *pdb, FILE *out)
    ------------------------------------
-   Input:    PDB  *pdb   pointer to beginning of a linked list
-             FILE *out   output file
+*//**
+
+   \param[in]      *pdb   pointer to beginning of a linked list
+   \param[in]      *out   output file
 
    Writes atom's node in *out if extras is set
 
-   17.05.11 Uses PDB->extras instead of PDB->occ
+-  17.05.11 Uses PDB->extras instead of PDB->occ
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 void WriteAtoms(PDB *pdb, FILE *out)
 {  
@@ -267,7 +276,7 @@ void WriteAtoms(PDB *pdb, FILE *out)
    {
       if (p->extras)
       {
-         WritePDBRecord(out, p);
+         blWritePDBRecord(out, p);
       }
    }
 }
@@ -276,22 +285,24 @@ void WriteAtoms(PDB *pdb, FILE *out)
 /************************************************************************/
 /*>void WriteResidues(PDB *pdb, FILE *out, BOOL colons, BOOL compact)
    ------------------------------------------------------------------
-   Input:    PDB  *pdb     pointer to beginning of a linked list
-             FILE *out     output file
-             BOOL *colons  Include colons in output format
+*//**
+
+   \param[in]      *pdb     pointer to beginning of a linked list
+   \param[in]      *out     output file
+   \param[in]      *colons  Include colons in output format
 
    Writes a list of residues' IDs for residues marked with 
    occ>1.90 (returns occ to original value)
 
-   17.05.11 New default output format and takes colon parameter to get
+-  17.05.11 New default output format and takes colon parameter to get
             old format and uses extras rather than occ
-   14.05.12 Added compact
+-  14.05.12 Added compact
 */
 void WriteResidues(PDB *pdb, FILE *out, BOOL colons, BOOL compact)
 {
    PDB *p;
    
-   for (p=pdb; p!=NULL; p=FindNextResidue(p))
+   for (p=pdb; p!=NULL; p=blFindNextResidue(p))
    {
       if (p->extras)
       {
@@ -343,18 +354,20 @@ void WriteResidues(PDB *pdb, FILE *out, BOOL colons, BOOL compact)
 /***********************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Print Usage message
 
-   17.05.11 V1.5 By: ACRM
-   26.10.11 V1.6 By: ACRM
-   14.05.12 V1.7 By: ACRM
-   27.07.12 V1.8 By: ACRM
+-  17.05.11 V1.5 By: ACRM
+-  26.10.11 V1.6 By: ACRM
+-  14.05.12 V1.7 By: ACRM
+-  27.07.12 V1.8 By: ACRM
+-  22.07.14 V1.9 By: CTP
 */
-
 void Usage(void)
 {
    fprintf(stderr,"\n");
-   fprintf(stderr,"PDBsphere V1.8 (c) 2011-2012 UCL, Anja Baresic, \
+   fprintf(stderr,"PDBsphere V1.9 (c) 2011-2014 UCL, Anja Baresic, \
 Andrew Martin.\n");
    fprintf(stderr,"\nUsage: \
 pdbsphere [-s] [-c] [-r radius] [-h] [-H] resID\n                 \
@@ -394,28 +407,30 @@ specified.\n\n");
                     char *OutFile, BOOL *summary, REAL *radiusSq,
                     BOOL *colons, BOOL *isHet, BOOL *doAuto)
    ----------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *resspec     Central residue ID in [chain]num[insert]
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *resspec     Central residue ID in [chain]num[insert]
                                 format
-            char   *InFile      Input file (or blank string)
-            char   *OutFile     Output file (or blank string)
-            BOOL   *summary     Should output be summarised?
+   \param[out]     *InFile      Input file (or blank string)
+   \param[out]     *OutFile     Output file (or blank string)
+   \param[out]     *summary     Should output be summarised?
                                 (Default: no)
-            REAL *radiusSq      Maximum allowed distance of residues' 
+   \param[out]     *radiusSq      Maximum allowed distance of residues' 
                                 coordinates - squared
                                 (Default:64, max range:8 angstroms)
-            BOOL   *colons      Colon separated output format
-            BOOL   *isHet       Residue spec is for a HETATM (-H)
-   Returns: BOOL                Success?
+   \param[out]     *colons      Colon separated output format
+   \param[out]     *isHet       Residue spec is for a HETATM (-H)
+   \return                     Success?
 
    Parse the command line
    
-   26.10.07 Original    By: Anya
-   17.05.11 Changed double to REAL; Added *colons     By: ACRM
-   26.10.11 Added -H
-   14.05.12 Added -a
-   27.07.12 Fixed bug in checking of doAuto
+-  26.10.07 Original    By: Anya
+-  17.05.11 Changed double to REAL; Added *colons     By: ACRM
+-  26.10.11 Added -H
+-  14.05.12 Added -a
+-  27.07.12 Fixed bug in checking of doAuto
 */
 BOOL ParseCmdLine(int argc, char **argv,char *resspec, char *InFile, 
                   char *OutFile, BOOL *summary, REAL *radiusSq, 
@@ -529,9 +544,11 @@ BOOL ParseCmdLine(int argc, char **argv,char *resspec, char *InFile,
 /************************************************************************/
 /*>void ClearExtras(PDB *pdb)
    --------------------------
+*//**
+
    Clear the extras flag in the PDB linked list
 
-   17.05.11 Original   By: ACRM
+-  17.05.11 Original   By: ACRM
 */
 void ClearExtras(PDB *pdb)
 {

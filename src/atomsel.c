@@ -1,36 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    atomsel
-   File:       atomsel.c
+   \file       atomsel.c
    
-   Version:    V1.1
-   Date:       24.08.94
-   Function:   Select atoms from a PDB file. Acts as filter
+   \version    V1.3
+   \date       19.08.14
+   \brief      Select atoms from a PDB file. Acts as filter
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1994
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0372) 275775
-   EMail:      INTERNET: amartin@scitec.adsp.sub.org
-                         martin@bsm.bioc.ucl.ac.uk
-               UUCP:     ...{uunet|rutgers}!cbmehq!cbmuk!scitec!amartin
-               JANET:    martin@uk.ac.ucl.bioc.bsm
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -49,8 +46,11 @@
 
    Revision History:
    =================
-   V1.0  15.07.94 Original    By: ACRM
-   V1.1  24.08.94 Changed to call OpenStdFiles()
+-  V1.0  15.07.94 Original    By: ACRM
+-  V1.1  24.08.94 Changed to call OpenStdFiles()
+-  V1.2  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
+-  V1.3  19.08.14 Removed unused variables in ParseCmdLine() By: CTP
 
 *************************************************************************/
 /* Includes
@@ -95,10 +95,13 @@ BOOL InAtomList(ATOMTYPE *atoms, PDB *p);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for selecting atoms
 
-   04.07.94 Original    By: ACRM
-   24.08.94 Changed to call OpenStdFiles()
+-  04.07.94 Original    By: ACRM
+-  24.08.94 Changed to call OpenStdFiles()
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -114,7 +117,7 @@ int main(int argc, char **argv)
 
    if(ParseCmdLine(argc, argv, &atoms, infile, outfile))
    {
-      if(OpenStdFiles(infile, outfile, &in, &out))
+      if(blOpenStdFiles(infile, outfile, &in, &out))
       {
          /* If no atoms specified, assume CA                            */
          if(atoms == NULL)
@@ -134,7 +137,7 @@ list.\n");
          UpcaseTypes(atoms);
 
          /* Read in the PDB file                                        */
-         if((pdb=ReadPDB(in,&natom))!=NULL)
+         if((pdb=blReadPDB(in,&natom))!=NULL)
          {
             lastchain = pdb->chain[0];
             
@@ -150,7 +153,7 @@ list.\n");
                }
                   
                if(InAtomList(atoms, p))
-                  WritePDBRecord(out,p);
+                  blWritePDBRecord(out,p);
             }
             fprintf(out,"TER   \n");
          }
@@ -171,14 +174,17 @@ list.\n");
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   15.07.94 Original    By: ACRM
-   24.08.94 V1.1
+-  15.07.94 Original    By: ACRM
+-  24.08.94 V1.1
+-  22.07.14 V1.2 By: CTP
 */
 void Usage(void)
 {            
-   fprintf(stderr,"\nAtomSel V1.1 (c) 1994, Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\nAtomSel V1.2 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
    fprintf(stderr,"Usage: atomsel [-atom] [-atom...] [<in.pdb>] \
 [<out.pdb>]\n\n");
    fprintf(stderr,"Selects specfied atom types from a PDB file. \
@@ -191,23 +197,23 @@ are not specified.\n\n");
 /*>BOOL ParseCmdLine(int argc, char **argv, ATOMTYPE **atoms,
                      char *infile, char *outfile)
    ---------------------------------------------------------------------
-   Input:   int      argc        Argument count
-            char     **argv      Argument array
-   Output:  ATOMTYPE **atoms     Linked list of atoms to keep
-            char     *infile     Input filename (or blank string)
-            char     *outfile    Output filename (or blank string)
-   Returns: BOOL                 Success
+*//**
+
+   \param[in]      argc        Argument count
+   \param[in]      **argv      Argument array
+   \param[out]     **atoms     Linked list of atoms to keep
+   \param[out]     *infile     Input filename (or blank string)
+   \param[out]     *outfile    Output filename (or blank string)
+   \return                     Success
 
    Parse the command line
 
-   15.07.94 Original    By: ACRM
+-  15.07.94 Original    By: ACRM
+-  19.08.14 Removed unused variables. By: CTP
 */
 BOOL ParseCmdLine(int argc, char **argv, ATOMTYPE **atoms, char *infile, 
                   char *outfile)
 {
-   char     buffer[80],
-            *chp,
-            *chq;
    ATOMTYPE *a;
    
 
@@ -268,12 +274,15 @@ list.\n");
 /************************************************************************/
 /*>void UpcaseTypes(ATOMTYPE *atoms)
    ---------------------------------
-   I/O:     ATOMTYPE   *atoms    Linked list of atom types
+*//**
+
+   \param[in,out]  *atoms    Linked list of atom types
 
    Upcases the atom types in the specified atom list and pads all names
    to four characters.
 
-   15.07.94 Original   By: ACRM
+-  15.07.94 Original   By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 void UpcaseTypes(ATOMTYPE *atoms)
 {
@@ -281,7 +290,7 @@ void UpcaseTypes(ATOMTYPE *atoms)
    
    for(a=atoms; a!=NULL; NEXT(a))
    {
-      padterm(a->type, 4);
+      blPadterm(a->type, 4);
       UPPER(a->type);
    }
 }
@@ -289,14 +298,17 @@ void UpcaseTypes(ATOMTYPE *atoms)
 /************************************************************************/
 /*>BOOL InAtomList(ATOMTYPE *atoms, PDB *p)
    ----------------------------------------
-   Input:   ATOMTYPE   *atoms    Linked list of required atom types
-            PDB        *p        PDB item to check against list
-   Returns: BOOL                 In list?
+*//**
+
+   \param[in]      *atoms    Linked list of required atom types
+   \param[in]      *p        PDB item to check against list
+   \return                     In list?
 
    Compares an atom name from a PDB item with the linked list of allowed
    atom names.
 
-   15.07.94 Original   By: ACRM
+-  15.07.94 Original   By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 BOOL InAtomList(ATOMTYPE *atoms, PDB *p)
 {

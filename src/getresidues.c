@@ -1,32 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    getresidues
-   File:       getresidues.c
+   \file       getresidues.c
    
-   Version:    V1.0
-   Date:       15.06.10
-   Function:   Extract a set of residues from a PDB file
+   \version    V1.1
+   \date       22.07.14
+   \brief      Extract a set of residues from a PDB file
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 2010
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 2010-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   EMail:      andrew@bioinf.org.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -45,8 +46,10 @@
 
    Revision History:
    =================
-   V1.0  15.06.10  Original
-                    
+-  V1.0  15.06.10  Original
+-  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
+
 *************************************************************************/
 /* Includes
 */
@@ -90,10 +93,13 @@ void PrintResidues(FILE *out, PDB *pdb, RESLIST *reslist);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    main routine
 
-   22.07.96 Original    By: ACRM
-   29.09.05 Modified for -l By: TL
+-  22.07.96 Original    By: ACRM
+-  29.09.05 Modified for -l By: TL
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -112,9 +118,9 @@ int main(int argc, char **argv)
    {
       if((rfp=fopen(ResFile, "r"))!=NULL)
       {
-         if(OpenStdFiles(InFile, OutFile, &in, &out))
+         if(blOpenStdFiles(InFile, OutFile, &in, &out))
          {
-            if((pdb=ReadPDB(in, &natom))==NULL)
+            if((pdb=blReadPDB(in, &natom))==NULL)
             {
                fprintf(stderr,"Error: getresidues - No atoms read from \
 PDB file\n");
@@ -154,7 +160,7 @@ void PrintResidues(FILE *out, PDB *pdb, RESLIST *reslist)
             (p->chain[0] == r->chain) &&
             (p->insert[0] == r->insert))
          {
-            WritePDBRecord(out, p);
+            blWritePDBRecord(out, p);
          }
       }
    }
@@ -172,7 +178,7 @@ RESLIST *ReadResidueList(FILE *fp)
    while(fgets(buffer, MAXBUFF, fp))
    {
       TERMINATE(buffer);
-      if(ParseResSpec(buffer, chain, &resnum, insert))
+      if(blParseResSpec(buffer, chain, &resnum, insert))
       {
          if(reslist == NULL)
          {
@@ -204,19 +210,21 @@ RESLIST *ReadResidueList(FILE *fp)
 /*>BOOL ParseCmdLine(int argc, char **argv, char *resfile,
                      char *infile, char *outfile)
    ----------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *Zone1       First end of zone
-            char   *Zone2       Second end of zone
-            char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            BOOL   *uppercaseresspec  Should residue spec be upcased?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *Zone1       First end of zone
+   \param[out]     *Zone2       Second end of zone
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *uppercaseresspec  Should residue spec be upcased?
                                 (Default: yes)
-   Returns: BOOL                Success?
+   \return                     Success?
 
    Parse the command line
    
-   15.06.10 Original    By: ACRM
+-  15.06.10 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *resfile,
                   char *infile, char *outfile)
@@ -283,9 +291,17 @@ BOOL ParseCmdLine(int argc, char **argv, char *resfile,
 
 
 /************************************************************************/
+/*>void Usage(void)
+   ----------------
+*//**
+
+   Prints a usage message
+
+-  22.07.14 V1.6 By: CTP
+*/
 void Usage(void)
 {
-   fprintf(stderr,"\ngetresidues V1.0 (c) 2010, UCL, Dr. Andrew C.R. \
+   fprintf(stderr,"\ngetresidues V1.1 (c) 2010-2014, UCL, Dr. Andrew C.R. \
 Martin\n");
    fprintf(stderr,"\nUsage: getresidues resfile [in.pdb [out.pdb]]\n");
 

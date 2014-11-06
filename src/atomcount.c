@@ -1,33 +1,34 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    atomcount
-   File:       atomcount.c
+   \file       atomcount.c
    
-   Version:    V1.2
-   Date:       30.04.08
-   Function:   Count atoms neighbouring each atom in a PDB file
+   \version    V1.4
+   \date       19.08.14
+   \brief      Count atoms neighbouring each atom in a PDB file
                Results output in B-val column
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1994-2008
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   EMail:      andrew@bioinf.org.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -46,10 +47,14 @@
 
    Revision History:
    =================
-   V1.0  05.07.94 Original    By: ACRM
-   V1.1  24.08.94 Changed to call OpenStdFiles()
-   V1.2  30.04.08 Added -c (contact) and -n (normcontact). Now strips
+-  V1.0  05.07.94 Original    By: ACRM
+-  V1.1  24.08.94 Changed to call OpenStdFiles()
+-  V1.2  30.04.08 Added -c (contact) and -n (normcontact). Now strips
                   water by default (-w to keep them)
+-  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
+-  V1.4  19.08.14 Fixed call to renamed function: blStripWatersPDBAsCopy()
+                  By: CTP
 
 *************************************************************************/
 /* Includes
@@ -96,11 +101,16 @@ BOOL ResSep(PDB *pdb, PDB *pr, PDB *qr);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for neighbour counting
 
-   05.07.94 Original    By: ACRM
-   24.08.94 Changed to call OpenStdFiles()
-   30.04.08 Now strips water by default - added option to keep them
+-  05.07.94 Original    By: ACRM
+-  24.08.94 Changed to call OpenStdFiles()
+-  30.04.08 Now strips water by default - added option to keep them
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  19.08.14 Fixed call to renamed function blStripWatersPDBAsCopy() 
+            By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -120,21 +130,21 @@ int main(int argc, char **argv)
       /* Square the radius to save on distance sqrt()s                  */
       radius *= radius;
       
-      if(OpenStdFiles(infile, outfile, &in, &out))
+      if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb = ReadPDB(in,&natoms)) != NULL)
+         if((pdb = blReadPDB(in,&natoms)) != NULL)
          {
             if(StripWater)
             {
                PDB *pdb2;
                int natoms;
                
-               pdb2 = StripWatersPDB(pdb, &natoms);
+               pdb2 = blStripWatersPDBAsCopy(pdb, &natoms);
                FREELIST(pdb, PDB);
                pdb = pdb2;
             }
             CountNeighbours(pdb, radius, CountType);
-            WritePDB(out, pdb);
+            blWritePDB(out, pdb);
          }
          else
          {
@@ -154,20 +164,22 @@ int main(int argc, char **argv)
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                      REAL *radius, int *CountType, BOOL *StripWater)
    ---------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            REAL   *radius      Neighbour radius
-            int    *CountType   Counting scheme
-            BOOL   *StripWater  Strip waters?
-   Returns: BOOL                Success?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *radius      Neighbour radius
+   \param[out]     *CountType   Counting scheme
+   \param[out]     *StripWater  Strip waters?
+   \return                     Success?
 
    Parse the command line
    
-   05.07.94 Original    By: ACRM
-   29.04.08 Added -c and -n handling
-   30.04.08 Added -w handling
+-  05.07.94 Original    By: ACRM
+-  29.04.08 Added -c and -n handling
+-  30.04.08 Added -w handling
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   REAL *radius, int *CountType, BOOL *StripWater)
@@ -249,9 +261,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>void CountNeighbours(PDB *pdb, REAL RadSq, int CountType)
    ---------------------------------------------------------
-   I/O:     PDB   *pdb       PDB linked list
-   Input:   REAL  RadSq      Radius squared for neighbour search
-            int   CountType  Counting scheme
+*//**
+
+   \param[in,out]  *pdb       PDB linked list
+   \param[in]      RadSq      Radius squared for neighbour search
+   \param[in]      CountType  Counting scheme
 
    Does the actual work of counting the neighbours. 5 schemes are allowed:
    TYP_ALL         All atoms counted
@@ -261,8 +275,8 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    TYP_NORMCONTACT Counts number of residues which contact each residue
                    and normalize by number of atoms in this residue
 
-   05.07.94 Original    By: ACRM
-   29.04.08 Added TYP_CONTACT / TYP_NORMCONTACT
+-  05.07.94 Original    By: ACRM
+-  29.04.08 Added TYP_CONTACT / TYP_NORMCONTACT
 */
 void CountNeighbours(PDB *pdb, REAL RadSq, int CountType)
 {
@@ -311,9 +325,11 @@ void CountNeighbours(PDB *pdb, REAL RadSq, int CountType)
 /************************************************************************/
 /*>void doResidueContacts(PDB *pdb, REAL RadSq, int CountType)
    -----------------------------------------------------------
-   Input:   PDB   *pdb        PDB linked list
-            REAL  RadSq       Squared cutoff distance
-            int   CountType   Counting scheme
+*//**
+
+   \param[in]      *pdb        PDB linked list
+   \param[in]      RadSq       Squared cutoff distance
+   \param[in]      CountType   Counting scheme
 
    Does residue-by-residue contacts rather than atom-atom contacts
    Allowed counting schemes are
@@ -323,7 +339,7 @@ void CountNeighbours(PDB *pdb, REAL RadSq, int CountType)
    (though no check is made for invalid types which are treated as
    TYP_CONTACT)
 
-   29.04.08  Original   By: ACRM
+-  29.04.08  Original   By: ACRM
 */
 
 void doResidueContacts(PDB *pdb, REAL RadSq, int CountType)
@@ -339,7 +355,7 @@ void doResidueContacts(PDB *pdb, REAL RadSq, int CountType)
    /* Step through each residue                                         */
    for(res_p=pdb; res_p!=NULL; res_p = next_res_p)
    {
-      next_res_p=FindNextResidue(res_p);
+      next_res_p=blFindNextResidue(res_p);
       /* Using the occupancy as a flag, clear the contact list          */
       for(p=pdb; p!=NULL; NEXT(p))
       {
@@ -358,7 +374,7 @@ void doResidueContacts(PDB *pdb, REAL RadSq, int CountType)
          /* Step through the other residues                             */
          for(res_q=pdb; res_q!=NULL; res_q = next_res_q)
          {
-            next_res_q=FindNextResidue(res_q);
+            next_res_q=blFindNextResidue(res_q);
 
             /* Check it's a different and not-bonded residue            */
             if(ResSep(pdb, res_p, res_q))
@@ -382,7 +398,7 @@ void doResidueContacts(PDB *pdb, REAL RadSq, int CountType)
       */
       for(res_q=pdb; res_q!=NULL; res_q = next_res_q)
       {
-         next_res_q=FindNextResidue(res_q);
+         next_res_q=blFindNextResidue(res_q);
 
          /* Run through the atoms in this residue                       */
          for(q=res_q; q!=next_res_q; NEXT(q))
@@ -423,12 +439,15 @@ void doResidueContacts(PDB *pdb, REAL RadSq, int CountType)
 /************************************************************************/
 /*>BOOL ResSep(PDB *pdb, PDB *pr, PDB *qr)
    ---------------------------------------
-   Input:   PDB   *pdb       PDB linked list
-            PDB   *pr        Pointer to first residue of interest
-            PDB   *qr        Pointer to second residue of interest
-   Returns: BOOL             Are the residues separated?
+*//**
 
-   29.04.08  Original   By: ACRM
+   \param[in]      *pdb       PDB linked list
+   \param[in]      *pr        Pointer to first residue of interest
+   \param[in]      *qr        Pointer to second residue of interest
+   \return                     Are the residues separated?
+
+-  29.04.08  Original   By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 BOOL ResSep(PDB *pdb, PDB *pr, PDB *qr)
 {
@@ -449,7 +468,7 @@ BOOL ResSep(PDB *pdb, PDB *pr, PDB *qr)
    sep = 0;
    for(p=pdb; p!=NULL; p = q)
    {
-      q = FindNextResidue(p);
+      q = blFindNextResidue(p);
       if(p == pr)
       {
          if(!GotQR)
@@ -482,15 +501,18 @@ BOOL ResSep(PDB *pdb, PDB *pr, PDB *qr)
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   05.07.94 Original    By: ACRM
-   24.08.94 V1.1
-   29.04.08 V1.2
+-  05.07.94 Original    By: ACRM
+-  24.08.94 V1.1
+-  29.04.08 V1.2
+-  22.07.14 V1.3 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nAtomCount V1.2 (c) 1994-2008, Andrew C.R. Martin, \
+   fprintf(stderr,"\nAtomCount V1.3 (c) 1994-2014, Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"Usage: atomcount [-r <rad>] [-d|-b|-c|-n] [-w] \
 [<in.pdb>] [<out.pdb>]\n");

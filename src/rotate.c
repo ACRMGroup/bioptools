@@ -1,33 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    rotate
-   File:       rotate.c
+   \file       rotate.c
    
-   Version:    V1.2
-   Date:       29.09.97
-   Function:   Simple program to rotate PDB files
+   \version    V1.3
+   \date       22.07.14
+   \brief      Simple program to rotate PDB files
    
-   Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1994-7
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1994-7-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0) 1372 275775
-   EMail:      martin@biochem.ucl.ac.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -46,9 +46,11 @@
 
    Revision History:
    =================
-   V1.0  17.06.94 Original
-   V1.1  21.07.95 Added -m option
-   V1.2  29.09.97 Added -n option
+-  V1.0  17.06.94 Original
+-  V1.1  21.07.95 Added -m option
+-  V1.2  29.09.97 Added -n option
+-  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -91,11 +93,14 @@ BOOL SetupMatrix(int argc, char **argv, REAL matrix[3][3]);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for PDB rotation
 
-   17.06.94 Original    By: ACRM
-   21.07.95 Added -m
-   29.09.97 Added -n
+-  17.06.94 Original    By: ACRM
+-  21.07.95 Added -m
+-  29.09.97 Added -n
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -219,7 +224,7 @@ int main(int argc, char **argv)
    }
    
    /* Read in the PDB file                                              */
-   if((pdb = ReadPDB(in, &natoms))==NULL)
+   if((pdb = blReadPDB(in, &natoms))==NULL)
    {
       fprintf(stderr,"No atoms read from PDB file\n");
       return(1);
@@ -229,9 +234,9 @@ int main(int argc, char **argv)
    if(GotMatrix)
    {
       if(DoCentre)
-         RotatePDB(pdb, matrix);
+         blRotatePDB(pdb, matrix);
       else
-         ApplyMatrixPDB(pdb, matrix);
+         blApplyMatrixPDB(pdb, matrix);
    }
    else
    {
@@ -239,7 +244,7 @@ int main(int argc, char **argv)
    }
    
    /* Write the new PDB file                                            */
-   WritePDB(out,pdb);
+   blWritePDB(out,pdb);
    
    return(0);
 }
@@ -248,12 +253,15 @@ int main(int argc, char **argv)
 /************************************************************************/
 /*>void DoRotations(PDB *pdb, ROTLIST *rotlist)
    --------------------------------------------
-   I/O:     PDB      *pdb        PDB linked list for rotation
-   Input:   ROTLIST  *rotlist    Linked list of rotation instructions
+*//**
+
+   \param[in,out]  *pdb        PDB linked list for rotation
+   \param[in]      *rotlist    Linked list of rotation instructions
 
    Applies a set of rotation instructions to a PDB linked list
 
-   17.06.94 Original    By: ACRM
+-  17.06.94 Original    By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 void DoRotations(PDB *pdb, ROTLIST *rotlist)
 {
@@ -262,8 +270,8 @@ void DoRotations(PDB *pdb, ROTLIST *rotlist)
    
    for(p=rotlist; p!=NULL; NEXT(p))
    {
-      CreateRotMat(p->direction, p->angle, rotmat);
-      RotatePDB(pdb, rotmat);
+      blCreateRotMat(p->direction, p->angle, rotmat);
+      blRotatePDB(pdb, rotmat);
    }
 }
 
@@ -271,13 +279,15 @@ void DoRotations(PDB *pdb, ROTLIST *rotlist)
 /************************************************************************/
 /*>BOOL BuildRotInstruct(ROTLIST **pRotList, char direction, char *amount)
    ----------------------------------------------------------------------
-   I/O:     ROTLIST  **pRotList   Pointer to linked list of instructions
-   Input:   char     direction    Direction for rotation
-            char     *amount      Amount by which to rotate (degrees)
+*//**
+
+   \param[in,out]  **pRotList   Pointer to linked list of instructions
+   \param[in]      direction    Direction for rotation
+   \param[in]      *amount      Amount by which to rotate (degrees)
 
    Add an item to a linked list of rotation insructions
 
-   17.06.94 Original    By: ACRM
+-  17.06.94 Original    By: ACRM
 */
 #define RotList *pRotList
 BOOL BuildRotInstruct(ROTLIST **pRotList, char direction, char *amount)
@@ -309,13 +319,16 @@ BOOL BuildRotInstruct(ROTLIST **pRotList, char direction, char *amount)
 /************************************************************************/
 /*>void Usage(void)
    ----------------
-   17.06.94 Original    By: ACRM
-   21.07.95 V1.1 Added -m
-   29.09.97 V1.2 Added -n
+*//**
+
+-  17.06.94 Original    By: ACRM
+-  21.07.95 V1.1 Added -m
+-  29.09.97 V1.2 Added -n
+-  22.07.14 V1.3 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nRotate V1.2  (c) 1994-7 Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\nRotate V1.3  (c) 1994-2014 Andrew C.R. Martin, UCL\n");
    fprintf(stderr,"Freely distributable if no profit is made\n\n");
    fprintf(stderr,"Usage: rotate [-m 11 12 13 21 22 23 31 32 33] [-h]\n");
    fprintf(stderr,"              [-n] [<input.pdb> [<output.pdb>]]\n");
@@ -343,9 +356,11 @@ be given.\n\n");
 /************************************************************************/
 /*>BOOL SetupMatrix(int argc, char **argv, REAL matrix[3][3])
    ----------------------------------------------------------
+*//**
+
    Set up a rotation matrix from values on the command line
 
-   21.07.95 Original    By: ACRM
+-  21.07.95 Original    By: ACRM
 */
 BOOL SetupMatrix(int argc, char **argv, REAL matrix[3][3])
 {

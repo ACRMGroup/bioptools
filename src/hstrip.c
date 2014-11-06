@@ -1,36 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    hstrip
-   File:       hstrip.c
+   \file       hstrip.c
    
-   Version:    V1.1
-   Date:       15.07.94
-   Function:   Strip hydrogens from a PDB file. Acts as filter
+   \version    V1.2
+   \date       22.07.14
+   \brief      Strip hydrogens from a PDB file. Acts as filter
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1994
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0372) 275775
-   EMail:      INTERNET: amartin@scitec.adsp.sub.org
-                         martin@bsm.bioc.ucl.ac.uk
-               UUCP:     ...{uunet|rutgers}!cbmehq!cbmuk!scitec!amartin
-               JANET:    martin@uk.ac.ucl.bioc.bsm
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -49,8 +46,10 @@
 
    Revision History:
    =================
-   V1.0  04.07.94 Original
-   V1.1  15.07.94 Writes TER cards and returns correctly
+-  V1.0  04.07.94 Original
+-  V1.1  15.07.94 Writes TER cards and returns correctly
+-  V1.2  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -82,10 +81,13 @@ void Usage(void);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for stripping hydrogens
 
-   04.07.94 Original    By: ACRM
-   15.07.94 Now writes TER cards and returns 0 correctly
+-  04.07.94 Original    By: ACRM
+-  15.07.94 Now writes TER cards and returns 0 correctly
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -152,7 +154,7 @@ int main(int argc, char **argv)
       return(1);
    }
 
-   if((pdb=ReadPDB(in,&natom))!=NULL)
+   if((pdb=blReadPDB(in,&natom))!=NULL)
    {
       lastchain = pdb->chain[0];
       
@@ -165,7 +167,7 @@ int main(int argc, char **argv)
                lastchain = p->chain[0];
                fprintf(out,"TER   \n");
             }
-            WritePDBRecord(out,p);
+            blWritePDBRecord(out,p);
          }
       }
       fprintf(out,"TER   \n");
@@ -177,13 +179,16 @@ int main(int argc, char **argv)
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   04.07.94 Original    By: ACRM
+-  04.07.94 Original    By: ACRM
+-  22.07.14 V1.2 By: CTP
 */
 void Usage(void)
 {            
-   fprintf(stderr,"\nHStrip V1.1 (c) 1994, Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\nHStrip V1.2 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
    fprintf(stderr,"Usage: hstrip [<in.pdb>] [<out.pdb>]\n\n");
    fprintf(stderr,"Removes hydrogens from a PDB file. I/O is through \
 stdin/stdout if files\n");

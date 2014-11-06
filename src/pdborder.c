@@ -1,34 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    pdborder
-   File:       pdborder.c
+   \file       pdborder.c
    
-   Version:    V1.2
-   Date:       31.05.02
-   Function:   Correct the atom order in a PDB file
+   \version    V1.3
+   \date       22.07.14
+   \brief      Correct the atom order in a PDB file
    
-   Copyright:  (c) Dr. Andrew C. R. Martin, UCL 1994-2002
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0)1372 275775
-   EMail:      INTERNET: andrew@stagleys.demon.co.uk
-                         martin@biochem.ucl.ac.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -47,9 +46,11 @@
 
    Revision History:
    =================
-   V1.0  24.08.94 Original
-   V1.1  15.01.97 Tidied a few bits
-   V1.2  31.05.02 Changed PDB field from 'junk' to 'record_type'
+-  V1.0  24.08.94 Original
+-  V1.1  15.01.97 Tidied a few bits
+-  V1.2  31.05.02 Changed PDB field from 'junk' to 'record_type'
+-  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -156,10 +157,13 @@ BOOL GotSomeHydrogens(PDB *pdb);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for format conversion
 
-   23.08.94 Original    By: ACRM
-   24.08.94 Changed to call OpenStdFiles()
+-  23.08.94 Original    By: ACRM
+-  24.08.94 Changed to call OpenStdFiles()
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -174,9 +178,9 @@ int main(int argc, char **argv)
    
    if(ParseCmdLine(argc, argv, infile, outfile, &COLast, &GromosILE))
    {
-      if(OpenStdFiles(infile, outfile, &in, &out))
+      if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb = ReadPDB(in,&natoms)) != NULL)
+         if((pdb = blReadPDB(in,&natoms)) != NULL)
          {
             FixGromosILE(pdb,GromosILE);
             
@@ -190,7 +194,7 @@ int main(int argc, char **argv)
 missing.\n");
                   }
                }
-               WritePDB(out, pdb);
+               blWritePDB(out, pdb);
             }
          }
          else
@@ -211,19 +215,22 @@ missing.\n");
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                      BOOL *COLast, BOOL *GromosILE)
    ---------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            BOOL   *COLast      Put the C and O after the s/c
-            BOOL   *GromosILE   Change ILE CD1 to CD for GROMOS
-   Returns: BOOL                Success?
-   Globals: BOOL   gVerbose     Set on -v
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *COLast      Put the C and O after the s/c
+   \param[out]     *GromosILE   Change ILE CD1 to CD for GROMOS
+   \return                     Success?
 
    Parse the command line
+
+   -v sets global gVerbose
    
-   23.08.94 Original    By: ACRM
-   24.08.94 Added verbose option
+-  23.08.94 Original    By: ACRM
+-  24.08.94 Added verbose option
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   BOOL *COLast, BOOL *GromosILE)
@@ -287,15 +294,18 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   23.08.94 Original    By: ACRM
-   24.08.94 Added -v
-   15.01.97 V1.1
+-  23.08.94 Original    By: ACRM
+-  24.08.94 Added -v
+-  15.01.97 V1.1
+-  22.07.14 V1.2 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBOrder V1.1 (c) 1994-7, Andrew C.R. Martin, \
+   fprintf(stderr,"\nPDBOrder V1.2 (c) 1994-2014, Andrew C.R. Martin, \
 UCL\n\n");
    fprintf(stderr,"Usage: pdborder [-c] [-i] [-g] [<in.pdb> \
 [<out.pdb>]]\n");
@@ -312,12 +322,14 @@ N,CA,C,O,s/c atom\n");
 /************************************************************************/
 /*>PDB *CorrectOrder(PDB *pdb, BOOL COLast)
    ----------------------------------------
-   Input:    PDB   *pdb     PDB linked list
-             BOOL  COLast   Put the C,O after the s/c
-   Returns:  PDB   *           Fixed order linked list or NULL if error
+*//**
 
-   23.08.94 Original    By: ACRM
-   24.08.94 Added code to handle additional Hs at NTER and O at CTER
+   \param[in]      *pdb     PDB linked list
+   \param[in]      COLast   Put the C,O after the s/c
+   \return                  Fixed order linked list or NULL if error
+
+-  23.08.94 Original    By: ACRM
+-  24.08.94 Added code to handle additional Hs at NTER and O at CTER
             Only tries to re-order ATOM records.
 */
 PDB *CorrectOrder(PDB *pdb, BOOL COLast)
@@ -336,7 +348,7 @@ PDB *CorrectOrder(PDB *pdb, BOOL COLast)
    
    while(start != NULL)
    {
-      end = FindEndPDB(start);
+      end = blFindEndPDB(start);
       
       /* Only correct the order if this is an amino acid residue        */
       if(!strncmp(start->record_type,"ATOM  ",6))
@@ -398,17 +410,19 @@ PDB *CorrectOrder(PDB *pdb, BOOL COLast)
 /************************************************************************/
 /*>PDB *CorrectResidue(PDB *start, PDB *end, BOOL COLast, int terminus)
    --------------------------------------------------------------------
-   Input:    PDB   *start      Start of residue linked list
-             PDB   *end        Start of next residue (or NULL)
-             BOOL  COLast      Put the carboxyl at the end
-             int   terminus    Flag to indicate position in chain
+*//**
+
+   \param[in]      *start      Start of residue linked list
+   \param[in]      *end        Start of next residue (or NULL)
+   \param[in]      COLast      Put the carboxyl at the end
+   \param[in]      terminus    Flag to indicate position in chain
                                (TERM_MIDCHAIN, TERM_NTER, or TERM_CTER)
-   Returns:  PDB   *           Fixed order PDB linked list
+   \return                     Fixed order PDB linked list
 
    Do the actual order correction for this residue
 
-   23.08.94 Original    By: ACRM
-   24.08.94 Added terminus handling code
+-  23.08.94 Original    By: ACRM
+-  24.08.94 Added terminus handling code
 */
 PDB *CorrectResidue(PDB *start, PDB *end, BOOL COLast, int terminus)
 {
@@ -499,7 +513,7 @@ residue %s %c%d%c\n",           gAtomLists[offset][i],
          }
          else
          {
-            MovePDB(p, &start, &ret);
+            blMovePDB(p, &start, &ret);
          }
       }
    }
@@ -550,7 +564,7 @@ residue %s %c%d%c\n",           gAtomLists[offset][i],
          }
          else
          {
-            MovePDB(p, &start, &ret);
+            blMovePDB(p, &start, &ret);
          }
       }
    }
@@ -578,15 +592,17 @@ residue %s %c%d%c\n",           gAtomLists[offset][i],
 /************************************************************************/
 /*>void FixGromosILE(PDB *pdb, BOOL Gromos)
    ----------------------------------------
-   I/O:     PDB    *pdb      PDB linked list
-   Input:   BOOL   Gromos    True: Change to CD
+*//**
+
+   \param[in,out]  *pdb      PDB linked list
+   \param[in]      Gromos    True: Change to CD
                              False: Change to CD1
 
    Fix the PDB linked list to have CD rather than CD1 for ILE and
    fix the atom lists table.
 
-   23.08.94 Original    By: ACRM
-   15.01.97 Added the Gromos parameter (previously always -> Gromos form)
+-  23.08.94 Original    By: ACRM
+-  15.01.97 Added the Gromos parameter (previously always -> Gromos form)
 */
 void FixGromosILE(PDB *pdb, BOOL Gromos)
 {
@@ -635,9 +651,12 @@ void FixGromosILE(PDB *pdb, BOOL Gromos)
 /************************************************************************/
 /*>void SpliceNTerHs(PDB **from, PDB **to)
    ---------------------------------------
+*//**
+
    Moves Nterminal hydrogens to the output PDB linked list
 
-   24.08.94 Original   By: ACRM
+-  24.08.94 Original   By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 void SpliceNTerHs(PDB **from, PDB **to)
 {
@@ -673,15 +692,15 @@ void SpliceNTerHs(PDB **from, PDB **to)
    }
 
    /* Move H1 and H2 to the ret list                                    */
-   MovePDB(H1, from, &ret);
-   MovePDB(H2, from, &ret);
+   blMovePDB(H1, from, &ret);
+   blMovePDB(H2, from, &ret);
 
    /* Try to move N and if this fails, move NT                          */
-   if(!MovePDB(N, to, &ret))
-      MovePDB(NT, from, &ret);
+   if(!blMovePDB(N, to, &ret))
+      blMovePDB(NT, from, &ret);
    
    /* Move H3 to the ret list                                           */
-   MovePDB(H3, from, &ret);
+   blMovePDB(H3, from, &ret);
 
    if(ret != NULL)
    {
@@ -699,9 +718,12 @@ void SpliceNTerHs(PDB **from, PDB **to)
 /************************************************************************/
 /*>void SpliceCTerOs(PDB **from, PDB **to)
    ---------------------------------------
+*//**
+
    Moves Cterminal oxygens to the output PDB linked list
 
-   24.08.94 Original   By: ACRM
+-  24.08.94 Original   By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 void SpliceCTerOs(PDB **from, PDB **to)
 {
@@ -746,11 +768,11 @@ void SpliceCTerOs(PDB **from, PDB **to)
       The first move will be quite happy even if tail hasn't been
       defined.
    */
-   if(!MovePDB(O, &tail, to))
-      MovePDB(O1, from, to);
+   if(!blMovePDB(O, &tail, to))
+      blMovePDB(O1, from, to);
    
    /* Now move O2 from the from list to the to list                     */
-   MovePDB(O2, from, to);
+   blMovePDB(O2, from, to);
 
    /* Now join tail onto the to list                                    */
    p = *to;
@@ -758,19 +780,21 @@ void SpliceCTerOs(PDB **from, PDB **to)
    p->next = tail;
 
    /* Last, try to move OXT to the to list                              */
-   MovePDB(OXT, from, to);
+   blMovePDB(OXT, from, to);
 }
 
 
 /************************************************************************/
 /*>BOOL GotSomeHydrogens(PDB *pdb)
    -------------------------------
-   Input:   PDB   *pdb     PDB linked list to search for hydrogens
-   Returns: BOOL           Were any hydrogens found?
+*//**
+
+   \param[in]      *pdb     PDB linked list to search for hydrogens
+   \return                     Were any hydrogens found?
 
    Tests whether there are any hydrogens in the PDB linked list.
 
-   15.01.97 Original   By: ACRM
+-  15.01.97 Original   By: ACRM
 */
 BOOL GotSomeHydrogens(PDB *pdb)
 {

@@ -1,32 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    checkforres
-   File:       checkforres.c
+   \file       checkforres.c
    
-   Version:    V1.2
-   Date:       28.08.13
-   Function:   Checks whether a specified residue exists in a PDB file
+   \version    V1.3
+   \date       22.07.14
+   \brief      Checks whether a specified residue exists in a PDB file
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 2011-2013
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 2011-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   EMail:      andrew@bioinf.org.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -45,12 +46,14 @@
 
    Revision History:
    =================
-   V1.0   12.01.11  Original
-   V1.1   07.03.12  Now ignores HETATMs by default - reads them with
+-  V1.0   12.01.11  Original
+-  V1.1   07.03.12  Now ignores HETATMs by default - reads them with
                     -H flag. Important for files like 1c26 which has 
                     waters are apparently valid residue numbers
-   V1.2   28.08.13  Modified for new ParseResSpec()
-                    
+-  V1.2   28.08.13  Modified for new ParseResSpec()
+-  V1.3   22.07.14  Renamed deprecated functions with bl prefix.
+                    Added doxygen annotation. By: CTP
+
 *************************************************************************/
 /* Includes
 */
@@ -80,11 +83,14 @@ void Usage(void);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    main routine
 
-   22.07.96 Original    By: ACRM
-   29.09.05 Modified for -l By: TL
-   28.08.13 Modified for new ParseResSpec()
+-  22.07.96 Original    By: ACRM
+-  29.09.05 Modified for -l By: TL
+-  28.08.13 Modified for new ParseResSpec()
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -105,17 +111,17 @@ int main(int argc, char **argv)
    if(ParseCmdLine(argc, argv, resid, InFile, OutFile, 
                    &uppercaseresspec, &readHet))
    {
-      if(OpenStdFiles(InFile, OutFile, &in, &out))
+      if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
          BOOL ParseResSpecResult;
 
          if(readHet)
          {
-            pdb=ReadPDB(in, &natom);
+            pdb=blReadPDB(in, &natom);
          }
          else
          {
-            pdb=ReadPDBAtoms(in, &natom);
+            pdb=blReadPDBAtoms(in, &natom);
          }
          
          if(pdb==NULL)
@@ -126,13 +132,13 @@ int main(int argc, char **argv)
          
          if (uppercaseresspec == TRUE) 
          {
-            ParseResSpecResult = ParseResSpec(resid, chain, 
-                                              &res, insert);
+            ParseResSpecResult = blParseResSpec(resid, chain, 
+                                                &res, insert);
          }
          else 
          {
-            ParseResSpecResult = ParseResSpecNoUpper(resid, chain, 
-                                                     &res, insert);
+            ParseResSpecResult = blParseResSpecNoUpper(resid, chain, 
+                                                       &res, insert);
          }
          if(!ParseResSpecResult)
          {
@@ -141,7 +147,7 @@ int main(int argc, char **argv)
             return(1);
          }
 
-         if((pdb = FindResidue(pdb, chain[0], res, insert[0]))!=NULL)
+         if((pdb = blFindResidue(pdb, chain, res, insert))!=NULL)
          {
             fprintf(out,"YES\n");
          }
@@ -162,20 +168,22 @@ int main(int argc, char **argv)
 /*>BOOL ParseCmdLine(int argc, char **argv, char *resid,
                      char *infile, char *outfile, BOOL *uppercaseresspec)
    ----------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *resid       Residue specifier
-            char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            BOOL   *uppercaseresspec  Should residue spec be upcased?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *resid       Residue specifier
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *uppercaseresspec  Should residue spec be upcased?
                                 (Default: yes)
-            BOOL   *readHet     Should we read hetatoms (Default: no)
-   Returns: BOOL                Success?
+   \param[out]     *readHet     Should we read hetatoms (Default: no)
+   \param[out]     Success?
 
    Parse the command line
    
-   12.01.11 Original    By: ACRM
-   07.03.12 Added -H and *readHet
+-  12.01.11 Original    By: ACRM
+-  07.03.12 Added -H and *readHet
 */
 BOOL ParseCmdLine(int argc, char **argv, char *resid,
                   char *infile, char *outfile, BOOL *uppercaseresspec,
@@ -252,9 +260,17 @@ BOOL ParseCmdLine(int argc, char **argv, char *resid,
 
 
 /************************************************************************/
+/*>void Usage(void)
+   ----------------
+*//**
+
+   Prints a usage message
+
+-  22.07.14 V1.3 By: CTP
+*/
 void Usage(void)
 {
-   fprintf(stderr,"\ncheckforres V1.2 (c) 2011-2013, UCL, Dr. Andrew C.R. \
+   fprintf(stderr,"\ncheckforres V1.3 (c) 2011-2014, UCL, Dr. Andrew C.R. \
 Martin\n");
    fprintf(stderr,"Usage: checkforres [-l][-H] resid [in.pdb [out.txt]]\n");
    fprintf(stderr,"       -l  Do not uppercase residue \

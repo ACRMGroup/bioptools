@@ -1,34 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    numpdb
-   File:       numpdb.c
+   \file       numpdb.c
    
-   Version:    V1.0
-   Date:       05.02.96
-   Function:   Apply standard numbering to a set of PDB files
+   \version    V1.1
+   \date       22.07.14
+   \brief      Apply standard numbering to a set of PDB files
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1996
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1996-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0)1372 275775
-               (Work) +44 (0)171 419 3890
-   EMail:      INTERNET: martin@biochem.ucl.ac.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -54,6 +53,9 @@
 
    Revision History:
    =================
+
+-  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -108,9 +110,12 @@ void BumpLabel(char *label);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for applying numbering to a set of PDB files
 
-   05.02.96 Original    By: ACRM
+-  05.02.96 Original    By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -128,12 +133,12 @@ int main(int argc, char **argv)
 
    if(ParseCmdLine(argc, argv, AlnFile))
    {
-      if(OpenStdFiles(AlnFile, NULL, &in, &out))
+      if(blOpenStdFiles(AlnFile, NULL, &in, &out))
       {
          if((namseq = ReadSequenceData(in, &nres))!=NULL)
          {
             /* Allocate memory for numbering                            */
-            if((Numbering = (char **)Array2D(sizeof(char),nres,8))==NULL)
+            if((Numbering = (char **)blArray2D(sizeof(char),nres,8))==NULL)
             {
                fprintf(stderr,"No memory to store numbering\n");
                return(1);
@@ -158,13 +163,16 @@ int main(int argc, char **argv)
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   05.02.96 Original    By: ACRM
+-  05.02.96 Original    By: ACRM
+-  22.07.14 V1.1 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nNumPDB V1.0, (c) 1996 Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"\nNumPDB V1.1, (c) 1996-2014 Dr. Andrew C.R. Martin, \
 UCL\n");
 
    fprintf(stderr,"\nUsage: numpdb <alnfile>\n");
@@ -185,10 +193,12 @@ structures.\n\n");
 /************************************************************************/
 /*>char *BuildSeqString(char **seqs, int nchain)
    ---------------------------------------------
+*//**
+
    Takes a multi-chain sequence specification and builds it into a single
    string. Returns a malloc'd character pointer
 
-   05.02.96 Original    By: ACRM
+-  05.02.96 Original    By: ACRM
 */
 char *BuildSeqString(char **seqs, int nchain)
 {
@@ -218,14 +228,16 @@ char *BuildSeqString(char **seqs, int nchain)
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile)
    ------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *infile      Input file (or blank string)
-   Returns: BOOL                Success?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \return                     Success?
 
    Parse the command line
    
-   05.02.96 Original    By: ACRM
+-  05.02.96 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile)
 {
@@ -267,10 +279,12 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile)
 /************************************************************************/
 /*>NAMSEQ *ReadSequenceData(FILE *in, int *nres)
    ---------------------------------------------
+*//**
+
    Reads a PIR file and builds a linked list of names (read from the
    comment line) and sequence strings
 
-   05.02.96 Original    By: ACRM
+-  05.02.96 Original    By: ACRM
 */
 NAMSEQ *ReadSequenceData(FILE *in, int *nres)
 {         
@@ -283,8 +297,8 @@ NAMSEQ *ReadSequenceData(FILE *in, int *nres)
    NAMSEQ  *namseq = NULL,
            *ns;
 
-   while((nchain = ReadPIR(in, TRUE, seqs, MAXCHAIN, 
-                           &seqinfo, &punct, &error))!=0)
+   while((nchain = blReadPIR(in, TRUE, seqs, MAXCHAIN, 
+                             &seqinfo, &punct, &error))!=0)
    {
       seqstring = BuildSeqString(seqs,nchain);
       if(namseq == NULL)
@@ -330,10 +344,13 @@ characters.\n");
 /************************************************************************/
 /*>BOOL GetNumbering(NAMSEQ *namseq, char **numbering)
    ---------------------------------------------------
+*//**
+
    Gets the numbering out of the first PDB file adding insert codes for
    for the sequence from the alignments
 
-   05.02.96 Original    By: ACRM
+-  05.02.96 Original    By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 BOOL GetNumbering(NAMSEQ *namseq, char **numbering)
 {
@@ -355,7 +372,7 @@ BOOL GetNumbering(NAMSEQ *namseq, char **numbering)
    }
 
    /* Read the PDB file                                                 */
-   if((pdb=ReadPDB(fp, &natoms))!=NULL)
+   if((pdb=blReadPDB(fp, &natoms))!=NULL)
    {
       nres = strlen(namseq->seq);
       p    = pdb;
@@ -438,7 +455,7 @@ the alphabet\n");
 
             /* Step on to the next residue                              */
             prev = p;
-            p=FindNextResidue(p);
+            p=blFindNextResidue(p);
          }
          
       }  /* End of loop through sequence array                          */
@@ -453,10 +470,12 @@ the alphabet\n");
 /************************************************************************/
 /*>BOOL ApplyNumbering(NAMSEQ *namseq, char **Numbering)
    -----------------------------------------------------
+*//**
+
    Applies the numbering scheme to each PDB file in turn by calling out
    to the patchpdbnum program to do the work
 
-   05.02.96 Original    By: ACRM
+-  05.02.96 Original    By: ACRM
 */
 BOOL ApplyNumbering(NAMSEQ *namseq, char **Numbering)
 {
@@ -499,9 +518,11 @@ BOOL ApplyNumbering(NAMSEQ *namseq, char **Numbering)
 /************************************************************************/
 /*>void BumpLabel(char *label)
    ---------------------------
+*//**
+
    Bumps an insert label.
 
-   05.02.96 Original    By: ACRM
+-  05.02.96 Original    By: ACRM
 */
 void BumpLabel(char *label)
 {

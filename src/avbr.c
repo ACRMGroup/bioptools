@@ -1,36 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    avbr
-   File:       avbr.c
+   \file       avbr.c
    
-   Version:    V1.0
-   Date:       07.10.94
-   Function:   Calc means and SDs of BValues by residue type
+   \version    V1.1
+   \date       22.07.14
+   \brief      Calc means and SDs of BValues by residue type
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1994
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0372) 275775
-   EMail:      INTERNET: amartin@scitec.adsp.sub.org
-                         martin@bsm.bioc.ucl.ac.uk
-               UUCP:     ...{uunet|rutgers}!cbmehq!cbmuk!scitec!amartin
-               JANET:    martin@uk.ac.ucl.bioc.bsm
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -49,7 +46,9 @@
 
    Revision History:
    =================
-   V1.0  07.10.94 Original
+-  V1.0  07.10.94 Original
+-  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -100,9 +99,12 @@ BOOL DoBarsForRes(FILE *out, PDB *pdb, char *resnam, BOOL FindMax,
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for average B-value by residue.
 
-   07.10.94 Original    By: ACRM
+-  07.10.94 Original    By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -120,9 +122,9 @@ int main(int argc, char **argv)
    if(ParseCmdLine(argc, argv, InFile, OutFile, &FindMax, &MaxVal, 
                    &Normalise, &NBin))
    {
-      if(OpenStdFiles(InFile, OutFile, &in, &out))
+      if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
-         if((pdb = ReadPDB(in, &natoms)) != NULL)
+         if((pdb = blReadPDB(in, &natoms)) != NULL)
          {
             DoMeanSD(out, pdb);
             if(!DoBarchart(out, pdb, FindMax, MaxVal, Normalise, NBin))
@@ -154,13 +156,16 @@ int main(int argc, char **argv)
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints usage message
 
-   07.10.94 Original    By: ACRM
+-  07.10.94 Original    By: ACRM
+-  22.07.14 V1.1 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nabvr V1.0 (c) 1994, Dr. Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\nabvr V1.1 (c) 1994-2014, Dr. Andrew C.R. Martin, UCL\n");
    fprintf(stderr,"Usage: abvr [-n] [-m maxval] [-b nbin] [in.pdb] \
 [output.txt]\n");
    fprintf(stderr,"       -n  Normalise output bars (sum will be 1.0)\n");
@@ -177,19 +182,21 @@ specified.\n\n");
                      BOOL *FindMax, REAL *MaxVal, BOOL *Normalise, 
                      int *NBin)
    ---------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            BOOL   *FindMax     Find max value automatically?
-            REAL   *MaxVal      Supplied max value
-            BOOL   *Normalise   Normalise bars?
-            int    *NBin        Number of bars (bins)
-   Returns: BOOL                Success?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *FindMax     Find max value automatically?
+   \param[out]     *MaxVal      Supplied max value
+   \param[out]     *Normalise   Normalise bars?
+   \param[out]     *NBin        Number of bars (bins)
+   \return                     Success?
 
    Parse the command line
    
-   07.10.94 Original    By: ACRM
+-  07.10.94 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   BOOL *FindMax, REAL *MaxVal, BOOL *Normalise, int *NBin)
@@ -262,9 +269,12 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>void DoMeanSD(FILE *out, PDB *pdb)
    ----------------------------------
+*//**
+
    Calculates means & SDs on a per-residue basis.
 
-   07.10.94 Original    By: ACRM
+-  07.10.94 Original    By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 void DoMeanSD(FILE *out, PDB *pdb)
 {
@@ -302,14 +312,14 @@ void DoMeanSD(FILE *out, PDB *pdb)
          return;
       }
       
-      CalcExtSD(p->bval, 0, &(Sx[resnum]), &(SxSq[resnum]),
+      blCalcExtSD(p->bval, 0, &(Sx[resnum]), &(SxSq[resnum]),
                 &(NValues[resnum]), &mean, &sd);
    }
 
    /* Display the values                                                */
    for(resnum=0; sTypes[resnum] != NULL; resnum++)
    {
-      CalcExtSD((REAL)0.0, 1, &(Sx[resnum]), &(SxSq[resnum]),
+      blCalcExtSD((REAL)0.0, 1, &(Sx[resnum]), &(SxSq[resnum]),
                 &(NValues[resnum]), &mean, &sd);
       fprintf(out,"%4s Mean: %f SD: %f\n",
               sTypes[resnum], mean, sd);

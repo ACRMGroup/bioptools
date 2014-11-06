@@ -1,34 +1,34 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    findresrange
-   File:       findresrange.c
+   \file       findresrange.c
    
-   Version:    V1.1
-   Date:       02.06.10
-   Function:   Find a residue range given a key residue and a number
+   \version    V1.2
+   \date       22.07.14
+   \brief      Find a residue range given a key residue and a number
                of residues on either side
    
-   Copyright:  (c) UCL / Dr. Andrew C. R. Martin 2010
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) UCL / Dr. Andrew C. R. Martin 2010-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   EMail:      martin@biochem.ucl.ac.uk
+   \par
                andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -47,8 +47,10 @@
 
    Revision History:
    =================
-   V1.0   19.05.10  Original   By: ACRM
-   V1.1   02.06.10  Fixed junk printing when out of range
+-  V1.0   19.05.10  Original   By: ACRM
+-  V1.1   02.06.10  Fixed junk printing when out of range
+-  V1.2   22.07.14  Renamed deprecated functions with bl prefix.
+                    Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -101,9 +103,9 @@ int main(int argc, char **argv)
    
    if(ParseCmdLine(argc, argv, infile, outfile, keyres, &width))
    {
-      if(OpenStdFiles(infile, outfile, &in, &out))
+      if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb = ReadPDB(in, &natoms)) == NULL)
+         if((pdb = blReadPDB(in, &natoms)) == NULL)
          {
             fprintf(stderr, "Unable to read PDB file\n");
             return(1);
@@ -155,7 +157,10 @@ int main(int argc, char **argv)
 /*>int GetResidueRange(PDB *pdb, char *keyres, int width, char *startres, 
                        char *endres)
    -----------------------------------------------------------------------
-   02.06.10 Returns NO_KEYRES properly
+*//**
+
+-  02.06.10 Returns NO_KEYRES properly
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int GetResidueRange(PDB *pdb, char *keyres, int width, char *startres, 
                     char *endres)
@@ -168,10 +173,10 @@ int GetResidueRange(PDB *pdb, char *keyres, int width, char *startres,
    BOOL       found = FALSE;
    
    
-   if((pdbs = AllocPDBStructure(pdb))==NULL)
+   if((pdbs = blAllocPDBStructure(pdb))==NULL)
       return(NO_MEMORY);
 
-   if(ParseResSpec(keyres, chain, &resnum, insert))
+   if(blParseResSpec(keyres, chain, &resnum, insert))
    {
       for(pdbc = pdbs->chains; pdbc!=NULL; NEXT(pdbc))
       {
@@ -216,16 +221,18 @@ int GetResidueRange(PDB *pdb, char *keyres, int width, char *startres,
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                      char *keyres, int *width)
    ---------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            char   *patchfile   Output file (or blank string)
-   Returns: BOOL                Success?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *patchfile   Output file (or blank string)
+   \return                     Success?
 
    Parse the command line
    
-   19.05.10 Original    By: ACRM
+-  19.05.10 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *keyres, int *width)
@@ -291,10 +298,15 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
+   Prints a usage message
+
+-  22.07.14 V1.2 By: CTP
 */
 void Usage(void)
 {
-   printf("\nfindresrange V1.1 (c) 2010 UCL, Andrew C.R. Martin\n");
+   printf("\nfindresrange V1.2 (c) 2010-2014 UCL, Andrew C.R. Martin\n");
    printf("\nUsage: findresrange keyres width [input.pdb \
 [output.txt]]\n");
    printf("\nTakes a PDB file as input and given:\n");

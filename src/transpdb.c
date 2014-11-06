@@ -1,33 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    transpdb
-   File:       transpdb.c
+   \file       transpdb.c
    
-   Version:    V1.0
-   Date:       14.09.95
-   Function:   Simple program to translate PDB files
+   \version    V1.1
+   \date       22.07.14
+   \brief      Simple program to translate PDB files
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1995
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1995-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0) 1372 275775
-   EMail:      martin@biochem.ucl.ac.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -46,7 +46,9 @@
 
    Revision History:
    =================
-   V1.0  14.09.95 Original
+-  V1.0  14.09.95 Original
+-  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -82,10 +84,13 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for PDB rotation
 
-   17.06.94 Original    By: ACRM
-   21.07.95 Added -m
+-  17.06.94 Original    By: ACRM
+-  21.07.95 Added -m
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -102,12 +107,12 @@ int main(int argc, char **argv)
    if(ParseCmdLine(argc, argv, infile, outfile, 
                    &(TVec.x), &(TVec.y), &(TVec.z)))
    {
-      if(OpenStdFiles(infile, outfile, &in, &out))
+      if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb=ReadPDB(in, &natoms))!=NULL)
+         if((pdb=blReadPDB(in, &natoms))!=NULL)
          {
-            TranslatePDB(pdb, TVec);
-            WritePDB(out, pdb);
+            blTranslatePDB(pdb, TVec);
+            blWritePDB(out, pdb);
          }
          else
          {
@@ -128,11 +133,14 @@ int main(int argc, char **argv)
 /************************************************************************/
 /*>void Usage(void)
    ----------------
-   14.09.95 Original    By: ACRM
+*//**
+
+-  14.09.95 Original    By: ACRM
+-  22.07.14 V1.1 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nTransPDB V1.0  (c) 1995 Andrew C.R. Martin\n");
+   fprintf(stderr,"\nTransPDB V1.1  (c) 1995-2014 Andrew C.R. Martin\n");
    fprintf(stderr,"Freely distributable if no profit is made\n\n");
    fprintf(stderr,"Usage: transpdb [-x <x>] [-y <y>] [-z <z>] [-h]\n");
    fprintf(stderr,"              [<input.pdb> [<output.pdb>]]\n");
@@ -145,18 +153,20 @@ void Usage(void)
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                      REAL *x, REAL *y, REAL *z)
    ---------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            REAL   *x           X-translation
-            REAL   *y           Y-translation
-            REAL   *z           Z-translation
-   Returns: BOOL                Success?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *x           X-translation
+   \param[out]     *y           Y-translation
+   \param[out]     *z           Z-translation
+   \return                     Success?
 
    Parse the command line
    
-   05.07.94 Original    By: ACRM
+-  05.07.94 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   REAL *x, REAL *y, REAL *z)

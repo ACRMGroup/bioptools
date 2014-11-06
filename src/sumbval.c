@@ -1,37 +1,34 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    sumbval
-   File:       sumbval.c
+   \file       sumbval.c
    
-   Version:    V1.2
-   Date:       24.08.94
-   Function:   Sum B-vals over each residue and replace with the
+   \version    V1.3
+   \date       22.07.14
+   \brief      Sum B-vals over each residue and replace with the
                summed or average value
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1994
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0372) 275775
-   EMail:      INTERNET: amartin@scitec.adsp.sub.org
-                         martin@bsm.bioc.ucl.ac.uk
-               UUCP:     ...{uunet|rutgers}!cbmehq!cbmuk!scitec!amartin
-               JANET:    martin@uk.ac.ucl.bioc.bsm
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -50,9 +47,11 @@
 
    Revision History:
    =================
-   V1.0  05.07.94 Original
-   V1.1  06.07.94 Fixed potential /0 bug
-   V1.2  24.08.94 Changed to call OpenStdFiles()
+-  V1.0  05.07.94 Original
+-  V1.1  06.07.94 Fixed potential /0 bug
+-  V1.2  24.08.94 Changed to call OpenStdFiles()
+-  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -88,10 +87,13 @@ void SumBVals(PDB *pdb, BOOL average, BOOL sidechain, BOOL quiet);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for summing B-values
 
-   05.07.94 Original    By: ACRM
-   24.08.94 Changed to call OpenStdFiles()
+-  05.07.94 Original    By: ACRM
+-  24.08.94 Changed to call OpenStdFiles()
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -108,12 +110,12 @@ int main(int argc, char **argv)
    if(ParseCmdLine(argc, argv, infile, outfile, &average, &sidechain,
                    &quiet))
    {
-      if(OpenStdFiles(infile, outfile, &in, &out))
+      if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb = ReadPDB(in,&natoms)) != NULL)
+         if((pdb = blReadPDB(in,&natoms)) != NULL)
          {
             SumBVals(pdb, average, sidechain, quiet);
-            WritePDB(out, pdb);
+            blWritePDB(out, pdb);
          }
          else
          {
@@ -133,18 +135,20 @@ int main(int argc, char **argv)
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                      BOOL *average, BOOL *sidechain, BOOL *quiet)
    ---------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            BOOL   *average     Average the b-vals
-            BOOL   *sidechain   Separate s/c and m/c (N,CA,C,O)
-            BOOL   *quiet       Do not display values
-   Returns: BOOL                Success?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *average     Average the b-vals
+   \param[out]     *sidechain   Separate s/c and m/c (N,CA,C,O)
+   \param[out]     *quiet       Do not display values
+   \return                     Success?
 
    Parse the command line
    
-   05.07.94 Original    By: ACRM
+-  05.07.94 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   BOOL *average, BOOL *sidechain, BOOL *quiet)
@@ -201,15 +205,18 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   05.07.94 Original    By: ACRM
-   06.07.94 V1.1
-   24.08.94 V1.2
+-  05.07.94 Original    By: ACRM
+-  06.07.94 V1.1
+-  24.08.94 V1.2
+-  22.07.14 V1.3 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nSumBVal V1.2 (c) 1994, Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\nSumBVal V1.3 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
    fprintf(stderr,"Usage: sumbval [-a] [-s] [-q] [<in.pdb>] \
 [<out.pdb>]\n");
    fprintf(stderr,"                -a Average over the residues\n");
@@ -228,15 +235,18 @@ each residue to be\n");
 /************************************************************************/
 /*>void SumBVals(PDB *pdb, BOOL average, BOOL sidechain, BOOL quiet)
    -----------------------------------------------------------------
-   I/O:     PDB    *pdb       PDB linked list
-   Input:   BOOL   average    Do averaging
-            BOOL   sidechain  Treat m/c and s/c separately
-            BOOL   quiet      Do not display overall means and SDs
+*//**
+
+   \param[in,out]  *pdb       PDB linked list
+   \param[in]      average    Do averaging
+   \param[in]      sidechain  Treat m/c and s/c separately
+   \param[in]      quiet      Do not display overall means and SDs
 
    Does the actual work of summing and averaging B-values in each residue.
 
-   05.07.94 Original    By: ACRM
-   06.07.94 Added check before divides
+-  05.07.94 Original    By: ACRM
+-  06.07.94 Added check before divides
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 void SumBVals(PDB *pdb, BOOL average, BOOL sidechain, BOOL quiet)
 {
@@ -260,7 +270,7 @@ void SumBVals(PDB *pdb, BOOL average, BOOL sidechain, BOOL quiet)
    for(start=pdb; start!=NULL; start=end)
    {
       /* Find start of next residue                                     */
-      end = FindEndPDB(start);
+      end = blFindEndPDB(start);
 
       /* Zero the totals and counts                                     */
       SumSC   = SumMC   = (REAL)0.0;
@@ -276,18 +286,18 @@ void SumBVals(PDB *pdb, BOOL average, BOOL sidechain, BOOL quiet)
          {
             CountMC++;
             SumMC += p->bval;
-            CalcExtSD(p->bval, 0, &(Sx[0]), &(SxSq[0]), &(NValues[0]),
+            blCalcExtSD(p->bval, 0, &(Sx[0]), &(SxSq[0]), &(NValues[0]),
                       &mean, &sd);
          }
          else
          {
             CountSC++;
             SumSC += p->bval;
-            CalcExtSD(p->bval, 0, &(Sx[1]), &(SxSq[1]), &(NValues[1]),
+            blCalcExtSD(p->bval, 0, &(Sx[1]), &(SxSq[1]), &(NValues[1]),
                       &mean, &sd); 
          }
 
-         CalcExtSD(p->bval, 0, &(Sx[2]), &(SxSq[2]), &(NValues[2]),
+         blCalcExtSD(p->bval, 0, &(Sx[2]), &(SxSq[2]), &(NValues[2]),
                    &mean, &sd);
       }
       
@@ -342,17 +352,17 @@ void SumBVals(PDB *pdb, BOOL average, BOOL sidechain, BOOL quiet)
    /* Print output values to stderr                                     */
    if(!quiet)
    {
-      CalcExtSD((REAL)0.0, 1, &(Sx[0]), &(SxSq[0]), &(NValues[0]), 
+      blCalcExtSD((REAL)0.0, 1, &(Sx[0]), &(SxSq[0]), &(NValues[0]), 
                 &mean, &sd);
       fprintf(stderr,"Mean B-value over backbone (N,CA,C,O) = %6.3f, \
 SD = %6.3f (%d atoms)\n",mean,sd,NValues[0]);
       
-      CalcExtSD((REAL)0.0, 1, &(Sx[1]), &(SxSq[1]), &(NValues[1]), 
+      blCalcExtSD((REAL)0.0, 1, &(Sx[1]), &(SxSq[1]), &(NValues[1]), 
                 &mean, &sd);
       fprintf(stderr,"Mean B-value over sidechains          = %6.3f, \
 SD = %6.3f (%d atoms)\n",mean,sd,NValues[1]);
 
-      CalcExtSD((REAL)0.0, 1, &(Sx[2]), &(SxSq[2]), &(NValues[2]), 
+      blCalcExtSD((REAL)0.0, 1, &(Sx[2]), &(SxSq[2]), &(NValues[2]), 
                 &mean, &sd);
       fprintf(stderr,"Mean B-value over all atoms           = %6.3f, \
 SD = %6.3f (%d atoms)\n",mean,sd,NValues[2]);

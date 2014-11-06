@@ -3,8 +3,8 @@
 
    \file       solv.c
    
-   \version    V1.0
-   \date       26.07.14
+   \version    V1.1
+   \date       19.08.14
    \brief      Solvent accessibility using bioplib
    
    \copyright  (c) UCL, Dr. Andrew C.R. Martin, 2014
@@ -46,6 +46,8 @@
    Revision History:
    =================
 -   V1.0   16.07.14 Original   By: ACRM
+-   V1.1   19.08.14 Fixed call to renamed function: 
+                    blStripWatersPDBAsCopy() By: CTP
 
 *************************************************************************/
 /* Includes
@@ -91,6 +93,9 @@ void PrintResidueAccessibility(FILE *out, PDB *pdb, RESRAD *resrad);
    Main program for solvent accessibility calculations
 
 -  17.07.14 Original   By: ACRM
+-  19.08.14 Fixed call to renamed function: blStripWatersPDBAsCopy()
+                  By: CTP
+
 */
 int main(int argc, char **argv)
 {
@@ -100,7 +105,8 @@ int main(int argc, char **argv)
           *resout = stdout,
           *fpRad  = NULL;
    int    natoms;
-   PDB    *pdb;
+   PDB    *pdb, 
+          *pdbAll;
    BOOL   doAccessibility = FALSE,
           noenv           = FALSE,
           noAtoms         = FALSE,
@@ -138,9 +144,18 @@ file\n");
       return(1);
    }
 
-   if((pdb = blReadPDB(in, &natoms))==NULL)
+   if((pdbAll = blReadPDB(in, &natoms))==NULL)
    {
       fprintf(stderr, "Error (solv): No atoms read from PDB file, %s\n",
+              infile);
+      return(1);
+   }
+
+   /* Strip waters                                                      */
+   if((pdb = blStripWatersPDBAsCopy(pdbAll, &natoms))==NULL)
+   {
+      fprintf(stderr, "Error (solv): No memory to strip waters from \
+PDB file, %s\n",
               infile);
       return(1);
    }

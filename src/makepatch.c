@@ -1,33 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    makepatch
-   File:       makepatch.c
+   \file       makepatch.c
    
-   Version:    V1.7
-   Date:       05.11.13
-   Function:   Build patches around a surface atom
+   \version    V1.9
+   \date       19.08.14
+   \brief      Build patches around a surface atom
    
-   Copyright:  (c) UCL / Dr. Andrew C. R. Martin 2009-2013
-   Author:     Dr. Andrew C. R. Martin, Anja Baresic
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) UCL / Dr. Andrew C. R. Martin 2009-2014
+   \author     Dr. Andrew C. R. Martin, Anja Baresic
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   EMail:      andrew.martin@ucl.ac.uk
+   \par
                andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -57,23 +57,27 @@
    Revision History:
    =================
 
-   V1.0 01.06.09  Original    By: ACRM
-   V1.1 02.06.09  -s command line option added   By: Anja
+-  V1.0 01.06.09  Original    By: ACRM
+-  V1.1 02.06.09  -s command line option added   By: Anja
                   checking for solvent vector in FlagWholeResidues added
                   (This is the same as Anja's working_makepatch.c dated
                    16.12.09)
-   V1.2 26.06.11  Just a cleanup of V1.1 with comments added on the new
+-  V1.2 26.06.11  Just a cleanup of V1.1 with comments added on the new
                   code  By: ACRM
-   V1.3 09.05.13  Added -c option
-   V1.4 02.10.13  Added -m option
-   V1.5 02.10.13  Modified Anya's code to use the SetFlag() GetFlag()
+-  V1.3 09.05.13  Added -c option
+-  V1.4 02.10.13  Added -m option
+-  V1.5 02.10.13  Modified Anya's code to use the SetFlag() GetFlag()
                   routines that use the 'extras' field rather than the
                   'bval' field.
-   V1.6 04.11.13  Added check that central residue is found in 
+-  V1.6 04.11.13  Added check that central residue is found in 
                   FlagSolvVecAngles()
-   V1.7 05.11.13  CalcMassCentre() now takes the number of atoms as a
+-  V1.7 05.11.13  CalcMassCentre() now takes the number of atoms as a
                   parameter and checks that it doesn't go off the atoms
                   array. Was core dumping on very small PDB files
+-  V1.8 22.07.14  Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
+-  V1.9 19.08.14  Added AsCopy suffix to call to blSelectAtomsPDB() 
+                  By: CTP
 
 *************************************************************************/
 /* Includes
@@ -140,8 +144,12 @@ void Usage(void);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
-   01.06.09  Original   By: ACRM
-   02.06.09  Added -s command line option   By: Anja
+*//**
+
+-  01.06.09  Original   By: ACRM
+-  02.06.09  Added -s command line option   By: Anja
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  19.08.14 Added AsCopy suffix to call to blSelectAtomsPDB() By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -166,9 +174,9 @@ int main(int argc, char **argv)
    if(ParseCmdLine(argc, argv, CentreRes, CentreAtom, InFile, OutFile,
                    &radius, &tolerance, &summary, &ringOnly, &minAccess))
    {
-      if(OpenStdFiles(InFile, OutFile, &in, &out))
+      if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
-         if((pdb=ReadPDB(in, &natom))==NULL)
+         if((pdb=blReadPDB(in, &natom))==NULL)
          {
             fprintf(stderr,"makepatch: (Error) No atoms read from PDB \
 file\n");
@@ -186,7 +194,7 @@ file\n");
             V1.4 Changed to use 'extras' for the flag
          */
          SELECT(sel[0],"CA  ");
-         Calphas = SelectAtomsPDB(pdb, 1, sel, &nCatom);
+         Calphas = blSelectAtomsPDBAsCopy(pdb, 1, sel, &nCatom);
          FlagSolvVecAngles(Calphas, CentreRes, nCatom);
  
          PADCHARMINTERM(CentreAtom, ' ', 4);
@@ -195,7 +203,7 @@ file\n");
 
          FlagWholeResidues(pdb);
          CleanUpPDB(pdb);
-         WritePDB(out, pdb);
+         blWritePDB(out, pdb);
          
          /* V1.1 By: Anja
             Print summary if required
@@ -217,18 +225,21 @@ file\n");
 /************************************************************************/
 /*>void Usage(void)
    ----------------
-   01.06.09  Original   By: ACRM
-   26.10.11  V1.2
-   09.05.13  V1.3
-   02.10.13  V1.4
-   02.10.13  V1.5
-   04.11.13  V1.6
-   05.11.13  V1.7
+*//**
+
+-  01.06.09  Original   By: ACRM
+-  26.10.11  V1.2
+-  09.05.13  V1.3
+-  02.10.13  V1.4
+-  02.10.13  V1.5
+-  04.11.13  V1.6
+-  05.11.13  V1.7
+-  22.07.14  V1.8 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nmakepatch V1.7 Andrew C.R. Martin, Anja Baresic, \
-UCL 2009-2013\n");
+   fprintf(stderr,"\nmakepatch V1.8 Andrew C.R. Martin, Anja Baresic, \
+UCL 2009-2014\n");
 
    fprintf(stderr,"\nUsage: makepatch [-r radius] [-t tolerance] [-c] \
 [-m minaccess] resspec atomname \n");
@@ -267,15 +278,18 @@ atoms already in\n");
 /*>void MakePatches(PDB *pdb, char *CentreRes, char *CentreAtom,
                     REAL radius, REAL tolerance, PDB *CA, BOOL ringOnly)
    ---------------------------------------------------------------------
+*//**
+
    Identifies the central atom, clears flags for all atoms then sets
    the central atom flag. Iterates over the PDB file, flagging atoms
    within the required radius of the central atom and within touching
    distance of that atom or other flagged atoms.
 
-   01.06.09  Original   By: ACRM
-   02.06.09  Added check on solvent vector < 120degrees   By: Anja
-   09.07.13  Added ringOnly   By: ACRM
-   02.10.13  Added minAccess - rather than just using zero
+-  01.06.09  Original   By: ACRM
+-  02.06.09  Added check on solvent vector < 120degrees   By: Anja
+-  09.07.13  Added ringOnly   By: ACRM
+-  02.10.13  Added minAccess - rather than just using zero
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 void MakePatches(PDB *pdb, char *CentreRes, char *CentreAtom,
                  REAL radius, REAL tolerance, PDB *CA, BOOL ringOnly,
@@ -287,7 +301,7 @@ void MakePatches(PDB *pdb, char *CentreRes, char *CentreAtom,
    REAL RadSq = radius * radius;
    
    /* Find the central residue and atom                                */
-   catom = FindResidueSpec(pdb, CentreRes);
+   catom = blFindResidueSpec(pdb, CentreRes);
    for(p=catom; p!=NULL && (p->insert[0] == catom->insert[0]) &&
       (p->resnum == catom->resnum); NEXT(p))
    {
@@ -399,9 +413,11 @@ Residue %s%d%s failed on angle test\n", q->chain, q->resnum, q->insert);
 /************************************************************************/
 /*>void CleanUpPDB(PDB *pdb)
    -------------------------
+*//**
+
    Restores the occupancy and bvalue columns to something sensible
 
-   01.06.09  Original   By: ACRM
+-  01.06.09  Original   By: ACRM
 */
 void CleanUpPDB(PDB *pdb)
 {
@@ -422,11 +438,14 @@ void CleanUpPDB(PDB *pdb)
 /************************************************************************/
 /*>void FlagWholeResidues(PDB *pdb)
    --------------------------------
+*//**
+
    Extends flagged atoms to include the whole amino acid
 
-   01.06.09  Original   By: ACRM
-   02.06.09  Added summary output if -s command line option is used  
+-  01.06.09  Original   By: ACRM
+-  02.06.09  Added summary output if -s command line option is used  
              By: Anja 
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 void FlagWholeResidues(PDB *pdb)
 {
@@ -437,7 +456,7 @@ void FlagWholeResidues(PDB *pdb)
    
    for(res=pdb; res!=NULL; res=NextRes)
    {
-      NextRes = FindNextResidue(res);
+      NextRes = blFindNextResidue(res);
       FlagTheResidue = FALSE;
       for(p=res; p!=NextRes; NEXT(p))
       {
@@ -461,9 +480,11 @@ void FlagWholeResidues(PDB *pdb)
 /************************************************************************/
 /*>BOOL FlagSet(PDB *p)
    --------------------
+*//**
+
    Tests whether the flag is set
 
-   01.06.09  Original   By: ACRM
+-  01.06.09  Original   By: ACRM
 */
 BOOL FlagSet(PDB *p)
 {
@@ -476,9 +497,12 @@ BOOL FlagSet(PDB *p)
 /************************************************************************/
 /*>void PrintSummary(PDB *p, char *Central)
    ----------------------------------------
+*//**
+
    Prints the summary of which residues are in the patch
 
-   02.06.09  Original   By: Anja
+-  02.06.09  Original   By: Anja
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 void PrintSummary(PDB *pdb, char *Central)
 {
@@ -491,7 +515,7 @@ void PrintSummary(PDB *pdb, char *Central)
    /* printing all residues in that patch (central will be on the list) */
    for (res=pdb; res!=NULL; res=NextRes)
    {
-      NextRes = FindNextResidue(res);
+      NextRes = blFindNextResidue(res);
 
       if (res->bval == 1)
       {
@@ -506,9 +530,11 @@ void PrintSummary(PDB *pdb, char *Central)
 /************************************************************************/
 /*>void SetFlag(PDB *p)
    --------------------
+*//**
+
    Sets the flag
 
-   01.06.09  Original   By: ACRM
+-  01.06.09  Original   By: ACRM
 */
 void SetFlag(PDB *p)
 {
@@ -519,9 +545,11 @@ void SetFlag(PDB *p)
 /************************************************************************/
 /*>void ClearFlag(PDB *p)
    ----------------------
+*//**
+
    Sets the flag
 
-   02.10.13  Original   By: ACRM
+-  02.10.13  Original   By: ACRM
 */
 void ClearFlag(PDB *p)
 {
@@ -532,9 +560,11 @@ void ClearFlag(PDB *p)
 /************************************************************************/
 /*>void ClearFlags(PDB *pdb)
    -------------------------
+*//**
+
    Clears all flags
 
-   01.06.09  Original   By: ACRM
+-  01.06.09  Original   By: ACRM
 */
 void ClearFlags(PDB *pdb)
 {
@@ -552,26 +582,28 @@ void ClearFlags(PDB *pdb)
                      REAL *radius, REAL *tolerance, BOOL *summary,
                      BOOL *ringOnly, REAL *minAcess)
    ----------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *CentreRes   
-            char   *CentreAtom  
-            char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            REAL   *radius      Radius to include atoms
-            REAL   *tolerance   Tolerance on contact distance for atoms
-            BOOL   *summary     Is summary output needed?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *CentreRes   
+   \param[out]     *CentreAtom  
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *radius      Radius to include atoms
+   \param[out]     *tolerance   Tolerance on contact distance for atoms
+   \param[out]     *summary     Is summary output needed?
                                 (default: FALSE)
-            BOOL   *ringOnly    Only do residues in contact with central
-            REAL   *minAccess   minimum accessibility to be on te surface
-   Returns: BOOL                Success?
+   \param[out]     *ringOnly    Only do residues in contact with central
+   \param[out]     *minAccess   minimum accessibility to be on the surface
+   \return                      Success?
 
    Parse the command line
 
-   01.06.09  Original   By: ACRM   
-   02.06.09  Added -s command line option  By: Anja
-   09.05.13  Added -c command line option  By: ACRM
-   02.10.13  Added -m command line option
+-  01.06.09  Original   By: ACRM   
+-  02.06.09  Added -s command line option  By: Anja
+-  09.05.13  Added -c command line option  By: ACRM
+-  02.10.13  Added -m command line option
 */
 BOOL ParseCmdLine(int argc, char **argv, char *CentreRes, 
                   char *CentreAtom, char *infile, char *outfile,
@@ -692,20 +724,23 @@ BOOL ParseCmdLine(int argc, char **argv, char *CentreRes,
 
 /************************************************************************/
 /*>void FlagSolvVecAngles(PDB *CA, char *Central, int natom)
-   --------------------------------------------------------- 
-   Input:   PDB    *CA          C-alphas-only in linked list
-            char   *Central     Centre of the patch in [c]resnum[i]
-            int    natom        Number of atoms read in *pdb   
+   ---------------------------------------------------------
+*//**
+ 
+   \param[in]      *CA          C-alphas-only in linked list
+   \param[in]      *Central     Centre of the patch in [c]resnum[i]
+   \param[in]      natom        Number of atoms read in *pdb   
 
    Calculates mass centre vector for central residue. Then calculates 
    mass centre vector for every residue in Calphas, checks its angle 
    with mass centre vector of central and flags CA->bval with 1 if angle 
    is <120 degrees, else CA->bval=0.
 
-   02.06.09  Original   By: Anja   
-   26.10.11  Changed double to REAL  By: ACRM
-   02.10.13  Changed to use 'extras' for the flag rather than bval
-   04.11.13  Added check that Central residue is found
+-  02.06.09  Original   By: Anja   
+-  26.10.11  Changed double to REAL  By: ACRM
+-  02.10.13  Changed to use 'extras' for the flag rather than bval
+-  04.11.13  Added check that Central residue is found
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 void FlagSolvVecAngles(PDB *CA, char *Central, int natom)
 {
@@ -720,7 +755,7 @@ void FlagSolvVecAngles(PDB *CA, char *Central, int natom)
         Masscurr_z = 0.0;
 
    /* for Central                                                       */
-   if((patchCentre = FindResidueSpec(CA, Central))==NULL)
+   if((patchCentre = blFindResidueSpec(CA, Central))==NULL)
    {
       fprintf(stderr, "makepatch: (Error) Couldn't find Residue %s\n", 
               Central);
@@ -763,15 +798,17 @@ solvvec FlagSolvVecAngles\n",
 /************************************************************************/
 /*>void DistFromCentral(PDB *pdb, PDB *central)
    --------------------------------------------
-   Input:   PDB    *pdb     
-            PDB    *central    Pointer to the central residue
+*//**
+
+   \param[in]      *pdb     
+   \param[in]      *central    Pointer to the central residue
 
    Adds distance from the central residue to the occ parameter 
    of residues in the same chain as central, all other residues 
    get occ set to 999.99.
 
-   08.12.08  Original  By: Anja         
-   26.10.11  Changed double to REAL  By: ACRM
+-  08.12.08  Original  By: Anja         
+-  26.10.11  Changed double to REAL  By: ACRM
 */
 void DistFromCentral(PDB *pdb, PDB *central)
 {
@@ -801,19 +838,21 @@ void DistFromCentral(PDB *pdb, PDB *central)
                    REAL *Masscen_x,REAL *Masscen_y, 
                    REAL *Masscen_z)
    ----------------------------------------------------
-   Input:   PDB    *pdb     
-            PDB    *central       Pointer to the central residue
-            int    *natom         Number of atoms read from PDB file
-            PDB    *MassCenCoo    Coordinates of centre of mass
+*//**
+
+   \param[in]      *pdb     
+   \param[in]      *central       Pointer to the central residue
+   \param[in]      *natom         Number of atoms read from PDB file
+   \param[in]      *MassCenCoo    Coordinates of centre of mass
 
    Outputs the coordinates of the beginning and end point of the solvent 
    vector for the central residue. i.e. the centre of mass of the nearest
    NCLOSE atoms
 
-   08.12.08  Original  By: Anja
-   03.06.09  Returns coordinates rather than printing them
-   26.10.11  Changed double to REAL  By: ACRM
-   05.11.13  CalcMassCentre() now takes the number of atoms
+-  08.12.08  Original  By: Anja
+-  03.06.09  Returns coordinates rather than printing them
+-  26.10.11  Changed double to REAL  By: ACRM
+-  05.11.13  CalcMassCentre() now takes the number of atoms
 */
 void MassCentre(PDB *pdb, PDB *central, int *natom, REAL *Masscen_x,
                 REAL *Masscen_y, REAL *Masscen_z)
@@ -862,18 +901,18 @@ void MassCentre(PDB *pdb, PDB *central, int *natom, REAL *Masscen_x,
 /*>int CalcMassCentre(PDB **tab, int natoms, 
                       REAL *cen_x, REAL *cen_y, REAL *cen_z)
    -----------------------------------------------------------
-   Input:  PDB    **tab    
+*//**
+
+   \param[in]      **tab    
            int    natoms    Number of atoms in tab[]
-   Output: REAL   *cen_x
-                  *cen_y    coordinates of centre of mass
-                  *cen_z  
+   \param[out]     *cen_x
+   \param[out]     coordinates of centre of mass
+   \param[out]     Calculates centre of mass for NCLOSE (10) closest C-alpha atoms 
 
-   Calculates centre of mass for NCLOSE (10) closest C-alpha atoms 
-
-   08.12.08  Original  By: Anja
-   26.10.11  Changed double to REAL  
+-  08.12.08  Original  By: Anja
+-  26.10.11  Changed double to REAL  
              Uses NCLOSE instead of hard-coded 10   By: ACRM
-   05.11.13  Added natoms parameter and check on this
+-  05.11.13  Added natoms parameter and check on this
 */
 void CalcMassCentre(PDB **tab, int natoms, 
                     REAL *cen_x,REAL *cen_y, REAL *cen_z)
@@ -908,14 +947,16 @@ void CalcMassCentre(PDB **tab, int natoms,
 /**********************************************************************/
 /*>int CompareFunc(const void* e1, const void* e2)
    -----------------------------------------------
-   Input: two elements to compare
-   Output: -1, 0 or 1, depending whether the left element1 goes before, 
+*//**
+
+   \param[in]      elements to compare
+   \param[out]     0 or 1, depending whether the left element1 goes before, 
            is equal, or goes after element2, respectively
 
    Defines comparison metric for qsort. Obtained from
    http://www.codeguru.com/forum/archive/index.php/t-315091.html
 
-   08.12.08    By: Anja
+-  08.12.08    By: Anja
 */
 int CompareFunc(const void* e1, const void* e2) 
 {
@@ -942,16 +983,24 @@ int CompareFunc(const void* e1, const void* e2)
                     REAL *Masscen_z, PDB *current, REAL *Masscurr_x,
                     REAL *Masscurr_y, REAL *Masscurr_z) 
    -------------------------------------------------------------------
-   Input:  Coordinates of mass centre vector of central residue and 
-           current residue.
-   Output: Returns TRUE if angle between the vectors is <120 degrees, 
-           else returns false
+*//**
+
+   \param[in]  *central    Central residue
+   \param[in]  *Masscen_x  Coord of mass centre vector of central residue
+   \param[in]  *Masscen_y  Coord of mass centre vector of central residue
+   \param[in]  *Masscen_z  Coord of mass centre vector of central residue
+   \param[in]  *current    Current residue
+   \param[in]  *Masscurr_x Coord of mass centre vector of current residue
+   \param[in]  *Masscurr_y Coord of mass centre vector of current residue
+   \param[in]  *Masscurr_z Coord of mass centre vector of current residue
+   \return                 TRUE if angle between the vectors is <120 
+                           degrees, else returns false
 
    Calculates the vector angle. If it is < 120 returns TRUE, otherwise
    FALSE
 
-   03.06.09  Original  By: Anja
-   26.10.11  Changed double to REAL  By: ACRM
+-  03.06.09  Original  By: Anja
+-  26.10.11  Changed double to REAL  By: ACRM
 */
 BOOL CheckVectAngle(PDB *central, REAL *Masscen_x, REAL *Masscen_y, 
                     REAL *Masscen_z, PDB *current, REAL *Masscurr_x,

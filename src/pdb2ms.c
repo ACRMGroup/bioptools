@@ -1,34 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    pdb2ms
-   File:       pdb2ms.c
+   \file       pdb2ms.c
    
-   Version:    V1.2
-   Date:       01.02.96
-   Function:   Create input file for Connoly MS program
+   \version    V1.3
+   \date       22.07.14
+   \brief      Create input file for Connoly MS program
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1996
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1996-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0)1372 275775
-               (Work) +44 (0)171 419 3890
-   EMail:      INTERNET: martin@biochem.ucl.ac.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -57,10 +56,12 @@
 
    Revision History:
    =================
-   V1.0  24.01.96 Original
-   V1.1  29.01.96 Added -q flag
-   V1.2  01.02.96 Has default types if not standard AAs
+-  V1.0  24.01.96 Original
+-  V1.1  29.01.96 Added -q flag
+-  V1.2  01.02.96 Has default types if not standard AAs
                   Can take atom types or radii from the PDB file
+-  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -110,11 +111,14 @@ int RadiusSeen(REAL *typerad, REAL radius);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for converting PDB format to MS 
 
-   24.01.96 Original   By: ACRM
-   29.01.96 Added -a and -q handling
-   01.02.95 Added -t and -r handling
+-  24.01.96 Original   By: ACRM
+-  29.01.96 Added -a and -q handling
+-  01.02.95 Added -t and -r handling
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -129,9 +133,9 @@ int main(int argc, char **argv)
    if(ParseCmdLine(argc, argv, InFile, OutFile, &DoStd, &Quiet, &Alt,
                    &GotRad, &GotType))
    {
-      if(OpenStdFiles(InFile, OutFile, &in, &out))
+      if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
-         if((pdb = ReadPDB(in, &natoms))==NULL)
+         if((pdb = blReadPDB(in, &natoms))==NULL)
          {
             fprintf(stderr,"No atoms read from PDB file\n");
             return(1);
@@ -158,22 +162,24 @@ int main(int argc, char **argv)
                      BOOL *DoStd, BOOL *Quiet, BOOL *Alt, BOOL *GotRad,
                      BOOL *GotType)
    ---------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            BOOL   *DoStd       Write standard data files?
-            BOOL   *Quiet       Operate quietly?
-            BOOL   *Alt         Use alternative atom type set 
-            BOOL   *GotRad      Got radii in BVal column
-            BOOL   *GotType     Got atom type numbers in BVal column
-   Returns: BOOL                Success?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *DoStd       Write standard data files?
+   \param[out]     *Quiet       Operate quietly?
+   \param[out]     *Alt         Use alternative atom type set 
+   \param[out]     *GotRad      Got radii in BVal column
+   \param[out]     *GotType     Got atom type numbers in BVal column
+   \return                     Success?
 
    Parse the command line
    
-   25.01.96 Original    By: ACRM
-   29.01.96 Added -a and -q
-   01.02.95 Added -r and -t
+-  25.01.96 Original    By: ACRM
+-  29.01.96 Added -a and -q
+-  01.02.95 Added -r and -t
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   BOOL *DoStd, BOOL *Quiet, BOOL *Alt, BOOL *GotRad,
@@ -243,15 +249,18 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   24.01.96 Original   By: ACRM
-   29.01.95 V1.1
-   01.02.96 V1.2
+-  24.01.96 Original   By: ACRM
+-  29.01.95 V1.1
+-  01.02.96 V1.2
+-  22.07.14 V1.3 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdb2ms V1.2 (c)1996, Dr. Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\npdb2ms V1.3 (c)1996-2014, Dr. Andrew C.R. Martin, UCL\n");
    fprintf(stderr,"\nUsage: pdb2ms [-s] [-a] [-q] [in.pdb [out.ms]]\n");
    fprintf(stderr,"       -s Write standard data files as well\n");
    fprintf(stderr,"       -a Use alternate atom type radii (as used by \
@@ -279,11 +288,13 @@ atoms (for example\n");
 /*>BOOL ConvertPDB2MS(FILE *out, PDB *pdb, BOOL Alt, BOOL GotRad, 
                       BOOL GotType)
    --------------------------------------------------------------
+*//**
+
    Does the actual conversion work
 
-   24.01.96 Original   By: ACRM
-   29.01.96 Added Alt parameter
-   01.02.96 Added GotRad and GotType handling
+-  24.01.96 Original   By: ACRM
+-  29.01.96 Added Alt parameter
+-  01.02.96 Added GotRad and GotType handling
 */
 BOOL ConvertPDB2MS(FILE *out, PDB *pdb, BOOL Alt, BOOL GotRad, 
                    BOOL GotType)
@@ -380,12 +391,14 @@ type set to 1\n",
 /************************************************************************/
 /*>int AtomType(char *inresnam, char *atnam, BOOL Alt)
    ---------------------------------------------------
+*//**
+
    Converts a residue name / atom name combination into an atom type
    number
 
-   24.01.96 Original   By: ACRM
-   29.01.96 Added Alt set
-   01.02.96 Returns default types if residue not found
+-  24.01.96 Original   By: ACRM
+-  29.01.96 Added Alt set
+-  01.02.96 Returns default types if residue not found
 */
 int AtomType(char *inresnam, char *atnam, BOOL Alt)
 {
@@ -642,11 +655,13 @@ int AtomType(char *inresnam, char *atnam, BOOL Alt)
 /************************************************************************/
 /*>void WriteStdDataFiles(BOOL Quiet, BOOL GotRad)
    -----------------------------------------------
+*//**
+
    Writes a standard control file and radius file
 
-   24.01.96 Original   By: ACRM
-   29.01.96 Added Quiet flag
-   01.02.96 Added GotRad
+-  24.01.96 Original   By: ACRM
+-  29.01.96 Added Quiet flag
+-  01.02.96 Added GotRad
             Changed default probe radius from 1.5 to 1.4
 */
 void WriteStdDataFiles(BOOL Quiet, BOOL GotRad)
@@ -735,15 +750,17 @@ written to radii.dat\n\n");
 /************************************************************************/
 /*>int RadiusSeen(REAL *typerad, REAL radius)
    ------------------------------------------
-   Input:     REAL  *typerad         Array of seen radii (or NULL)
-              REAL  radius           Radius for which to search
-   Returns:   int                    Array offset+1 (0 if not seen)
+*//**
+
+   \param[in]      *typerad         Array of seen radii (or NULL)
+   \param[in]      radius           Radius for which to search
+   \return                     Array offset+1 (0 if not seen)
 
    Looks to see if given radius has been seen previously (i.e. is in the
    typerad array). Returns the array offset + 1; 0 used to indicate
    not found.
 
-   01.02.96 Original   By: ACRM
+-  01.02.96 Original   By: ACRM
 */
 int RadiusSeen(REAL *typerad, REAL radius)
 {
@@ -764,16 +781,18 @@ int RadiusSeen(REAL *typerad, REAL radius)
 /************************************************************************/
 /*>REAL *StoreRadius(REAL *typerad, REAL radius, int *type)
    --------------------------------------------------------
-   Input:     REAL *typerad     Array of seen radii (or NULL)
-              REAL radius       New radius to store in array
-   Output:    int  *type        Array offset+1 of stored value
-   Returns:   REAL *            New array pointer (when allocations
+*//**
+
+   \param[in]      *typerad     Array of seen radii (or NULL)
+   \param[in]      radius       New radius to store in array
+   \param[out]     *type        Array offset+1 of stored value
+   \return                      New array pointer (when allocations
                                 have occurred)
 
    Allocate storage space (if needed) and store a radius in the typerad
    array.
 
-   01.02.96 Original   By: ACRM
+-  01.02.96 Original   By: ACRM
 */
 REAL *StoreRadius(REAL *typerad, REAL radius, int *type)
 {
@@ -803,11 +822,13 @@ REAL *StoreRadius(REAL *typerad, REAL radius, int *type)
 /************************************************************************/
 /*>void WriteRadii(REAL *typerad)
    ------------------------------
-   Input:   REAL  *typerad     Array of seen radii
+*//**
+
+   \param[in]      *typerad     Array of seen radii
 
    Write the observed radii to a file called radii.dat
 
-   01.02.96 Original   By: ACRM
+-  01.02.96 Original   By: ACRM
 */
 void WriteRadii(REAL *typerad)
 {

@@ -1,32 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    splitchains
-   File:       splitchains.c
+   \file       splitchains.c
    
-   Version:    V1.1
-   Date:       16.01.14
-   Function:   Split a PDB file into separate chains
+   \version    V1.2
+   \date       22.07.14
+   \brief      Split a PDB file into separate chains
    
-   Copyright:  (c) UCL / Dr. Andrew C. R. Martin 1997-2014
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) UCL / Dr. Andrew C. R. Martin 1997-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   EMail:      andrew@bioinf.org.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -45,8 +46,10 @@
 
    Revision History:
    =================
-   V1.0    10.07.97  Original   By: ACRM
-   V1.1    16.01.14  Fixed to handle HETATMs properly
+-  V1.0    10.07.97  Original   By: ACRM
+-  V1.1    16.01.14  Fixed to handle HETATMs properly
+-  V1.2    22.07.14  Renamed deprecated functions with bl prefix.
+                     Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -86,9 +89,12 @@ char *mystrncat(char *out, const char *in, size_t len);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for extracting selected chains from a PDB file
 
-   07.02.97 Original   By: ACRM
+-  07.02.97 Original   By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -101,9 +107,9 @@ int main(int argc, char **argv)
    
    if(ParseCmdLine(argc, argv, InFile, &current))
    {
-      if(OpenStdFiles(InFile, NULL, &in, NULL))
+      if(blOpenStdFiles(InFile, NULL, &in, NULL))
       {
-         if((pdb=ReadPDB(in, &natoms))==NULL)
+         if((pdb=blReadPDB(in, &natoms))==NULL)
          {
             if(!gQuiet)
                fprintf(stderr,"No atoms read from input PDB file\n");
@@ -131,14 +137,16 @@ output files\n");
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, BOOL *current)
    ---------------------------------------------------------------------
-   Input:   int    argc        Argument count
-            char   **argv      Argument array
-   Output:  char   *infile     Input filename (or blank string)
-   Returns: BOOL               Success
+*//**
+
+   \param[in]      argc        Argument count
+   \param[in]      **argv      Argument array
+   \param[out]     *infile     Input filename (or blank string)
+   \return                     Success
 
    Parse the command line
 
-   10.07.97 Original    By: ACRM
+-  10.07.97 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, BOOL *current)
 {
@@ -191,13 +199,16 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, BOOL *current)
 /************************************************************************/
 /*>BOOL WriteEachPDBChain(char *InFile, PDB *pdb, BOOL current)
    ------------------------------------------------------------
-   Input:   char   *InFile     Input filename
-            PDB    *pdb        PDB linked list
-            BOOL   current     Strip path and write to current directory
+*//**
+
+   \param[in]      *InFile     Input filename
+   \param[in]      *pdb        PDB linked list
+   \param[in]      current     Strip path and write to current directory
 
    Writes each chain to a separate file
 
-   16.01.14 Rewritten to deal with HETATMs properly   By: ACRM
+-  16.01.14 Rewritten to deal with HETATMs properly   By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 BOOL WriteEachPDBChain(char *InFile, PDB *pdb, BOOL current)
 {
@@ -265,7 +276,7 @@ filename\n");
          /* If the chain has changed                                    */
          if(!strncmp(p->chain, chains[i], MAXCHAINID))
          {
-            WritePDBRecord(fp,p);
+            blWritePDBRecord(fp,p);
          }
       }
       fprintf(fp, "TER   \n");
@@ -280,14 +291,17 @@ filename\n");
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   10.07.97 Original
-   16.01.14 V1.1
+-  10.07.97 Original
+-  16.01.14 V1.1
+-  22.07.14 V1.2 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"SplitChains V1.1 (c) 1997-2014 \
+   fprintf(stderr,"SplitChains V1.2 (c) 1997-2014 \
 Dr. Andrew C.R. Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: splitchains [-c][-q] [in.pdb]\n");
@@ -329,18 +343,20 @@ placed in the\n");
 /*>BOOL BuildFileName(char *OutFile, int maxOutFileName, char *InFile, 
                       char *chain, BOOL current)
    -------------------------------------------------------------------
-   Input:    int   maxOutFileName    Max buffer size for output filename
-             char  *InFile           Input filename
-             char  *chain            Chain name to put into filename
-             BOOL  current           Strip path info so we write to 
-                                     current directory
-   Output:   char  *OutFile          Output filename
-   Returns:  BOOL                    success?
+*//**
+
+   \param[in]      maxOutFileName    Max buffer size for output filename
+   \param[in]      *InFile           Input filename
+   \param[in]      *chain            Chain name to put into filename
+   \param[in]      current           Strip path info so we write to 
+   \param[in]      directory
+   \param[out]     *OutFile          Output filename
+   \return                     success?
 
    Constructs a filename from a current filename plus a chain name
 
-   10.07.97 Original
-   16.01.14 Uses mystrncat() and chain is handled as a string
+-  10.07.97 Original
+-  16.01.14 Uses mystrncat() and chain is handled as a string
 */
 BOOL BuildFileName(char *OutFile, int maxOutFileName, char *InFile, 
                    char *chain, BOOL current)
@@ -418,15 +434,17 @@ BOOL BuildFileName(char *OutFile, int maxOutFileName, char *InFile,
 /************************************************************************/
 /*>char *mystrncat(char *out, const char *in, size_t len)
    ------------------------------------------------------
-   Input:   const char   *in     Input string to be appended
-            size_t       len     Length of output string
-   I/O:     char         *out    String that we are appending to
+*//**
+
+   \param[in]      *in     Input string to be appended
+   \param[in]      len     Length of output string
+   \param[in,out]  *out    String that we are appending to
 
    A simpler version of strncat. strncat takes the max number of chars
    to be appended whereas this takes the max number of chars that 'out'
    can hold.
 
-   16.01.14  Original   By: ACRM
+-  16.01.14  Original   By: ACRM
 */
 char *mystrncat(char *out, const char *in, size_t len)
 {

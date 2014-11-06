@@ -1,32 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    getpdb
-   File:       GetPDB.c
+   \file       GetPDB.c
    
-   Version:    V1.3
-   Date:       28.08.13
-   Function:   Extract a numbered zone from a PDB file
+   \version    V1.5
+   \date       19.08.14
+   \brief      Extract a numbered zone from a PDB file
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1996-2013
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1996-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   EMail:      andrew@bioinf.org.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -45,16 +46,19 @@
 
    Revision History:
    =================
-   V1.0   22.07.96  Original
-   V1.1   29.09.05  Added a command line option to prevent the residue
+-  V1.0   22.07.96  Original
+-  V1.1   29.09.05  Added a command line option to prevent the residue
                     specifications being uppercased. This is required as 
                     some PDBs (eg 1rxsm) use upper and lower case letters 
                     as chain codes. (Tony Lewis) By: TL
-   V1.2   05.11.07  Improved error checking of command line
+-  V1.2   05.11.07  Improved error checking of command line
    V1.2.1 29.10.10  Fixed Bioplib bug where end of zone matched end of 
                     chain
-   V1.3   28.08.13  Modified for new ParseResSpec()
-                    
+-  V1.3   28.08.13  Modified for new ParseResSpec()
+-  V1.4   22.07.14  Renamed deprecated functions with bl prefix.
+                    Added doxygen annotation. By: CTP
+-  V1.5   19.08.14  Fixed call to renamed function: 
+                    blExtractZonePDBAsCopy() By: CTP
 *************************************************************************/
 /* Includes
 */
@@ -83,10 +87,15 @@ void Usage(void);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    main routine
 
-   22.07.96 Original    By: ACRM
-   29.09.05 Modified for -l By: TL
+-  22.07.96 Original    By: ACRM
+-  29.09.05 Modified for -l By: TL
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  19.08.14 Added AsCopy suffix for call to blExtractZonePDBAsCopy() 
+            By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -107,11 +116,11 @@ int main(int argc, char **argv)
    if(ParseCmdLine(argc, argv, Zone1, Zone2, InFile, OutFile, 
                    &uppercaseresspec))
    {
-      if(OpenStdFiles(InFile, OutFile, &in, &out))
+      if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
          BOOL ParseResSpec1Result, ParseResSpec2Result;
 
-         if((pdb=ReadPDB(in, &natom))==NULL)
+         if((pdb=blReadPDB(in, &natom))==NULL)
          {
             fprintf(stderr,"getpdb: No atoms read from PDB file\n");
             return(1);
@@ -119,17 +128,17 @@ int main(int argc, char **argv)
          
          if (uppercaseresspec == TRUE) 
          {
-            ParseResSpec1Result = ParseResSpec(Zone1, chain1, 
-                                               &res1, insert1);
-            ParseResSpec2Result = ParseResSpec(Zone2, chain2, 
-                                               &res2, insert2);
+            ParseResSpec1Result = blParseResSpec(Zone1, chain1, 
+                                                 &res1, insert1);
+            ParseResSpec2Result = blParseResSpec(Zone2, chain2, 
+                                                 &res2, insert2);
          }
          else 
          {
-            ParseResSpec1Result = ParseResSpecNoUpper(Zone1, chain1, 
-                                                      &res1, insert1);
-            ParseResSpec2Result = ParseResSpecNoUpper(Zone2, chain2, 
-                                                      &res2, insert2);
+            ParseResSpec1Result = blParseResSpecNoUpper(Zone1, chain1, 
+                                                        &res1, insert1);
+            ParseResSpec2Result = blParseResSpecNoUpper(Zone2, chain2, 
+                                                        &res2, insert2);
          }
          if(!ParseResSpec1Result)
          {
@@ -143,15 +152,15 @@ int main(int argc, char **argv)
                     Zone2);
             return(1);
          }
-         if((pdb = ExtractZonePDB(pdb, chain1, res1, insert1,
-                                       chain2, res2, insert2))==NULL)
+         if((pdb = blExtractZonePDBAsCopy(pdb, chain1, res1, insert1,
+                                          chain2, res2, insert2))==NULL)
          {
             fprintf(stderr,"getpdb: Zone not found (%s or %s)\n",
                     Zone1, Zone2);
             return(1);
          }
          
-         WritePDB(out,pdb);
+         blWritePDB(out,pdb);
       }
    }
    else
@@ -165,21 +174,23 @@ int main(int argc, char **argv)
 /*>BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
                      char *infile, char *outfile, BOOL *uppercaseresspec)
    ----------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *Zone1       First end of zone
-            char   *Zone2       Second end of zone
-            char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            BOOL   *uppercaseresspec  Should residue spec be upcased?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *Zone1       First end of zone
+   \param[out]     *Zone2       Second end of zone
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *uppercaseresspec  Should residue spec be upcased?
                                 (Default: yes)
-   Returns: BOOL                Success?
+   \return                     Success?
 
    Parse the command line
    
-   22.07.96 Original    By: ACRM
-   29.09.05 Added uppercaseresspec param and handling of -l  By: TL
-   05.11.07 Added first check that at least one parameter is on the
+-  22.07.96 Original    By: ACRM
+-  29.09.05 Added uppercaseresspec param and handling of -l  By: TL
+-  05.11.07 Added first check that at least one parameter is on the
             command line
 */
 BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
@@ -255,10 +266,18 @@ BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
 
 
 /************************************************************************/
+/*>void Usage(void)
+   ----------------
+*//**
+
+   Prints a usage message
+
+-  22.07.14 V1.4 By: CTP
+*/
 void Usage(void)
 {
    fprintf(stderr,"\n");
-   fprintf(stderr,"GetPDB V1.3 (c) 1996-2013, Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"GetPDB V1.4 (c) 1996-2014, Dr. Andrew C.R. Martin, \
 UCL.\n");
    fprintf(stderr,"            Modified by Tony Lewis, UCL, 2005\n");
 

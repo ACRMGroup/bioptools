@@ -1,37 +1,34 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    PDBCTer
-   File:       pdbcter.c
+   \file       pdbcter.c
    
-   Version:    V1.0
-   Date:       24.08.94
-   Function:   Set naming for c-terminal oxygens and generate
+   \version    V1.1
+   \date       22.07.14
+   \brief      Set naming for c-terminal oxygens and generate
                coordinates if required.
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1994
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0372) 275775
-   EMail:      INTERNET: amartin@scitec.adsp.sub.org
-                         martin@bsm.bioc.ucl.ac.uk
-               UUCP:     ...{uunet|rutgers}!cbmehq!cbmuk!scitec!amartin
-               JANET:    martin@uk.ac.ucl.bioc.bsm
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -50,6 +47,9 @@
 
    Revision History:
    =================
+
+-  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -87,9 +87,12 @@ void Usage(void);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for hydrogen addition
 
-   23.08.94 Original    By: ACRM
+-  23.08.94 Original    By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -103,14 +106,14 @@ int main(int argc, char **argv)
    
    if(ParseCmdLine(argc, argv, infile, outfile, &style))
    {
-      if(OpenStdFiles(infile, outfile, &in, &out))
+      if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb = ReadPDB(in,&natoms)) != NULL)
+         if((pdb = blReadPDB(in,&natoms)) != NULL)
          {
-            FixCterPDB(pdb, style);
-            RenumAtomsPDB(pdb);
+            blFixCterPDB(pdb, style);
+            blRenumAtomsPDB(pdb);
                
-            WritePDB(out, pdb);
+            blWritePDB(out, pdb);
          }
          else
          {
@@ -130,16 +133,18 @@ int main(int argc, char **argv)
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                      int *style)
    ---------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            int    *style       STYLE_STD, STYLE_GROMOS or STYLE_CHARMM
-   Returns: BOOL                Success?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *style       STYLE_STD, STYLE_GROMOS or STYLE_CHARMM
+   \return                     Success?
 
    Parse the command line
    
-   23.08.94 Original    By: ACRM
+-  23.08.94 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   int *style)
@@ -194,13 +199,16 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   23.08.94 Original    By: ACRM
+-  23.08.94 Original    By: ACRM
+-  22.07.14 V1.1 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBCTer V1.0 (c) 1994, Andrew C.R. Martin, UCL\n\n");
+   fprintf(stderr,"\nPDBCTer V1.1 (c) 1994-2014, Andrew C.R. Martin, UCL\n\n");
    fprintf(stderr,"Usage: pdbcter [-g] [-c] [<in.pdb>] [<out.pdb>]\n");
    fprintf(stderr,"               -g Gromos style C-terminii\n");
    fprintf(stderr,"               -c Charmm style C-terminii\n\n");

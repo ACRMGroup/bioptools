@@ -1,29 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    pdb2pir
-   File:       pdb2pir.c
+   \file       pdb2pir.c
    
-   Version:    V2.8
-   Date:       22.05.09
-   Function:   Convert PDB to PIR sequence file
+   \version    V2.10
+   \date       26.08.14
+   \brief      Convert PDB to PIR sequence file
    
-   Copyright:  (c) Dr. Andrew C. R. Martin, UCL 1994-2009
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure and Modelling,
+   \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure and Modelling,
                University College London,
-   EMail:      andrew@bioinf.org.uk
+
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be freely copied
-   and distributed for no charge providing this header is included.
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
+   according to the conditions laid out in the accompanying file
+   COPYING.DOC.
+
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! The code may not be sold commercially without prior permission 
-   from the author, although it may be given away free with commercial 
-   products, providing it is made clear that this program is free and that 
-   the source code is provided with the program.
+   documented so that the person responsible can be identified.
+
+   The code may not be sold commercially or included as part of a 
+   commercial product except as described in the file COPYING.DOC.
 
 **************************************************************************
 
@@ -44,25 +48,28 @@
 
    Revision History:
    =================
-   V1.0  10.05.94 Original   By: ACRM
-   V1.0a 11.02.97 Reformatted Usage message only
-   V2.0  22.08.97 Now also considers SEQRES records
-   V2.1  26.08.97 Reports the label (if specified) when a chain
+-  V1.0  10.05.94 Original   By: ACRM
+-  V1.0a 11.02.97 Reformatted Usage message only
+-  V2.0  22.08.97 Now also considers SEQRES records
+-  V2.1  26.08.97 Reports the label (if specified) when a chain
                   from SEQRES is not found in ATOM records. Added -p
                   and fixed a few small bugs
-   V2.2  10.08.98 Rewrite of WritePIR() to fix bug with -p -c which
+-  V2.2  10.08.98 Rewrite of WritePIR() to fix bug with -p -c which
                   resulted in nothing printed for header of a chain
                   following a non-protein chain.
-   V2.3  02.10.00 Added -x option
-   V2.4  18.10.00 Added -f option
-   V2.5  08.02.01 Added -n option
-   V2.6  07.03.07 Now looks up MODRES records to find out original amino
+-  V2.3  02.10.00 Added -x option
+-  V2.4  18.10.00 Added -f option
+-  V2.5  08.02.01 Added -n option
+-  V2.6  07.03.07 Now looks up MODRES records to find out original amino
                   acids. Also no longer does a rewind after reading
                   SEQRES so will work with stdin
-   V2.7  12.03.07 Revised gap penalty from 10 to 2
-   V2.8  22.05.09 Added -i option. Also chains in SEQRES but not in ATOM
+-  V2.7  12.03.07 Revised gap penalty from 10 to 2
+-  V2.8  22.05.09 Added -i option. Also chains in SEQRES but not in ATOM
                   now appear in lower case if -u not specified
-
+-  V2.9  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
+-  V2.10 26.08.14 Use renamed macros blPDB2SeqXNoX() and blPDB2SeqX(). 
+                  By: CTP
 *************************************************************************/
 /* Includes
 */
@@ -130,16 +137,20 @@ void LookupModres(char *orig, char *new, MODRES *modres);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for PDB to PIR conversion
 
-   10.05.94 Original    By: ACRM
-   22.08.97 Various new flags to handle SEQRES
-   26.08.97 Option to ignore nucleic acids
-   02.10.00 Added -x
-   18.10.00 Added -f
-   08.02.01 Added -n
-   07.03.07 Calls ReadWholePDBAtoms()
-   22.05.09 Added -i option
+-  10.05.94 Original    By: ACRM
+-  22.08.97 Various new flags to handle SEQRES
+-  26.08.97 Option to ignore nucleic acids
+-  02.10.00 Added -x
+-  18.10.00 Added -f
+-  08.02.01 Added -n
+-  07.03.07 Calls ReadWholePDBAtoms()
+-  22.05.09 Added -i option
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  26.08.14 Use renamed macros blPDB2SeqXNoX() and blPDB2SeqX(). By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -267,7 +278,7 @@ int main(int argc, char **argv)
    }
 
    /* Read PDB file                                                     */
-   if((wpdb = ReadWholePDBAtoms(in)) == NULL)
+   if((wpdb = blReadWholePDBAtoms(in)) == NULL)
    {
       fprintf(stderr,"Error: Unable to read atoms from input file%s%s\n",
               ((gLabel[0])?" Label: ":""),
@@ -291,7 +302,7 @@ int main(int argc, char **argv)
    {
       if(gDoNucleic)
       {
-         if((sequence = PDB2SeqXNoX(pdb))==NULL)
+         if((sequence = blPDB2SeqXNoX(pdb))==NULL)
          {
             fprintf(stderr,"Error: No memory for sequence data\n");
             return(1);
@@ -299,7 +310,7 @@ int main(int argc, char **argv)
       }
       else
       {
-         if((sequence = PDBProt2SeqXNoX(pdb))==NULL)
+         if((sequence = blPDBProt2SeqXNoX(pdb))==NULL)
          {
             fprintf(stderr,"Error: No memory for sequence data\n");
             return(1);
@@ -367,23 +378,26 @@ int main(int argc, char **argv)
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message.
 
-   10.05.94 Original    By: ACRM
-   11.02.97 Reformatted message.
-   22.08.97 V2.0
-   26.08.97 V2.1
-   10.08.98 V2.2
-   02.10.00 V2.3
-   18.10.00 V2.4
-   08.03.01 V2.5
-   07.03.07 V2.6
-   12.03.07 V2.7
-   22.05.09 V2.8
+-  10.05.94 Original    By: ACRM
+-  11.02.97 Reformatted message.
+-  22.08.97 V2.0
+-  26.08.97 V2.1
+-  10.08.98 V2.2
+-  02.10.00 V2.3
+-  18.10.00 V2.4
+-  08.03.01 V2.5
+-  07.03.07 V2.6
+-  12.03.07 V2.7
+-  22.05.09 V2.8
+-  22.07.14 V2.9 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdb2pir V2.8 (c) 1994-2009 Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"\npdb2pir V2.9 (c) 1994-2014 Dr. Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"\nUsage: pdb2pir [-h] [-l label] [-t title] [-s] [-c] \
 [-u] [-p] [-q] [-x] [-f] [-n] [-i] [infile [outfile]]\n");
@@ -447,13 +461,15 @@ way.\n");
 /************************************************************************/
 /*>char *ReadSEQRES(WHOLEPDB *wpdb, char *chains, MODRES *modres)
    --------------------------------------------------------------
+*//**
+
    Reads sequence from SEQRES records into a character string in 1-letter
    code. Chains are terminated by * characters.
 
-   21.08.97 Original   by: ACRM
-   22.08.97 Added chains parameter
-   26.08.97 No longer reads DNA/RNA
-   07.03.07 Added code to check for modified amino acids
+-  21.08.97 Original   by: ACRM
+-  22.08.97 Added chains parameter
+-  26.08.97 No longer reads DNA/RNA
+-  07.03.07 Added code to check for modified amino acids
             Now reads from wpdb rather than from the file
 */
 char *ReadSEQRES(WHOLEPDB *wpdb, char *chains, MODRES *modres)
@@ -523,14 +539,14 @@ char *ReadSEQRES(WHOLEPDB *wpdb, char *chains, MODRES *modres)
             AddStar = TRUE;
             if(!strncmp(seq3[i],"   ",3))
                break;
-            sequence[nres] = thronex(seq3[i]);
+            sequence[nres] = blThronex(seq3[i]);
 
             /* 07.03.07 Added code to check for modified amino acids    */
             if(sequence[nres] == 'X')
             {
                char tmpthree[8];
                LookupModres(seq3[i], tmpthree, modres);
-               sequence[nres] = thronex(tmpthree);
+               sequence[nres] = blThronex(tmpthree);
             }
                
             if(!gBioplibSeqNucleicAcid || gDoNucleic)
@@ -553,9 +569,11 @@ char *ReadSEQRES(WHOLEPDB *wpdb, char *chains, MODRES *modres)
 /************************************************************************/
 /*>int GetPDBChains(PDB *pdb, char *chains)
    ----------------------------------------
+*//**
+
    Extracts a list of chains from a PDB linked list
 
-   22.08.97 Original   By: ACRM
+-  22.08.97 Original   By: ACRM
 */
 int GetPDBChains(PDB *pdb, char *chains)
 {
@@ -582,15 +600,18 @@ int GetPDBChains(PDB *pdb, char *chains)
 /*>char *FixSequence(char *seqres, char *sequence, char *seqchains, 
                      char *atomchains, char *outchains, BOOL IgnoreSEQRES)
    -----------------------------------------------------------------------
+*//**
+
    Create a final output sequence by combining the information from the
    ATOM and SEQRES records.
 
-   21.08.97 Original   By: ACRM
-   22.08.97 Added chain information
-   26.08.97 A couple of bug fixes in initialising allocated memory
+-  21.08.97 Original   By: ACRM
+-  22.08.97 Added chain information
+-  26.08.97 A couple of bug fixes in initialising allocated memory
             Warning/error messages give the label if specified
-   22.05.09 Added IgnoreSEQRES to ignore chains that are in SEQRES but
+-  22.05.09 Added IgnoreSEQRES to ignore chains that are in SEQRES but
             not in ATOM records
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 char *FixSequence(char *seqres, char *sequence, char *seqchains, 
                   char *atomchains, char *outchains, BOOL IgnoreSEQRES)
@@ -639,10 +660,10 @@ char *FixSequence(char *seqres, char *sequence, char *seqchains,
    /* See how many chains there are and create arrays of char pointers
       to store the separate chains
    */
-   nchain[0] = countchar(seqres,   '*');        /* SEQRES sequence      */
+   nchain[0] = blCountchar(seqres,   '*');        /* SEQRES sequence    */
    if(len1 && seqres[len1-1] != '*')
       nchain[0]++;
-   nchain[1] = countchar(sequence, '*');        /* ATOM sequence        */
+   nchain[1] = blCountchar(sequence, '*');        /* ATOM sequence      */
    if(len2 && sequence[len2-1] != '*')
       nchain[1]++;
    for(i=0; i<2; i++)
@@ -710,10 +731,10 @@ char *FixSequence(char *seqres, char *sequence, char *seqchains,
                if((align2=(char *)malloc((len1+len2)*sizeof(char)))==NULL)
                   return(NULL);
             
-               if(!align(seqs[0][i], len1,
-                         seqs[1][j], len2,
-                         FALSE, TRUE, GAPPEN,
-                         align1, align2, &align_len))
+               if(!blAlign(seqs[0][i], len1,
+                           seqs[1][j], len2,
+                           FALSE, TRUE, GAPPEN,
+                           align1, align2, &align_len))
                   return(NULL);
 
                if((combseq=CombineSequence(align1,align2,align_len))
@@ -845,9 +866,11 @@ not found in ATOM records%s%s\n",
 /************************************************************************/
 /*>char *CombineSequence(char *align1, char *align2, int align_len)
    ----------------------------------------------------------------
+*//**
+
    Combine the information from the two sequences
 
-   22.08.97 Original   By: ACRM
+-  22.08.97 Original   By: ACRM
 */
 char *CombineSequence(char *align1, char *align2, int align_len)
 {
@@ -891,22 +914,24 @@ char *CombineSequence(char *align1, char *align2, int align_len)
 /*>void WritePIR(FILE *out, char *label, char *title, char *sequence,
                  char *chains, BOOL ByChain)
    ------------------------------------------------------------------
-   Input:   FILE *out        File pointer
-            char *sequence   1-letter amino acid code
+*//**
+
+   \param[in]      *out        File pointer
+   \param[in]      *sequence   1-letter amino acid code
 
    Writes a PIR sequence file from a 1-letter code array.
    Adds a terminating * if required.
 
-   10.05.94 Original    By: ACRM
-   22.08.97 Can now handle chains separately
-   26.08.97 If chains are handled seprately, don't bother writing out
+-  10.05.94 Original    By: ACRM
+-  22.08.97 Can now handle chains separately
+-  26.08.97 If chains are handled seprately, don't bother writing out
             an empty chain
-   10.08.98 Basically a total rewrite to fix a bug which caused the 
+-  10.08.98 Basically a total rewrite to fix a bug which caused the 
             header not to be printed with -c -p for a chain after one
             which was non-protein. Much simplified the code by printing
             the header at the beginning of a chain rather than end
             of previous chain.
-   18.10.00 Added code to write FASTA as well
+-  18.10.00 Added code to write FASTA as well
 */
 void WritePIR(FILE *out, char *label, char *title, char *sequence,
               char *chains, BOOL ByChain)
@@ -1046,9 +1071,11 @@ void WritePIR(FILE *out, char *label, char *title, char *sequence,
 /************************************************************************/
 /*>void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres)
    --------------------------------------------------------
-   Input:   FILE   *out       File to which to send output
-            PDB    *pdb       PDB linked list
-            MODRES *modres    MODRES linked list
+*//**
+
+   \param[in]      *out       File to which to send output
+   \param[in]      *pdb       PDB linked list
+   \param[in]      *modres    MODRES linked list
 
    Simply works through the PDB linked list printing lines of the form
    ># pos cnnni aa
@@ -1056,8 +1083,9 @@ void WritePIR(FILE *out, char *label, char *title, char *sequence,
    sequentially), cnnni is the chain/resnum/insert code and aa is the
    1-letter amino acid code.
 
-   08.03.01 Original   By: ACRM
-   07.03.07 Added modres stuff
+-  08.03.01 Original   By: ACRM
+-  07.03.07 Added modres stuff
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres)
 {
@@ -1082,14 +1110,14 @@ void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres)
          lastinsert = p->insert[0];
          
          sprintf(resid,"%c%d%c", p->chain[0], p->resnum, p->insert[0]);
-         one = throne(p->resnam);
+         one = blThrone(p->resnam);
 
          /* 07.03.07 Added code to check for modified amino acids    */
          if(one == 'X')
          {
             char tmpthree[8];
             LookupModres(p->resnam, tmpthree, modres);
-            one = throne(tmpthree);
+            one = blThrone(tmpthree);
          }
                
          fprintf(out, "># %d %s %c\n", pos, resid, one);

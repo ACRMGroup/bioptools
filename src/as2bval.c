@@ -1,33 +1,34 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    as2bval
-   File:       as2bval.c
+   \file       as2bval.c
    
-   Version:    V1.5
-   Date:       30.09.05
-   Function:   Sum B-vals over each residue and replace with the
+   \version    V1.7
+   \date       15.08.14
+   \brief      Sum B-vals over each residue and replace with the
                summed or average value
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1994-2005
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   EMail:      andrew@bioinf.org.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -46,14 +47,17 @@
 
    Revision History:
    =================
-   V1.0  05.07.94 Original    By: ACRM
-   V1.1  24.08.94 Changed to call OpenStdFiles()
-   V1.2  27.09.94 Corrected usage message.
-   V1.3  30.05.02 Changed PDB field from 'junk' to 'record_type'
-   V1.4  03.06.04 Fixed for FixAtomName() which now needs occupancy
-   V1.5  30.09.05 Now writes the results itself using WritePDBRecordAtnam
+-  V1.0  05.07.94 Original    By: ACRM
+-  V1.1  24.08.94 Changed to call OpenStdFiles()
+-  V1.2  27.09.94 Corrected usage message.
+-  V1.3  30.05.02 Changed PDB field from 'junk' to 'record_type'
+-  V1.4  03.06.04 Fixed for FixAtomName() which now needs occupancy
+-  V1.5  30.09.05 Now writes the results itself using WritePDBRecordAtnam
                   since we aren't using ReadPDB() so record widths are
                   different
+-  V1.6  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
+-  V1.7  15.08.14 Updated ReadSolv() to use CLEAR_PDB(). By: CTP
 
 *************************************************************************/
 /* Includes
@@ -91,9 +95,12 @@ PDB *ReadSolv(FILE *fp, int *natom);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for moving accall atom accessibilities into B-val column
 
-   05.07.94 Original    By: ACRM
+-  05.07.94 Original    By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -108,7 +115,7 @@ int main(int argc, char **argv)
    
    if(ParseCmdLine(argc, argv, infile, outfile))
    {
-      if(OpenStdFiles(infile, outfile, &in, &out))
+      if(blOpenStdFiles(infile, outfile, &in, &out))
       {
          if((pdb = ReadSolv(in,&natoms)) != NULL)
          {
@@ -120,7 +127,7 @@ int main(int argc, char **argv)
                   fprintf(out,"TER   \n");
                   strcpy(PrevChain,p->chain);
                }
-               WritePDBRecordAtnam(out, p);
+               blWritePDBRecordAtnam(out, p);
             }
             fprintf(out,"TER   \n");
          }
@@ -141,15 +148,17 @@ int main(int argc, char **argv)
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
    ---------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-   Returns: BOOL                Success?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \return                     Success?
 
    Parse the command line
    
-   05.07.94 Original    By: ACRM
+-  05.07.94 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 {
@@ -196,18 +205,21 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   05.07.94 Original    By: ACRM
-   24.08.94 V1.1
-   27.09.94 V1.2, corrected message
-   30.05.02 V1.3
-   03.05.04 V1.4
-   30.09.05 V1.5
+-  05.07.94 Original    By: ACRM
+-  24.08.94 V1.1
+-  27.09.94 V1.2, corrected message
+-  30.05.02 V1.3
+-  03.05.04 V1.4
+-  30.09.05 V1.5
+-  22.07.14 V1.6 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nAS2BVal V1.5 (c) 1994-2005, Andrew C.R. Martin, \
+   fprintf(stderr,"\nAS2BVal V1.6 (c) 1994-2014, Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"Usage: as2bval [<in.pdb>] [<out.pdb>]\n");
    fprintf(stderr,"Rewrites the output from accall solvent accessibility \
@@ -220,15 +232,18 @@ and radius in the\n");
 /************************************************************************/
 /*>PDB *ReadSolv(FILE *fp, int *natom)
    -----------------------------------
-   Input:   FILE   *fp     PDB file pointer
-   Output:  int    *natom  Number of atoms read
-   Returns: PDB    *       PDB linked list
+*//**
+
+   \param[in]      *fp     PDB file pointer
+   \param[out]     *natom  Number of atoms read
+   \return                 PDB linked list
 
    Reads a PDB-like file but with the OCC and BVAL columns widened for
    use by solvent accessibility data
 
-   05.07.94 Original based on doReadPDB()   By: ACRM
-   03.06.05 FixAtomName() now needs the occupancy
+-  05.07.94 Original based on doReadPDB()   By: ACRM
+-  03.06.05 FixAtomName() now needs the occupancy
+-  15.08.14 Updated to use CLEAR_PDB(). By: CTP
 */
 PDB *ReadSolv(FILE *fp, int *natom)
 {
@@ -258,7 +273,7 @@ PDB *ReadSolv(FILE *fp, int *natom)
          !strncmp(record_type,"HETATM",6))
       {
          /* Fix the atom name accounting for start in column 13 or 14   */
-         atnam = FixAtomName(atnambuff, occ);
+         atnam = blFixAtomName(atnambuff, occ);
          
          /* Trim the atom name to 4 characters                          */
          atnam[4] = '\0';
@@ -284,7 +299,10 @@ PDB *ReadSolv(FILE *fp, int *natom)
          
          /* Increment the number of atoms                               */
          (*natom)++;
-         
+
+         /* Clear PDB                                                   */
+         CLEAR_PDB(p);
+
          /* Store the information read                                  */
          p->atnum  = atnum;
          p->resnum = resnum;

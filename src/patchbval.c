@@ -1,33 +1,34 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    PatchBVal
-   File:       patchbval.c
+   \file       patchbval.c
    
-   Version:    V1.2
-   Date:       28.08.13
-   Function:   Patch the b-value (or occupancy) column using values from 
+   \version    V1.3
+   \date       22.07.14
+   \brief      Patch the b-value (or occupancy) column using values from 
                a file
    
-   Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1996-2013
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1996-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   EMail:      andrew@bioinf.org.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -46,10 +47,12 @@
 
    Revision History:
    =================
-   V1.0  29.05.96 Original   By: ACRM
-   V1.1  17.02.97 Fixed bug in not updating doubly linked list correctly
+-  V1.0  29.05.96 Original   By: ACRM
+-  V1.1  17.02.97 Fixed bug in not updating doubly linked list correctly
                   when removing items from patch list
-   V1.2  28.08.13 Modified for new ParseResSpec()
+-  V1.2  28.08.13 Modified for new ParseResSpec()
+-  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -97,9 +100,12 @@ void Usage(void);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for patching bvalues or occupancies per-residue
 
-   29.05.96 Original   By: ACRM
+-  29.05.96 Original   By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -116,7 +122,7 @@ int main(int argc, char **argv)
    if(ParseCmdLine(argc, argv, datafile, infile, outfile, &occup, 
                    &verbose))
    {
-      if(OpenStdFiles(infile, outfile, &in, &out))
+      if(blOpenStdFiles(infile, outfile, &in, &out))
       {
          if((data=fopen(datafile,"r"))!=NULL)
          {
@@ -155,15 +161,18 @@ int main(int argc, char **argv)
 /*>BOOL ApplyPatches(FILE *in, FILE *out, PATCH *patch, BOOL occup,
                      BOOL verbose)
    --------------------------------------------------------------------
+*//**
+
    Does the work of patching a PDB file, including reading it in and
    writing out the patched version
 
-   29.05.96 Original   By: ACRM
-   17.02.97 The linked list wasn't being updated in the prev direction
+-  29.05.96 Original   By: ACRM
+-  17.02.97 The linked list wasn't being updated in the prev direction
             when items were removed leading to possible corruption.
             Also, no longer treats end of list as a separate special
             case.
-   28.08.13 PATCH.chain and PATCH.insert are now strings
+-  28.08.13 PATCH.chain and PATCH.insert are now strings
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 BOOL ApplyPatches(FILE *in, FILE *out, PATCH *patch, BOOL occup,
                   BOOL verbose)
@@ -176,7 +185,7 @@ BOOL ApplyPatches(FILE *in, FILE *out, PATCH *patch, BOOL occup,
    int   natoms;
    
    
-   if((pdb = ReadPDB(in, &natoms))==NULL)
+   if((pdb = blReadPDB(in, &natoms))==NULL)
    {
       fprintf(stderr,"Unable to read atoms from PDB file\n");
       return(FALSE);
@@ -196,7 +205,7 @@ BOOL ApplyPatches(FILE *in, FILE *out, PATCH *patch, BOOL occup,
       if(patch==NULL)
          break;
       
-      end = FindNextResidue(p);
+      end = blFindNextResidue(p);
       
       /* Now compare this residue with items in the patch list          */
       for(pa=patch; pa!=NULL; NEXT(pa))
@@ -250,7 +259,7 @@ BOOL ApplyPatches(FILE *in, FILE *out, PATCH *patch, BOOL occup,
    }
    
    /* Write the patched PDB file                                        */
-   WritePDB(out,pdb);
+   blWritePDB(out,pdb);
 
    return(TRUE);
 }
@@ -259,10 +268,12 @@ BOOL ApplyPatches(FILE *in, FILE *out, PATCH *patch, BOOL occup,
 /************************************************************************/
 /*>PATCH *ReadPatchFile(FILE *fp)
    ------------------------------
+*//**
+
    Reads a patch file into a linked list
 
-   29.05.96 Original   By: ACRM
-   28.08.13 Modified for new ParseResSpec()
+-  29.05.96 Original   By: ACRM
+-  28.08.13 Modified for new ParseResSpec()
 */
 PATCH *ReadPatchFile(FILE *fp)
 {
@@ -291,7 +302,7 @@ PATCH *ReadPatchFile(FILE *fp)
             FREELIST(patch, PATCH);
             return(NULL);
          }
-         ParseResSpec(resspec, p->chain, &p->resnum, p->insert);
+         blParseResSpec(resspec, p->chain, &p->resnum, p->insert);
          p->value = value;
       }
    }
@@ -304,18 +315,20 @@ PATCH *ReadPatchFile(FILE *fp)
 /*>BOOL ParseCmdLine(int argc, char **argv, char *datafile, char *infile, 
                      char *outfile, BOOL *occup, BOOL *verbose)
    ---------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            char   *datafile    The patch datafile
-            BOOL   *occup       Put the patches in the occupancy column
-            BOOL   *verbose     Report failed patches
-   Returns: BOOL                Success?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *datafile    The patch datafile
+   \param[out]     *occup       Put the patches in the occupancy column
+   \param[out]     *verbose     Report failed patches
+   \return                     Success?
 
    Parse the command line
    
-   29.05.96 Original    By: ACRM
+-  29.05.96 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *datafile, char *infile, 
                   char *outfile, BOOL *occup, BOOL *verbose)
@@ -384,14 +397,17 @@ BOOL ParseCmdLine(int argc, char **argv, char *datafile, char *infile,
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   29.05.96 Original   By: ACRM
-   28.08.13 V1.2
+-  29.05.96 Original   By: ACRM
+-  28.08.13 V1.2
+-  22.07.14 V1.3 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPatchBVal V1.2 (c) 1996-2013, Dr. Andrew C. R. \
+   fprintf(stderr,"\nPatchBVal V1.3 (c) 1996-2014, Dr. Andrew C. R. \
 Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: patchbval [-o] [-v] patchfile [in.pdb \

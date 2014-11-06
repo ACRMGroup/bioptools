@@ -1,33 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    renumpdb
-   File:       renumpdb.c
+   \file       renumpdb.c
    
-   Version:    V1.8
-   Date:       14.11.96
-   Function:   Renumber a PDB file
+   \version    V1.9
+   \date       22.07.14
+   \brief      Renumber a PDB file
    
-   Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1994-6
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1994-6-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0)1372 275775
-   EMail:      INTERNET: martin@biochem.ucl.ac.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -46,16 +46,18 @@
 
    Revision History:
    =================
-   V1.0  29.06.94 Original
-   V1.1  04.07.94 Added -r and -a and option for skipping in -c
-   V1.2  16.08.94 Wasn't setting insert to blank (!)
-   V1.3  24.08.94 Changed to call OpenStdFiles()
-   V1.4  14.12.94 Added check on chain count
-   V1.5  04.01.95 Added -d option
-   V1.6  06.10.95 Was blanking insert codes with -d
-   V1.7  13.05.96 Fixed potential segmentation error if command line
+-  V1.0  29.06.94 Original
+-  V1.1  04.07.94 Added -r and -a and option for skipping in -c
+-  V1.2  16.08.94 Wasn't setting insert to blank (!)
+-  V1.3  24.08.94 Changed to call OpenStdFiles()
+-  V1.4  14.12.94 Added check on chain count
+-  V1.5  04.01.95 Added -d option
+-  V1.6  06.10.95 Was blanking insert codes with -d
+-  V1.7  13.05.96 Fixed potential segmentation error if command line
                   specified wrongly
-   V1.8  14.11.96 -r wasn't working with blank chain names
+-  V1.8  14.11.96 -r wasn't working with blank chain names
+-  V1.9  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -96,12 +98,15 @@ void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain,
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for PDB renumbering
 
-   29.06.94 Original    By: ACRM
-   04.07.94 Added ResStart & AtomStart
-   24.08.94 Changed to call OpenStdFiles()
-   04.01.95 Added DoRes handling
+-  29.06.94 Original    By: ACRM
+-  04.07.94 Added ResStart & AtomStart
+-  24.08.94 Changed to call OpenStdFiles()
+-  04.01.95 Added DoRes handling
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -122,9 +127,9 @@ int main(int argc, char **argv)
    if(ParseCmdLine(argc, argv, infile, outfile, &DoSequential, &KeepChain,
                    &DoAtoms, chains, ResStart, &AtomStart, &DoRes))
    {
-      if(OpenStdFiles(infile, outfile, &in, &out))
+      if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb=ReadPDB(in, &natoms))==NULL)
+         if((pdb=blReadPDB(in, &natoms))==NULL)
          {
             fprintf(stderr,"No atoms read from input file\n");
          }
@@ -132,7 +137,7 @@ int main(int argc, char **argv)
          {
             DoRenumber(pdb,DoSequential,KeepChain,DoAtoms,DoRes,chains,
                        ResStart, AtomStart);
-            WritePDB(out, pdb);
+            blWritePDB(out, pdb);
          }
       }
       else
@@ -156,26 +161,28 @@ int main(int argc, char **argv)
                      char *chains, int *ResStart, int *AtomStart,
                      BOOL *DoRes)
    ----------------------------------------------------------------------
-   Input:   int    argc        Argument count
-            char   **argv      Argument array
-   Output:  char   *infile     Input filename (or blank string)
-            char   *outfile    Output filename (or blank string)
-            BOOL   *DoSeq      Number residues sequentially throughout
-            BOOL   *KeepChain  Keep chain labels when DoSeq TRUE
-            BOOL   *DoAtoms    Renumber atoms
-            char   *chains     Chain labels
-            int    *ResStart   Chain residue start numbers
-            int    *AtomStart  First chain atom start number
-            BOOL   *DoRes      Renumber residues
-   Returns: BOOL               Success
+*//**
+
+   \param[in]      argc        Argument count
+   \param[in]      **argv      Argument array
+   \param[out]     *infile     Input filename (or blank string)
+   \param[out]     *outfile    Output filename (or blank string)
+   \param[out]     *DoSeq      Number residues sequentially throughout
+   \param[out]     *KeepChain  Keep chain labels when DoSeq TRUE
+   \param[out]     *DoAtoms    Renumber atoms
+   \param[out]     *chains     Chain labels
+   \param[out]     *ResStart   Chain residue start numbers
+   \param[out]     *AtomStart  First chain atom start number
+   \param[out]     *DoRes      Renumber residues
+   \return                     Success
 
    Parse the command line
 
-   29.06.94 Original    By: ACRM
-   04.07.94 Added Residue and atom start specification
+-  29.06.94 Original    By: ACRM
+-  04.07.94 Added Residue and atom start specification
             Initialise chains array.
-   04.01.95 Added -d
-   13.05.96 Checks argc after -c/-r/-a options
+-  04.01.95 Added -d
+-  13.05.96 Checks argc after -c/-r/-a options
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   BOOL *DoSeq, BOOL *KeepChain, BOOL *DoAtoms, 
@@ -299,20 +306,23 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Print a usage message
 
-   29.06.94 Original    By: ACRM
-   04.07.94 V1.1
-   16.08.94 V1.2  
-   24.08.94 V1.3
-   04.01.95 V1.5
-   06.10.95 V1.6  
-   13.05.96 V1.7
-   14.11.96 V1.8
+-  29.06.94 Original    By: ACRM
+-  04.07.94 V1.1
+-  16.08.94 V1.2  
+-  24.08.94 V1.3
+-  04.01.95 V1.5
+-  06.10.95 V1.6  
+-  13.05.96 V1.7
+-  14.11.96 V1.8
+-  22.07.14 V1.9 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nRenumPDB V1.8 (c) 1994-6 Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"\nRenumPDB V1.9 (c) 1994-2014 Dr. Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"Freely distributable if no profit is made\n\n");
    fprintf(stderr,"Usage: renumpdb [-s] [-k] [-c <chains>] [-n] [-d] \
@@ -338,24 +348,26 @@ instead of the label or\nnumber.\n\n");
                    BOOL DoAtoms, BOOL DoRes, char *chains, int *ResStart,
                    int AtomStart)
    ------------------------------------------------------------
-   I/O:     PDB    *pdb            PDB linked list
-   Input:   BOOL   DoSequential    Number sequentially throughout
-            BOOL   KeepChain       Keep chain labels when DoSequential
-            BOOL   DoAtoms         Renumber atoms
-            BOOL   DoRes           Renumber residues
-            char   *chains         Chain labels (or blank string)
-            int    *ResStart       Residue start numbers
-            int    AtomStart       Atom number for start of first chain
+*//**
+
+   \param[in,out]  *pdb            PDB linked list
+   \param[in]      DoSequential    Number sequentially throughout
+   \param[in]      KeepChain       Keep chain labels when DoSequential
+   \param[in]      DoAtoms         Renumber atoms
+   \param[in]      DoRes           Renumber residues
+   \param[in]      *chains         Chain labels (or blank string)
+   \param[in]      *ResStart       Residue start numbers
+   \param[in]      AtomStart       Atom number for start of first chain
 
    Do the actual renumbering.
 
-   29.06.94 Original    By: ACRM
-   04.07.94 Modified to handle ResStart and AtomStart
-   16.08.94 Sets the insert to a blank
-   14.12.94 Added check on chain count
-   04.01.95 Added DoRes parameter
-   06.10.95 If dores was false, inserts were getting blanked.
-   14.11.96 Initialise LastChain to something other than ' ' as
+-  29.06.94 Original    By: ACRM
+-  04.07.94 Modified to handle ResStart and AtomStart
+-  16.08.94 Sets the insert to a blank
+-  14.12.94 Added check on chain count
+-  04.01.95 Added DoRes parameter
+-  06.10.95 If dores was false, inserts were getting blanked.
+-  14.11.96 Initialise LastChain to something other than ' ' as
             -r option wasn't working with blank chain names
 */
 void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain, 

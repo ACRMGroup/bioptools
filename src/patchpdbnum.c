@@ -1,33 +1,34 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    PatchPDBNum
-   File:       patchpdbnum.c
+   \file       patchpdbnum.c
    
-   Version:    V1.3
-   Date:       28.08.13
-   Function:   Patch the numbering of a PDB file from a file of numbers
+   \version    V1.4
+   \date       22.07.14
+   \brief      Patch the numbering of a PDB file from a file of numbers
                and sequence (as created by KabatSeq, etc)
    
-   Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1995-2013
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1995-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   EMail:      andrew@bioinf.org.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -46,12 +47,14 @@
 
    Revision History:
    =================
-   V1.0  09.08.95 Original    By: ACRM
-   V1.1  12.02.97 Fixed NULL pointer reference which was shown up under
+-  V1.0  09.08.95 Original    By: ACRM
+-  V1.1  12.02.97 Fixed NULL pointer reference which was shown up under
                   Linux
-   V1.2  14.06.06 Now skips records in the patch file where the amino acid
+-  V1.2  14.06.06 Now skips records in the patch file where the amino acid
                   is in lower case
-   V1.3  28.08.13 Modified for new ParseResSpec()
+-  V1.3  28.08.13 Modified for new ParseResSpec()
+-  V1.4  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -99,9 +102,12 @@ BOOL ApplyPatches(PDB *pdb, PATCH *patches);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for PDB number patching
 
-   09.08.95 Original    By: ACRM
+-  09.08.95 Original    By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -117,7 +123,7 @@ int main(int argc, char **argv)
    
    if(ParseCmdLine(argc, argv, infile, outfile, patchfile))
    {
-      if(OpenStdFiles(infile, outfile, &in, &out))
+      if(blOpenStdFiles(infile, outfile, &in, &out))
       {
          if((patchfp=fopen(patchfile,"r"))==NULL)
          {
@@ -131,11 +137,11 @@ int main(int argc, char **argv)
             return(1);
          }
 
-         if((pdb = ReadPDB(in,&natoms)) != NULL)
+         if((pdb = blReadPDB(in,&natoms)) != NULL)
          {
             if(ApplyPatches(pdb, patches))
             {
-               WritePDB(out, pdb);
+               blWritePDB(out, pdb);
             }
             else
             {
@@ -166,16 +172,18 @@ int main(int argc, char **argv)
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                      char *patchfile)
    ---------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            char   *patchfile   Output file (or blank string)
-   Returns: BOOL                Success?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *patchfile   Output file (or blank string)
+   \return                     Success?
 
    Parse the command line
    
-   09.08.95 Original    By: ACRM
+-  09.08.95 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *patchfile)
@@ -233,13 +241,15 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>PATCH *ReadPatchFile(FILE *fp)
    ------------------------------
+*//**
+
    Reads a patch file and creates a linked list of patches which is 
    returned.
 
-   09.08.95 Original    By: ACRM
-   14.06.06 Skips records where the amino acid is in lower case
+-  09.08.95 Original    By: ACRM
+-  14.06.06 Skips records where the amino acid is in lower case
             Also fixed for newer GetWord() which needs buffer size
-   28.08.13 Modified for new ParseResSpec()
+-  28.08.13 Modified for new ParseResSpec()
 */
 PATCH *ReadPatchFile(FILE *fp)
 {
@@ -270,13 +280,13 @@ PATCH *ReadPatchFile(FILE *fp)
          else
          {
             /* Get the first two words out of the buffer                */
-            chp = GetWord(buffer,resid,MAXBUFF);
-            GetWord(chp,aacode,MAXBUFF);
+            chp = blGetWord(buffer,resid,MAXBUFF);
+            blGetWord(chp,aacode,MAXBUFF);
 
             if(isupper(aacode[0]))   /* 14.06.06                        */
             {
                /* If the first word is a valid residue specification    */
-               if(ParseResSpec(resid, chain, &resnum, insert))
+               if(blParseResSpec(resid, chain, &resnum, insert))
                {
                   /* Allocate an item in the linked list                */
                   if(patch==NULL)
@@ -312,15 +322,18 @@ PATCH *ReadPatchFile(FILE *fp)
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   09.08.95 Original    By: ACRM
-   14.06.06 V1.2
-   28.08.13 V1.3
+-  09.08.95 Original    By: ACRM
+-  14.06.06 V1.2
+-  28.08.13 V1.3
+-  22.07.14 V1.4 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPatchPDBNum V1.3 (c) 1995-2013, Dr. Andrew C.R. \
+   fprintf(stderr,"\nPatchPDBNum V1.4 (c) 1995-2014, Dr. Andrew C.R. \
 Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: patchpdbnum <patchfile> [<in.pdb> \
@@ -345,6 +358,8 @@ PDB file is \n");
 /************************************************************************/
 /*>BOOL ApplyPatches(PDB *pdb, PATCH *patches)
    -------------------------------------------
+*//**
+
    Does the real work of applying the sequence numbering patches and
    unlinking unused parts of the PDB linked list.
 
@@ -354,8 +369,8 @@ PDB file is \n");
    truncated. If a PDB chain ends before a patch list chain, then an
    error is issued.
 
-   09.08.95 Original    By: ACRM
-   12.02.97 Fixed NULL pointer reference on first entry round loop
+-  09.08.95 Original    By: ACRM
+-  12.02.97 Fixed NULL pointer reference on first entry round loop
             (prevchain was set from r which was not initialised)
 */
 BOOL ApplyPatches(PDB *pdb, PATCH *patches)
@@ -435,18 +450,18 @@ patches\n",pdbchain);
             }
 
             /* Check the AA code is correct                             */
-            if(throne(p->resnam) != a->aacode)
+            if(blThrone(p->resnam) != a->aacode)
             {
                fprintf(stderr,"Residue mismatch between patch file and \
 PDB file.\n");
                fprintf(stderr,"Patch file expects residue %c. PDB record \
 is:\n",a->aacode);
-               WritePDBRecord(stderr,p);
+               blWritePDBRecord(stderr,p);
                return(FALSE);
             }
                
             /* Find the next residue in the PDB file                    */
-            q = FindNextResidue(p);
+            q = blFindNextResidue(p);
 
             /* Apply the new residue numbering to the current residue   */
             if(r!=NULL)                  /* 12.02.97 Added NULL check   */

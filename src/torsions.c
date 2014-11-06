@@ -1,35 +1,37 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    torsions
-   File:       torsions.c
+   \file       torsions.c
    
-   Version:    V1.2
-   Date:       12.06.95
-   Function:   Generate a complete set of backbone torsion angles for a 
+   \version    V1.4
+   \date       19.08.14
+   \brief      Generate a complete set of backbone torsion angles for a 
                protein.
    
-   Copyright:  (c) Andrew C.R. Martin 1994-5
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure and Modelling Unit,
+   \copyright  (c) Andrew C.R. Martin 1994-5-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure and Modelling Unit,
                Department of Biochemistry and Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0)1372 275775
-   EMail:      martin@biochem.ucl.ac.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be freely copied
-   and distributed for no charge providing this header is included.
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
+   according to the conditions laid out in the accompanying file
+   COPYING.DOC.
+
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! The code may not be sold commercially without prior permission 
-   from the author, although it may be given away free with commercial 
-   products, providing it is made clear that this program is free and that 
-   the source code is provided with the program.
+   documented so that the person responsible can be identified.
+
+   The code may not be sold commercially or included as part of a 
+   commercial product except as described in the file COPYING.DOC.
 
 **************************************************************************
 
@@ -50,9 +52,13 @@
 
    Revision History:
    =================
-   V1.0  10.06.94 Original
-   V1.1  16.08.94 Added -m option for Martin's output format
-   V1.2  12.06.95 Added -c option for pseudo-CA torsions     
+-  V1.0  10.06.94 Original
+-  V1.1  16.08.94 Added -m option for Martin's output format
+-  V1.2  12.06.95 Added -c option for pseudo-CA torsions     
+-  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
+-  V1.4  19.08.14 Added AsCopy suffix to call to blSelectAtomsPDB() 
+                  By: CTP
 
 *************************************************************************/
 /* Includes
@@ -88,11 +94,15 @@ void Usage(void);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for converting a PDB file to torsions.
 
-   10.06.94 Original   By: ACRM
-   16.08.94 Added -m option
-   12.06.95 Added -c option
+-  10.06.94 Original   By: ACRM
+-  16.08.94 Added -m option
+-  12.06.95 Added -c option
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  19.08.14 Added AsCopy suffix to call to blSelectAtomsPDB() By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -175,7 +185,7 @@ int main(int argc, char **argv)
    }
    
    /* Read in the structure                                             */
-   if((fullpdb = ReadPDB(in, &natoms))==NULL)
+   if((fullpdb = blReadPDB(in, &natoms))==NULL)
    {
       fprintf(stderr,"No atoms read from PDB file\n");
       return(1);
@@ -189,7 +199,8 @@ int main(int argc, char **argv)
       SELECT(sel[2],"C   ");
    }
    
-   if((pdb = SelectAtomsPDB(fullpdb,(CATorsions?1:3),sel,&natoms))==NULL)
+   if((pdb = blSelectAtomsPDBAsCopy(fullpdb,(CATorsions?1:3),sel,&natoms))
+      == NULL)
    {
       fprintf(stderr,"Unable to select backbone atoms from PDB \
 file (no memory?)\n");
@@ -227,21 +238,21 @@ file (no memory?)\n");
          p4 = p;
          if(p1 && p2 && p3 && p4)   /* Got all 4 atoms                  */
          {
-            tors[0] = phi(p1->x, p1->y, p1->z,
-                          p2->x, p2->y, p2->z,
-                          p3->x, p3->y, p3->z,
-                          p4->x, p4->y, p4->z);
+            tors[0] = blPhi(p1->x, p1->y, p1->z,
+                            p2->x, p2->y, p2->z,
+                            p3->x, p3->y, p3->z,
+                            p4->x, p4->y, p4->z);
             if(!Radians) tors[0] *= 180.0 / PI;
-            fprintf(out,"   %c    %8.3f\n",throne(p2->resnam),tors[0]);
+            fprintf(out,"   %c    %8.3f\n",blThrone(p2->resnam),tors[0]);
          }
          else if(p1==NULL && p2==NULL && p3==NULL && p4) /* Got 1 atom  */
          {
-            fprintf(out,"   %c        -\n",throne(p4->resnam));
+            fprintf(out,"   %c        -\n",blThrone(p4->resnam));
          }
       }
       /* Finish off by printing the last 2 residues                     */
-      fprintf(out,"   %c        -\n",throne(p3->resnam));
-      fprintf(out,"   %c        -\n",throne(p4->resnam));
+      fprintf(out,"   %c        -\n",blThrone(p3->resnam));
+      fprintf(out,"   %c        -\n",blThrone(p4->resnam));
    }
    else
    {
@@ -272,10 +283,10 @@ file (no memory?)\n");
          else if(!strncmp(p->atnam,"C   ",4))
             TorNum = 0;
          
-         tors[TorNum] = phi(p1->x, p1->y, p1->z,
-                            p2->x, p2->y, p2->z,
-                            p3->x, p3->y, p3->z,
-                            p4->x, p4->y, p4->z);
+         tors[TorNum] = blPhi(p1->x, p1->y, p1->z,
+                              p2->x, p2->y, p2->z,
+                              p3->x, p3->y, p3->z,
+                              p4->x, p4->y, p4->z);
       }
    }
    return(0);
@@ -285,17 +296,19 @@ file (no memory?)\n");
 /*>void ShowTorsions(FILE *out, PDB *pdb, REAL *tors, BOOL Radians,
                      BOOL MartinFormat)
    ----------------------------------------------------------------
-   Input:   FILE    *out          Output file
-            PDB     *pdb          PDB record pointer
-            REAL    *tors         Array of torsion angles
-            BOOL    Radians       Should output be in radians
-            BOOL    MartinFormat  Output in Martin's required format
+*//**
+
+   \param[in]      *out          Output file
+   \param[in]      *pdb          PDB record pointer
+   \param[in]      *tors         Array of torsion angles
+   \param[in]      Radians       Should output be in radians
+   \param[in]      MartinFormat  Output in Martin's required format
 
    Displays the torsion angles converting to degrees if Radians flag
    not set.
 
-   10.06.94 Original    By: ACRM
-   16.08.94 Added MartinFormat
+-  10.06.94 Original    By: ACRM
+-  16.08.94 Added MartinFormat
 */
 void ShowTorsions(FILE *out, PDB *pdb, REAL *tors, BOOL Radians,
                   BOOL MartinFormat)
@@ -314,7 +327,7 @@ void ShowTorsions(FILE *out, PDB *pdb, REAL *tors, BOOL Radians,
    
    if(MartinFormat)
    {
-      fprintf(out,"   %c    ", throne(pdb->resnam));
+      fprintf(out,"   %c    ", blThrone(pdb->resnam));
 
       if(tors[0] > (REAL)9998.0)
       {
@@ -340,15 +353,18 @@ void ShowTorsions(FILE *out, PDB *pdb, REAL *tors, BOOL Radians,
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Displays a usage message
 
-   10.06.94 original   By: ACRM
-   16.08.94 Added -m
-   12.06.95 Added -c
+-  10.06.94 original   By: ACRM
+-  16.08.94 Added -m
+-  12.06.95 Added -c
+-  22.07.14 V1.3 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\ntorsions V1.2. (c) 1994-5 Andrew Martin, UCL. \
+   fprintf(stderr,"\ntorsions V1.3. (c) 1994-2014 Andrew Martin, UCL. \
 Freely Distributable\n");
    fprintf(stderr,"Generates a set of backbone torsions from a PDB \
 file.\n\n");

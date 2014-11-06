@@ -1,36 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    pdb2xyz
-   File:       pdb2xyz.c
+   \file       pdb2xyz.c
    
-   Version:    V1.0
-   Date:       24.08.94
-   Function:   Convert PDB to Gromos XYZ
+   \version    V1.1
+   \date       22.07.14
+   \brief      Convert PDB to Gromos XYZ
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1994
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0372) 275775
-   EMail:      INTERNET: amartin@scitec.adsp.sub.org
-                         martin@bsm.bioc.ucl.ac.uk
-               UUCP:     ...{uunet|rutgers}!cbmehq!cbmuk!scitec!amartin
-               JANET:    martin@uk.ac.ucl.bioc.bsm
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -49,7 +46,9 @@
 
    Revision History:
    =================
-   V1.0  23.08.94 Original   By: ACRM
+-  V1.0  23.08.94 Original   By: ACRM
+-  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -84,10 +83,13 @@ void WriteXYZ(FILE *out, PDB *pdb, int natoms, char *title);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for format conversion
 
-   23.08.94 Original    By: ACRM
-   24.08.94 Changed to call OpenStdFiles()
+-  23.08.94 Original    By: ACRM
+-  24.08.94 Changed to call OpenStdFiles()
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -101,9 +103,9 @@ int main(int argc, char **argv)
    
    if(ParseCmdLine(argc, argv, infile, outfile, title))
    {
-      if(OpenStdFiles(infile, outfile, &in, &out))
+      if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb = ReadPDB(in,&natoms)) != NULL)
+         if((pdb = blReadPDB(in,&natoms)) != NULL)
          {
             WriteXYZ(out, pdb, natoms, title);
          }
@@ -125,16 +127,18 @@ int main(int argc, char **argv)
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                      char *title)
    ---------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            char   *title       Title for file
-   Returns: BOOL                Success?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *title       Title for file
+   \return                     Success?
 
    Parse the command line
    
-   23.08.94 Original    By: ACRM
+-  23.08.94 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *title)
@@ -189,13 +193,16 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   23.08.94 Original    By: ACRM
+-  23.08.94 Original    By: ACRM
+-  22.07.14 V1.1 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDB2XYZ V1.0 (c) 1994, Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\nPDB2XYZ V1.1 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
    fprintf(stderr,"Usage: pdb2xyz [-t title] [<in.pdb>] [<out.pdb>]\n\n");
    fprintf(stderr,"Convert PDB format to GROMOS XYZ. N.B. Does NOT \
 correct atom order.\n\n");
@@ -204,14 +211,16 @@ correct atom order.\n\n");
 /************************************************************************/
 /*>void WriteXYZ(FILE *out, PDB *pdb, int natoms, char *title)
    -----------------------------------------------------------
-   Input:    FILE   *out      Output file pointer
-             PDB    *pdb      PDB linked list
-             int    natoms    Number of atoms
-             char   title     Title for XYZ file or blank string
+*//**
+
+   \param[in]      *out      Output file pointer
+   \param[in]      *pdb      PDB linked list
+   \param[in]      natoms    Number of atoms
+   \param[in]      title     Title for XYZ file or blank string
 
    Write the PDB linked list out in Gromos XYZ format
 
-   23.08.94 Original    By: ACRM
+-  23.08.94 Original    By: ACRM
 */
 void WriteXYZ(FILE *out, PDB *pdb, int natoms, char *title)
 {

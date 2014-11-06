@@ -1,36 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    rmspdb
-   File:       rmspdb.c
+   \file       rmspdb.c
    
-   Version:    V1.0
-   Date:       01.11.94
-   Function:   Calculate RMS between 2 PDB files. Does no fitting.
+   \version    V1.2
+   \date       19.08.14
+   \brief      Calculate RMS between 2 PDB files. Does no fitting.
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1994
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0372) 275775
-   EMail:      INTERNET: amartin@scitec.adsp.sub.org
-                         martin@bsm.bioc.ucl.ac.uk
-               UUCP:     ...{uunet|rutgers}!cbmehq!cbmuk!scitec!amartin
-               JANET:    martin@uk.ac.ucl.bioc.bsm
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -49,6 +46,11 @@
 
    Revision History:
    =================
+
+-  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
+-  V1.2  19.08.14 Added AsCopy suffix to calls to blSelectAtomsPDB() and 
+                  blStripHPDBAsCopy By: CTP
 
 *************************************************************************/
 /* Includes
@@ -88,9 +90,12 @@ BOOL ParseCmdLine(int argc, char **argv, char *file1, char *file2,
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for calculating RMS deviation with no fitting.
 
-   01.11.94 Original    By: ACRM
+-  01.11.94 Original    By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
 int main(int argc, char **argv)
 {
@@ -119,12 +124,12 @@ int main(int argc, char **argv)
       }
       
       /* Read the two PDB files                                         */
-      if((pdb1 = ReadPDB(fp1,&natoms))==NULL)
+      if((pdb1 = blReadPDB(fp1,&natoms))==NULL)
       {
          fprintf(stderr,"No atoms read from file: %s\n",file1);
          return(1);
       }
-      if((pdb2 = ReadPDB(fp2,&natoms))==NULL)
+      if((pdb2 = blReadPDB(fp2,&natoms))==NULL)
       {
          fprintf(stderr,"No atoms read from file: %s\n",file2);
          return(1);
@@ -134,7 +139,7 @@ int main(int argc, char **argv)
       if(SelectAndFixAtoms(&pdb1, &pdb2, atoms))
       {
          /* Calculate RMS between structures                            */
-         rms = CalcRMSPDB(pdb1, pdb2);
+         rms = blCalcRMSPDB(pdb1, pdb2);
          
          /* Print the result                                            */
          printf("RMS deviation over %s: %f\n",
@@ -162,9 +167,15 @@ int main(int argc, char **argv)
 /************************************************************************/
 /*>BOOL SelectAndFixAtoms(PDB **pdb1, PDB **pdb2, int atoms)
    ---------------------------------------------------------
+*//**
+
    Apply atom selections and fix atom order ready for RMSd calculation.
 
-   01.11.94 Original    By: ACRM
+-  01.11.94 Original    By: ACRM
+-  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  19.08.14 Added AsCopy suffix to calls to blSelectAtomsPDB() and 
+            blStripHPDBAsCopy By: CTP
+
 */
 BOOL SelectAndFixAtoms(PDB **pdb1, PDB **pdb2, int atoms)
 {
@@ -189,26 +200,26 @@ BOOL SelectAndFixAtoms(PDB **pdb1, PDB **pdb2, int atoms)
       pdbout2 = pdbin2;
       break;
    case ATOMS_NOH:
-      pdbout1 = StripHPDB(pdbin1, &natoms1);
-      pdbout2 = StripHPDB(pdbin2, &natoms2);
+      pdbout1 = blStripHPDBAsCopy(pdbin1, &natoms1);
+      pdbout2 = blStripHPDBAsCopy(pdbin2, &natoms2);
       FREELIST(pdbin1, PDB);
       FREELIST(pdbin2, PDB);
       break;
    case ATOMS_NCAC:
-      pdbout1 = SelectAtomsPDB(pdbin1, 3, sel, &natoms1);
-      pdbout2 = SelectAtomsPDB(pdbin2, 3, sel, &natoms2);
+      pdbout1 = blSelectAtomsPDBAsCopy(pdbin1, 3, sel, &natoms1);
+      pdbout2 = blSelectAtomsPDBAsCopy(pdbin2, 3, sel, &natoms2);
       FREELIST(pdbin1, PDB);
       FREELIST(pdbin2, PDB);
       break;
    case ATOMS_NCACO:
-      pdbout1 = SelectAtomsPDB(pdbin1, 4, sel, &natoms1);
-      pdbout2 = SelectAtomsPDB(pdbin2, 4, sel, &natoms2);
+      pdbout1 = blSelectAtomsPDBAsCopy(pdbin1, 4, sel, &natoms1);
+      pdbout2 = blSelectAtomsPDBAsCopy(pdbin2, 4, sel, &natoms2);
       FREELIST(pdbin1, PDB);
       FREELIST(pdbin2, PDB);
       break;
    case ATOMS_CA:
-      pdbout1 = SelectAtomsPDB(pdbin1, 1, sel, &natoms1);
-      pdbout2 = SelectAtomsPDB(pdbin2, 1, sel, &natoms2);
+      pdbout1 = blSelectAtomsPDBAsCopy(pdbin1, 1, sel, &natoms1);
+      pdbout2 = blSelectAtomsPDBAsCopy(pdbin2, 1, sel, &natoms2);
       FREELIST(pdbin1, PDB);
       FREELIST(pdbin2, PDB);
       break;
@@ -237,13 +248,13 @@ BOOL SelectAndFixAtoms(PDB **pdb1, PDB **pdb2, int atoms)
          atoms and renumbering - we don't want to do either of these!
       */
   
-      if((*pdb1 = FixOrderPDB(pdbout1, FALSE, FALSE))==NULL)
+      if((*pdb1 = blFixOrderPDB(pdbout1, FALSE, FALSE))==NULL)
       {
          fprintf(stderr,"Unable to fix atom order\n");
          return(FALSE);
       }
       
-      if((*pdb2 = FixOrderPDB(pdbout2, FALSE, FALSE))==NULL)
+      if((*pdb2 = blFixOrderPDB(pdbout2, FALSE, FALSE))==NULL)
       {
          fprintf(stderr,"Unable to fix atom order\n");
          return(FALSE);
@@ -258,16 +269,18 @@ BOOL SelectAndFixAtoms(PDB **pdb1, PDB **pdb2, int atoms)
 /*>BOOL ParseCmdLine(int argc, char **argv, char *file1, char *file2, 
                      int *atoms)
    ---------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *file1       Input file (or blank string)
-            char   *file2       Output file (or blank string)
-            int    *atoms       Atom selection (ATOMS_*)
-   Returns: BOOL                Success?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *file1       Input file (or blank string)
+   \param[out]     *file2       Output file (or blank string)
+   \param[out]     *atoms       Atom selection (ATOMS_*)
+   \return                     Success?
 
    Parse the command line
    
-   05.07.94 Original    By: ACRM
+-  05.07.94 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *file1, char *file2, 
                   int *atoms)
@@ -323,13 +336,16 @@ BOOL ParseCmdLine(int argc, char **argv, char *file1, char *file2,
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   01.11.94 Original    By: ACRM
+-  01.11.94 Original    By: ACRM
+-  22.07.14 V1.1 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nRmsPDB V1.0 (c) 1994, Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\nRmsPDB V1.1 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
    fprintf(stderr,"Usage: rmspdb [-h] [-c] [-b] [-m] <in1.pdb> \
 <in2.pdb>\n");
    fprintf(stderr,"                -h Include hydrogens\n");

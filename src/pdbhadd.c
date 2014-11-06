@@ -1,33 +1,33 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    PDBHAdd
-   File:       pdbhadd.c
+   \file       pdbhadd.c
    
-   Version:    V1.1
-   Date:       24.11.95
-   Function:   Add hydrogens to a PDB file
+   \version    V1.2
+   \date       22.07.14
+   \brief      Add hydrogens to a PDB file
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1994
-   Author:     Dr. Andrew C. R. Martin
-   Address:    Biomolecular Structure & Modelling Unit,
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
                University College,
                Gower Street,
                London.
                WC1E 6BT.
-   Phone:      (Home) +44 (0)1372 275775
-   EMail:      INTERNET: martin@biochem.ucl.ac.uk
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
 
-   This program is not in the public domain, but it may be copied
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
    according to the conditions laid out in the accompanying file
-   COPYING.DOC
+   COPYING.DOC.
 
    The code may be modified as required, but any modifications must be
-   documented so that the person responsible can be identified. If someone
-   else breaks this code, I don't want to be blamed for code that does not
-   work! 
+   documented so that the person responsible can be identified.
 
    The code may not be sold commercially or included as part of a 
    commercial product except as described in the file COPYING.DOC.
@@ -46,8 +46,10 @@
 
    Revision History:
    =================
-   V1.0  24.08.94 Original
-   V1.1  24.11.95 Changes NT atoms to N
+-  V1.0  24.08.94 Original
+-  V1.1  24.11.95 Changes NT atoms to N
+-  V1.2  22.07.14 Renamed deprecated functions with bl prefix.
+                  Added doxygen annotation. By: CTP
 
 *************************************************************************/
 /* Includes
@@ -83,10 +85,12 @@ void Usage(void);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
+
    Main program for hydrogen addition
 
-   23.08.94 Original    By: ACRM
-   24.11.95 Added call to FixNTerNames()
+-  23.08.94 Original    By: ACRM
+-  24.11.95 Added call to FixNTerNames()
 
 */
 int main(int argc, char **argv)
@@ -104,22 +108,22 @@ int main(int argc, char **argv)
    
    if(ParseCmdLine(argc, argv, infile, outfile, pgpfile, &AllH, &Charmm))
    {
-      if((pgp = OpenPGPFile(pgpfile, AllH)) != NULL)
+      if((pgp = blOpenPGPFile(pgpfile, AllH)) != NULL)
       {
-         if(OpenStdFiles(infile, outfile, &in, &out))
+         if(blOpenStdFiles(infile, outfile, &in, &out))
          {
-            if((pdb = ReadPDB(in,&natoms)) != NULL)
+            if((pdb = blReadPDB(in,&natoms)) != NULL)
             {
                FixNTerNames(pdb);
                
-               nhyd = HAddPDB(pgp, pdb);
-               nhyd += AddNTerHs(&pdb, Charmm);
+               nhyd = blHAddPDB(pgp, pdb);
+               nhyd += blAddNTerHs(&pdb, Charmm);
                
                fprintf(stderr,"%d hydrogens were added.\n",nhyd);
 
-               RenumAtomsPDB(pdb);
+               blRenumAtomsPDB(pdb);
                
-               WritePDB(out, pdb);
+               blWritePDB(out, pdb);
             }
             else
             {
@@ -146,18 +150,20 @@ parameter file.\n");
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                      char *pgpfile, BOOL *AllH, BOOL *Charmm)
    ---------------------------------------------------------------------
-   Input:   int    argc         Argument count
-            char   **argv       Argument array
-   Output:  char   *infile      Input file (or blank string)
-            char   *outfile     Output file (or blank string)
-            char   *pgpfile     PGP filename
-            BOOL   *AllH        Add all hydrogens
-            BOOL   *Charmm      Do Charmm style N-terminii
-   Returns: BOOL                Success?
+*//**
+
+   \param[in]      argc         Argument count
+   \param[in]      **argv       Argument array
+   \param[out]     *infile      Input file (or blank string)
+   \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *pgpfile     PGP filename
+   \param[out]     *AllH        Add all hydrogens
+   \param[out]     *Charmm      Do Charmm style N-terminii
+   \return                     Success?
 
    Parse the command line
    
-   23.08.94 Original    By: ACRM
+-  23.08.94 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *pgpfile, BOOL *AllH, BOOL *Charmm)
@@ -219,9 +225,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>void FixNTerNames(PDB *pdb)
    ---------------------------
+*//**
+
    Change atom name NT to N. Fixes problem with Nter H addition
 
-   24.11.95 Original   By: ACRM
+-  24.11.95 Original   By: ACRM
 */
 void FixNTerNames(PDB *pdb)
 {
@@ -239,13 +247,16 @@ void FixNTerNames(PDB *pdb)
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
+
    Prints a usage message
 
-   23.08.94 Original    By: ACRM
+-  23.08.94 Original    By: ACRM
+-  22.07.14 V1.2 By: CTP
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBHAdd V1.1 (c) 1994, Andrew C.R. Martin, UCL\n\n");
+   fprintf(stderr,"\nPDBHAdd V1.2 (c) 1994-2014, Andrew C.R. Martin, UCL\n\n");
    fprintf(stderr,"Usage: pdbhadd [-p pgpfile] [-a] [-c] [<in.pdb> \
 [<out.pdb>]]\n");
    fprintf(stderr,"               -p Specify proton generation \
