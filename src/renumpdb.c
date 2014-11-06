@@ -1,0 +1,450 @@
+/*************************************************************************
+
+   Program:    renumpdb
+   File:       renumpdb.c
+   
+   Version:    V1.8
+   Date:       14.11.96
+   Function:   Renumber a PDB file
+   
+   Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1994-6
+   Author:     Dr. Andrew C. R. Martin
+   Address:    Biomolecular Structure & Modelling Unit,
+               Department of Biochemistry & Molecular Biology,
+               University College,
+               Gower Street,
+               London.
+               WC1E 6BT.
+   Phone:      (Home) +44 (0)1372 275775
+   EMail:      INTERNET: martin@biochem.ucl.ac.uk
+               
+**************************************************************************
+
+   This program is not in the public domain, but it may be copied
+   according to the conditions laid out in the accompanying file
+   COPYING.DOC
+
+   The code may be modified as required, but any modifications must be
+   documented so that the person responsible can be identified. If someone
+   else breaks this code, I don't want to be blamed for code that does not
+   work! 
+
+   The code may not be sold commercially or included as part of a 
+   commercial product except as described in the file COPYING.DOC.
+
+**************************************************************************
+
+   Description:
+   ============
+
+**************************************************************************
+
+   Usage:
+   ======
+
+**************************************************************************
+
+   Revision History:
+   =================
+   V1.0  29.06.94 Original
+   V1.1  04.07.94 Added -r and -a and option for skipping in -c
+   V1.2  16.08.94 Wasn't setting insert to blank (!)
+   V1.3  24.08.94 Changed to call OpenStdFiles()
+   V1.4  14.12.94 Added check on chain count
+   V1.5  04.01.95 Added -d option
+   V1.6  06.10.95 Was blanking insert codes with -d
+   V1.7  13.05.96 Fixed potential segmentation error if command line
+                  specified wrongly
+   V1.8  14.11.96 -r wasn't working with blank chain names
+
+*************************************************************************/
+/* Includes
+*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include "bioplib/macros.h"
+#include "bioplib/SysDefs.h"
+#include "bioplib/MathType.h"
+#include "bioplib/pdb.h"
+#include "bioplib/general.h"
+
+/************************************************************************/
+/* Defines and macros
+*/
+#define MAXBUFF 160
+#define MAXCHAIN 64
+
+/************************************************************************/
+/* Globals
+*/
+
+/************************************************************************/
+/* Prototypes
+*/
+int  main(int argc, char **argv);
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
+                  BOOL *DoSeq, BOOL *KeepChain, BOOL *DoAtoms,
+                  char *chains, int *ResStart, int *AtomStart, 
+                  BOOL *DoRes);
+void Usage(void);
+void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain, 
+                BOOL DoAtoms, BOOL DoRes, char *chains, int *ResStart, 
+                int AtomStart);
+
+/************************************************************************/
+/*>int main(int argc, char **argv)
+   -------------------------------
+   Main program for PDB renumbering
+
+   29.06.94 Original    By: ACRM
+   04.07.94 Added ResStart & AtomStart
+   24.08.94 Changed to call OpenStdFiles()
+   04.01.95 Added DoRes handling
+*/
+int main(int argc, char **argv)
+{
+   FILE *in  = stdin,
+        *out = stdout;
+   char infile[MAXBUFF],
+        outfile[MAXBUFF],
+        chains[MAXCHAIN];
+   BOOL DoSequential = FALSE,
+        KeepChain    = FALSE,
+        DoAtoms      = TRUE,
+        DoRes        = TRUE;
+   PDB  *pdb;
+   int  natoms,
+        ResStart[MAXCHAIN],
+        AtomStart;
+        
+   if(ParseCmdLine(argc, argv, infile, outfile, &DoSequential, &KeepChain,
+                   &DoAtoms, chains, ResStart, &AtomStart, &DoRes))
+   {
+      if(OpenStdFiles(infile, outfile, &in, &out))
+      {
+         if((pdb=ReadPDB(in, &natoms))==NULL)
+         {
+            fprintf(stderr,"No atoms read from input file\n");
+         }
+         else
+         {
+            DoRenumber(pdb,DoSequential,KeepChain,DoAtoms,DoRes,chains,
+                       ResStart, AtomStart);
+            WritePDB(out, pdb);
+         }
+      }
+      else
+      {
+         Usage();
+         return(1);
+      }
+   }
+   else
+   {
+      Usage();
+      return(1);
+   }
+   
+   return(0);
+}
+
+/************************************************************************/
+/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
+                     BOOL *DoSeq, BOOL *KeepChain, BOOL *DoAtoms, 
+                     char *chains, int *ResStart, int *AtomStart,
+                     BOOL *DoRes)
+   ----------------------------------------------------------------------
+   Input:   int    argc        Argument count
+            char   **argv      Argument array
+   Output:  char   *infile     Input filename (or blank string)
+            char   *outfile    Output filename (or blank string)
+            BOOL   *DoSeq      Number residues sequentially throughout
+            BOOL   *KeepChain  Keep chain labels when DoSeq TRUE
+            BOOL   *DoAtoms    Renumber atoms
+            char   *chains     Chain labels
+            int    *ResStart   Chain residue start numbers
+            int    *AtomStart  First chain atom start number
+            BOOL   *DoRes      Renumber residues
+   Returns: BOOL               Success
+
+   Parse the command line
+
+   29.06.94 Original    By: ACRM
+   04.07.94 Added Residue and atom start specification
+            Initialise chains array.
+   04.01.95 Added -d
+   13.05.96 Checks argc after -c/-r/-a options
+*/
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
+                  BOOL *DoSeq, BOOL *KeepChain, BOOL *DoAtoms, 
+                  char *chains, int *ResStart, int *AtomStart, 
+                  BOOL *DoRes)
+{
+   int  ChainCount;
+   char *chp,
+        *chq;
+
+   for(ChainCount = 0; ChainCount < MAXCHAIN; ChainCount++)
+      ResStart[ChainCount] = (-9999);
+
+   *AtomStart = 1;
+   ChainCount = 0;
+   
+   argc--;
+   argv++;
+   
+   infile[0] = outfile[0] = '\0';
+   chains[0] = '\0';
+   
+   while(argc)
+   {
+      if(argv[0][0] == '-')
+      {
+         switch(argv[0][1])
+         {
+         case 's':
+            *DoSeq = TRUE;
+            break;
+         case 'c':
+            if(!(--argc))
+            {
+               Usage();
+               exit(1);
+            }
+            argv++;
+            strncpy(chains,argv[0],MAXCHAIN);
+            chains[MAXCHAIN-1] = '\0';
+            UPPER(chains);
+            break;
+         case 'k':
+            *KeepChain = TRUE;
+            break;
+         case 'n':
+            *DoAtoms = FALSE;
+            break;
+         case 'd':
+            *DoRes = FALSE;
+            break;
+         case 'r':
+            if(!(--argc))
+            {
+               Usage();
+               exit(1);
+            }
+            argv++;
+
+            for(chp=chq=argv[0]; chq!=NULL; )
+            {
+               if((chq = strchr(chp,','))!=NULL)
+                  *chq = '\0';
+
+               if(!strcmp(chp,"-"))
+               {
+                  ResStart[ChainCount++] = (-9999);
+               }
+               else
+               {
+                  if(!sscanf(chp,"%d",&(ResStart[ChainCount++])))
+                     return(FALSE);
+               }
+
+               if(chq!=NULL)
+                  chp = chq+1;
+            }
+
+            break;
+         case 'a':
+            if(!(--argc))
+            {
+               Usage();
+               exit(1);
+            }
+            argv++;
+            if(!sscanf(argv[0],"%d",AtomStart))
+               return(FALSE);
+            break;
+         default:
+            return(FALSE);
+            break;
+         }
+      }
+      else
+      {
+         /* Check that there are only 1 or 2 arguments left             */
+         if(argc > 2)
+            return(FALSE);
+         
+         /* Copy the first to infile                                    */
+         strcpy(infile, argv[0]);
+         
+         /* If there's another, copy it to outfile                      */
+         argc--;
+         argv++;
+         if(argc)
+            strcpy(outfile, argv[0]);
+            
+         ResStart[ChainCount]  = (-9999);
+         return(TRUE);
+      }
+      argc--;
+      argv++;
+   }
+   
+   ResStart[ChainCount]  = (-9999);
+   return(TRUE);
+}
+
+/************************************************************************/
+/*>void Usage(void)
+   ----------------
+   Print a usage message
+
+   29.06.94 Original    By: ACRM
+   04.07.94 V1.1
+   16.08.94 V1.2  
+   24.08.94 V1.3
+   04.01.95 V1.5
+   06.10.95 V1.6  
+   13.05.96 V1.7
+   14.11.96 V1.8
+*/
+void Usage(void)
+{
+   fprintf(stderr,"\nRenumPDB V1.8 (c) 1994-6 Dr. Andrew C.R. Martin, \
+UCL\n");
+   fprintf(stderr,"Freely distributable if no profit is made\n\n");
+   fprintf(stderr,"Usage: renumpdb [-s] [-k] [-c <chains>] [-n] [-d] \
+[-r <num>,<num>...] [-a <num> ]\n                \
+[<infile>] [<outfile>]\n");
+   fprintf(stderr,"       -s Renumber sequentially throughout \
+structure\n");
+   fprintf(stderr,"       -k Keep chain names when using -s\n");
+   fprintf(stderr,"       -c Specify chain names to use\n");
+   fprintf(stderr,"       -n Do not renumber atoms\n");
+   fprintf(stderr,"       -d Do not renumber residues\n");
+   fprintf(stderr,"       -r Specify resnum for start of each chain\n");
+   fprintf(stderr,"       -a Specify first atom number\n\n");
+   fprintf(stderr,"If files are not specified, stdin and stdout are \
+used.\n");
+   fprintf(stderr,"If a chain is to be skipped with -c or -r, use a - \
+instead of the label or\nnumber.\n\n");
+}
+   
+
+/************************************************************************/
+/*>void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain, 
+                   BOOL DoAtoms, BOOL DoRes, char *chains, int *ResStart,
+                   int AtomStart)
+   ------------------------------------------------------------
+   I/O:     PDB    *pdb            PDB linked list
+   Input:   BOOL   DoSequential    Number sequentially throughout
+            BOOL   KeepChain       Keep chain labels when DoSequential
+            BOOL   DoAtoms         Renumber atoms
+            BOOL   DoRes           Renumber residues
+            char   *chains         Chain labels (or blank string)
+            int    *ResStart       Residue start numbers
+            int    AtomStart       Atom number for start of first chain
+
+   Do the actual renumbering.
+
+   29.06.94 Original    By: ACRM
+   04.07.94 Modified to handle ResStart and AtomStart
+   16.08.94 Sets the insert to a blank
+   14.12.94 Added check on chain count
+   04.01.95 Added DoRes parameter
+   06.10.95 If dores was false, inserts were getting blanked.
+   14.11.96 Initialise LastChain to something other than ' ' as
+            -r option wasn't working with blank chain names
+*/
+void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain, 
+                BOOL DoAtoms, BOOL DoRes, char *chains, int *ResStart, 
+                int AtomStart)
+{
+   PDB  *p;
+   int  resnum   = 0,
+        atnum    = AtomStart,
+        ChainNum = 0,
+        LastRes;
+   char LastIns,
+        LastChain,
+        *ch;
+   BOOL Incremented;
+   
+   ch = chains;
+   
+   LastRes     = (-1);
+   LastIns     = ' ';
+   LastChain   = '\0';
+   
+   for(p=pdb; p!=NULL; NEXT(p))
+   {
+      Incremented = FALSE;
+      
+      /* Increment resnum if we have changed residue                    */
+      if(p->resnum    != LastRes || 
+         p->insert[0] != LastIns)
+      {
+         LastRes = p->resnum;
+         LastIns = p->insert[0];
+         
+         resnum++;
+         Incremented = TRUE;
+      }
+
+      /* See if we've changed chain                                     */
+      if(p->chain[0] != LastChain)
+      {
+         if(DoSequential)
+         {
+            if(!Incremented)
+            {
+               resnum++;
+               Incremented = TRUE;
+            }
+         }
+         else
+         {
+            if(ResStart[ChainNum] == (-9999))
+               resnum = 1;
+            else
+               resnum = ResStart[ChainNum];
+            if(++ChainNum >= MAXCHAIN)
+            {
+               fprintf(stderr,"Maximum number of chains (%d) exceeded. \
+Try -s option.\n",MAXCHAIN);
+               exit(1);
+            }
+         }
+         LastChain = p->chain[0];
+
+         /* If it's not the first atom, step to the next chain name     */
+         if(p != pdb && *ch)
+            ch++;
+      }
+      
+      /* Set the chain name if specified                                */
+      if(*ch && *ch != '-') 
+         p->chain[0] = *ch;
+         
+      /* If we're numbering sequentially and not keeping chain names,
+         set the chain name to a blank
+      */
+      if(DoSequential && !KeepChain)
+         p->chain[0] = ' ';
+         
+      if(DoRes) 
+      {
+         /* Set the residue number                                      */
+         p->resnum = resnum;
+
+         /* Set the insert code to a blank                              */
+         p->insert[0] = ' ';
+      }
+      
+      /* Set the atoms number                                           */
+      if(DoAtoms)
+         p->atnum = atnum++;
+   }
+}
