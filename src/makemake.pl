@@ -68,6 +68,7 @@ else
 }
 
 # Main program
+GetBiopLib() if($::bioplib);
 my @cFiles = GetCFileList('.');
 my @exeFiles = StripExtension(@cFiles);
 open(my $makefp, ">Makefile") || die "Can't open Makefile for writing";
@@ -84,6 +85,15 @@ foreach my $cFile (@cFiles)
 
 close $makefp;
 
+#*************************************************************************
+# Uses git to obtain the BiopLib code
+#
+# 07.11.14 Original   By: ACRM
+sub GetBiopLib
+{
+    system("git submodule init");
+    system("git submodule update");
+}
 #*************************************************************************
 # Writes the rule for installing code in $BINDIR
 #
