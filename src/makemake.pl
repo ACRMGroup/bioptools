@@ -4,7 +4,7 @@
 #   Program:    makemake
 #   File:       makemake.pl
 #   
-#   Version:    V1.2
+#   Version:    V1.3
 #   Date:       07.11.14
 #   Function:   Build the Makefile for BiopTools
 #   
@@ -51,14 +51,22 @@
 #   V1.0    07.11.14  Original   By: ACRM
 #   V1.1    07.11.14  Adds the -bioplib handling
 #   V1.2    07.11.14  Writes the data directory in install
+#   V1.3    07.11.14  Grabs the bioplib submodule if this is unpacked
+#                     using git clone. If obtained as an archive then
+#                     this grabs the bioplib archive as well
 #
+#*************************************************************************
+$::biopversion = "3.2";
+#*************************************************************************
+$::biopgit     = "https://github.com/ACRMGroup/bioplib/archive/V";
+$::biopext     = ".tar.gz";
 #*************************************************************************
 # Deal with the command line
 UsageDie() if(defined($::h) || defined($::help));
-$::bioplib = 0                   if(!defined($::bioplib));
-$::prefix  = $ENV{'HOME'}        if(!defined($::prefix));
-$::bindir  = "$::prefix/bin"     if(!defined($::bindir));
-$::datadir = "$::prefix/data"    if(!defined($::datadir));
+$::bioplib = 0                if(!defined($::bioplib));
+$::prefix  = $ENV{'HOME'}     if(!defined($::prefix));
+$::bindir  = "$::prefix/bin"  if(!defined($::bindir));
+$::datadir = "$::prefix/data" if(!defined($::datadir));
 if($::bioplib)
 {
     $::libdir  = "./bioplib"     if(!defined($::libdir));
@@ -71,7 +79,7 @@ else
 }
 
 # Main program
-GetBiopLib() if($::bioplib);
+GetBiopLib()        if($::bioplib);
 my @cFiles = GetCFileList('.');
 my @exeFiles = StripExtension(@cFiles);
 open(my $makefp, ">Makefile") || die "Can't open Makefile for writing";
@@ -89,13 +97,27 @@ foreach my $cFile (@cFiles)
 close $makefp;
 
 #*************************************************************************
-# Uses git to obtain the BiopLib code
+# Uses git submodule to obtain the BiopLib code if you have downloaded
+# this as a git 
 #
 # 07.11.14 Original   By: ACRM
 sub GetBiopLib
 {
-    system("git submodule init");
-    system("git submodule update");
+    if(-d "../.git")
+    {
+        system("git submodule init");
+        system("git submodule update");
+    }
+    else
+    {
+        if((! -d "libsrc/bioplib/.git") && (! -d "libsrc/bioplib/src"))
+        {
+            system("\\rm -rf libsrc/bioplib");
+            my $url = "$::biopgit$::biopversion$::biopext";
+            my $tar = "V$::biopversion$::biopext";
+            system("(cd libsrc; wget $url; tar xvf $tar; mv bioplib-$::biopversion bioplib)");
+        }
+    }
 }
 #*************************************************************************
 # Writes the rule for installing code in $BINDIR
