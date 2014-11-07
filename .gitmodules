@@ -1,0 +1,3 @@
+[submodule "src/libsrc/bioplib"]
+	path = src/libsrc/bioplib
+	url = git@github.com:ACRMGroup/bioplib.git

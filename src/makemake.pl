@@ -4,7 +4,7 @@
 #   Program:    makemake
 #   File:       makemake.pl
 #   
-#   Version:    V1.0
+#   Version:    V1.1
 #   Date:       07.11.14
 #   Function:   Build the Makefile for BiopTools
 #   
@@ -33,8 +33,9 @@
 #
 #   Usage:
 #   ======
-#   ./makemake.pl [-prefix=xxxx] [-bindir=xxxx] 
+#   ./makemake.pl [-bioplib] [-prefix=xxxx] [-bindir=xxxx] 
 #                 [-libdir=xxxx] [-incdir=xxxx]
+#   -bioplib     - Build a local version of BiopLib
 #   -prefix=xxxx - Change the prefix in front of all directories from
 #                  $HOME to xxxx
 #   -bindir=xxxx - Change the installation binary directory to xxxx
@@ -47,33 +48,34 @@
 #   Revision History:
 #   =================
 #   V1.0    07.11.14  Original   By: ACRM
+#   V1.1    07.11.14  Adds the -bioplib handling
 #
 #*************************************************************************
-# Add the path of the executable to the library path
-use FindBin;
-use lib $FindBin::Bin;
-# Or if we have a bin directory and a lib directory
-#use Cwd qw(abs_path);
-#use FindBin;
-#use lib abs_path("$FindBin::Bin/../lib");
-
-
 # Deal with the command line
 UsageDie() if(defined($::h) || defined($::help));
-$::prefix = $ENV{'HOME'} if(!defined($::prefix));
-$::libdir = "$::prefix/lib" if(!defined($::libdir));
-$::incdir = "$::prefix/include" if(!defined($::incdir));
-$::bindir = "$::prefix/bin" if(!defined($::bindir));
+$::bioplib = 0                   if(!defined($::bioplib));
+$::prefix  = $ENV{'HOME'}        if(!defined($::prefix));
+$::bindir  = "$::prefix/bin"     if(!defined($::bindir));
+if($::bioplib)
+{
+    $::libdir  = "./bioplib"     if(!defined($::libdir));
+    $::incdir  = "./bioplib"     if(!defined($::incdir));
+}
+else
+{
+    $::libdir  = "$::prefix/lib"     if(!defined($::libdir));
+    $::incdir  = "$::prefix/include" if(!defined($::incdir));
+}
 
-
+# Main program
 my @cFiles = GetCFileList('.');
 my @exeFiles = StripExtension(@cFiles);
 open(my $makefp, ">Makefile") || die "Can't open Makefile for writing";
 WriteFlags($makefp, $::libdir, $::incdir, $::bindir);
 WriteTargets($makefp, @exeFiles);
-WriteDummyRule($makefp);
+WriteDummyRule($makefp, $::bioplib);
 WriteInstallRule($makefp, @exeFiles);
-WriteCleanRule($makefp, @exeFiles);
+WriteCleanRule($makefp, $::bioplib, @exeFiles);
 WriteLinksRule($makefp);
 foreach my $cFile (@cFiles)
 {
@@ -147,13 +149,27 @@ __EOF
 # 06.11.14 Original   By: ACRM
 sub WriteCleanRule
 {
-    my($makefp, @exeFiles) = @_;
-    print $makefp <<__EOF;
+    my($makefp, $bioplib, @exeFiles) = @_;
+    if($bioplib)
+    {
+        print $makefp <<__EOF;
+
+clean : 
+\t\\rm -rf bioplib
+\t(cd libsrc/bioplib/src; make clean)
+\t\\rm -f \$(TARGETS)
+
+__EOF
+    }
+    else
+    {
+        print $makefp <<__EOF;
 
 clean : 
 \t\\rm -f \$(TARGETS)
 
 __EOF
+    }
 }
 
 #*************************************************************************
@@ -179,12 +195,25 @@ __EOF
 # 06.11.14 Original   By: ACRM
 sub WriteDummyRule
 {
-    my($makefp) = @_;
-    print $makefp <<__EOF;
+    my($makefp, $bioplib) = @_;
+    if($bioplib)
+    {
+        print $makefp <<__EOF;
 
-all : \$(TARGETS)
+all : bioplib \$(TARGETS)
+
+bioplib :
+\t(cd libsrc/bioplib/src; make)
+\tmkdir -p bioplib
+\tcp libsrc/bioplib/src/*.[ah] bioplib
 
 __EOF
+    }
+    else
+    {
+        print $makefp "\nall : \$(TARGETS)\n\n";
+    }
+
 }
 
 #*************************************************************************
@@ -272,11 +301,13 @@ makemake.pl (c) 2014 UCL, Dr. Andrew C.R. Martin
 
 Usage: ./makemake.pl [-prefix=xxxx] [-bindir=xxxx] 
                      [-libdir=xxxx] [-incdir=xxxx]
+                     [-bioplib]
        -prefix=xxxx - Change the prefix in front of all directories from
                       \$HOME to xxxx
        -bindir=xxxx - Change the installation binary directory to xxxx
        -libdir=xxxx - Change the location of the BiopLib libraries to xxxx
        -incdir=xxxx - Change the location of the BiopLib include files to xxxx
+       -bioplib     - Build a local version of BiopLib
 
 Builds the Makefile for building BiopTools
 
