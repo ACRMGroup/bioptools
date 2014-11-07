@@ -3,8 +3,8 @@
 
    \file       pdbatomsel.c
    
-   \version    V1.4
-   \date       06.11.14
+   \version    V1.5
+   \date       07.11.14
    \brief      Select atoms from a PDB file. Acts as filter
    
    \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
@@ -52,6 +52,7 @@
                   Added doxygen annotation. By: CTP
 -  V1.3  19.08.14 Removed unused variables in ParseCmdLine() By: CTP
 -  V1.4  06.11.14 Renamed from atomsel By: ACRM
+-  V1.5  07.11.14 Initialized a variable
 
 *************************************************************************/
 /* Includes
@@ -183,10 +184,11 @@ list.\n");
 -  24.08.94 V1.1
 -  22.07.14 V1.2 By: CTP
 -  06.11.14 V1.4 By: ACRM
+-  07.11.14 V1.5
 */
 void Usage(void)
 {            
-   fprintf(stderr,"\npdbatomsel V1.4 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\npdbatomsel V1.5 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
    fprintf(stderr,"Usage: pdbatomsel [-atom] [-atom...] [<in.pdb>] \
 [<out.pdb>]\n\n");
    fprintf(stderr,"Selects specfied atom types from a PDB file. \
@@ -212,12 +214,12 @@ are not specified.\n\n");
 
 -  15.07.94 Original    By: ACRM
 -  19.08.14 Removed unused variables. By: CTP
+-  07.11.14 Initialized a
 */
 BOOL ParseCmdLine(int argc, char **argv, ATOMTYPE **atoms, char *infile, 
                   char *outfile)
 {
-   ATOMTYPE *a;
-   
+   ATOMTYPE *a = NULL;
 
    argc--;
    argv++;

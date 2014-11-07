@@ -4,7 +4,7 @@
 #   Program:    makemake
 #   File:       makemake.pl
 #   
-#   Version:    V1.1
+#   Version:    V1.2
 #   Date:       07.11.14
 #   Function:   Build the Makefile for BiopTools
 #   
@@ -33,14 +33,15 @@
 #
 #   Usage:
 #   ======
-#   ./makemake.pl [-bioplib] [-prefix=xxxx] [-bindir=xxxx] 
-#                 [-libdir=xxxx] [-incdir=xxxx]
+#   ./makemake.pl [-bioplib] [-prefix=xxx] [-bindir=xxx] [-datadir=xxx]
+#                 [-libdir=xxx] [-incdir=xxx]
 #   -bioplib     - Build a local version of BiopLib
-#   -prefix=xxxx - Change the prefix in front of all directories from
-#                  $HOME to xxxx
-#   -bindir=xxxx - Change the installation binary directory to xxxx
-#   -libdir=xxxx - Change the location of the BiopLib libraries to xxxx
-#   -incdir=xxxx - Change the location of the BiopLib include files to xxxx
+#   -prefix=xxx  - Change the prefix in front of all directories from
+#                  $HOME to xxx
+#   -bindir=xxx  - Change the installation binary directory to xxx
+#   -datadir=xxx - Change the installation data directory to xxx
+#   -libdir=xxx  - Change the location of the BiopLib libraries to xxx
+#   -incdir=xxx  - Change the location of the BiopLib include files to xxx
 #
 #
 #*************************************************************************
@@ -49,6 +50,7 @@
 #   =================
 #   V1.0    07.11.14  Original   By: ACRM
 #   V1.1    07.11.14  Adds the -bioplib handling
+#   V1.2    07.11.14  Writes the data directory in install
 #
 #*************************************************************************
 # Deal with the command line
@@ -56,6 +58,7 @@ UsageDie() if(defined($::h) || defined($::help));
 $::bioplib = 0                   if(!defined($::bioplib));
 $::prefix  = $ENV{'HOME'}        if(!defined($::prefix));
 $::bindir  = "$::prefix/bin"     if(!defined($::bindir));
+$::datadir = "$::prefix/data"    if(!defined($::datadir));
 if($::bioplib)
 {
     $::libdir  = "./bioplib"     if(!defined($::libdir));
@@ -72,7 +75,7 @@ GetBiopLib() if($::bioplib);
 my @cFiles = GetCFileList('.');
 my @exeFiles = StripExtension(@cFiles);
 open(my $makefp, ">Makefile") || die "Can't open Makefile for writing";
-WriteFlags($makefp, $::libdir, $::incdir, $::bindir);
+WriteFlags($makefp, $::libdir, $::incdir, $::bindir, $::datadir);
 WriteTargets($makefp, @exeFiles);
 WriteDummyRule($makefp, $::bioplib);
 WriteInstallRule($makefp, @exeFiles);
@@ -104,7 +107,15 @@ sub WriteInstallRule
     print $makefp <<__EOF;
 
 install : 
+\tmkdir -p \$(BINDIR)
 \tcp \$(TARGETS) \$(BINDIR)
+\tmkdir -p \$(DATADIR)
+\tif [ ! -f \$(DATADIR)/radii.dat ] ; then cp ../data/radii.dat \$(DATADIR) ; fi
+\t\@echo " "
+\t\@echo " --- INSTALL COMPLETE --- "
+\t\@echo " "
+\t\@echo "To use some programs, you will need to set the environment variable"
+\t\@echo "DATADIR to \$(DATADIR)"
 
 __EOF
 }
@@ -211,6 +222,11 @@ sub WriteDummyRule
         print $makefp <<__EOF;
 
 all : bioplib \$(TARGETS)
+\t\@echo " "
+\t\@echo " --- BUILD COMPLETE --- "
+\t\@echo " "
+\t\@echo "To use some programs, you will need to set the environment variable"
+\t\@echo "DATADIR to \$(DATADIR)"
 
 bioplib :
 \t(cd libsrc/bioplib/src; make)
@@ -221,7 +237,16 @@ __EOF
     }
     else
     {
-        print $makefp "\nall : \$(TARGETS)\n\n";
+        print $makefp <<__EOF;
+
+all : \$(TARGETS)
+\t\@echo " "
+\t\@echo " --- BUILD COMPLETE --- "
+\t\@echo " "
+\t\@echo "To use some programs, you will need to set the environment variable"
+\t\@echo "DATADIR to \$(DATADIR)"
+
+__EOF
     }
 
 }
@@ -232,12 +257,13 @@ __EOF
 # 06.11.14 Original   By: ACRM
 sub WriteFlags
 {
-    my($makefp, $libdir, $incdir, $bindir) = @_;
+    my($makefp, $libdir, $incdir, $bindir, $datadir) = @_;
     print $makefp <<__EOF;
-CC     = gcc
-BINDIR = $bindir;
-CFLAGS = -O3 -ansi -Wall -pedantic -I$incdir -L$libdir
-LFLAGS = -lbiop -lgen -lm -lxml2
+CC      = gcc
+BINDIR  = $bindir
+DATADIR = $datadir
+CFLAGS  = -O3 -ansi -Wall -pedantic -I$incdir -L$libdir
+LFLAGS  = -lbiop -lgen -lm -lxml2
 __EOF
 }
 
@@ -309,15 +335,16 @@ sub UsageDie
 
 makemake.pl (c) 2014 UCL, Dr. Andrew C.R. Martin
 
-Usage: ./makemake.pl [-prefix=xxxx] [-bindir=xxxx] 
-                     [-libdir=xxxx] [-incdir=xxxx]
-                     [-bioplib]
-       -prefix=xxxx - Change the prefix in front of all directories from
-                      \$HOME to xxxx
-       -bindir=xxxx - Change the installation binary directory to xxxx
-       -libdir=xxxx - Change the location of the BiopLib libraries to xxxx
-       -incdir=xxxx - Change the location of the BiopLib include files to xxxx
+Usage: ./makemake.pl [-bioplib] [-prefix=xxx] [-bindir=xxx] [-datadir=xxx]
+                     [-libdir=xxx] [-incdir=xxx]
+                     
        -bioplib     - Build a local version of BiopLib
+       -prefix=xxx  - Change the prefix in front of all directories from
+                      \$HOME to xxx
+       -bindir=xxx  - Change the installation binary directory to xxx
+       -datadir=xxx - Change the installation data directory to xxx
+       -libdir=xxx  - Change the location of the BiopLib libraries to xxx
+       -incdir=xxx  - Change the location of the BiopLib include files to xxx
 
 Builds the Makefile for building BiopTools
 

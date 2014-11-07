@@ -3,8 +3,8 @@
 
    \file       pdbtorsions.c
    
-   \version    V1.5
-   \date       06.11.14
+   \version    V1.6
+   \date       07.11.14
    \brief      Generate a complete set of backbone torsion angles for a 
                protein.
    
@@ -60,6 +60,7 @@
 -  V1.4  19.08.14 Added AsCopy suffix to call to blSelectAtomsPDB() 
                   By: CTP
 -  V1.5  06.11.14 Renamed from torsions
+-  V1.6  07.11.14 Initialized a variable
 
 *************************************************************************/
 /* Includes
@@ -104,6 +105,7 @@ void Usage(void);
 -  12.06.95 Added -c option
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  19.08.14 Added AsCopy suffix to call to blSelectAtomsPDB() By: CTP
+-  07.11.14 Initialized TorNum
 */
 int main(int argc, char **argv)
 {
@@ -117,7 +119,7 @@ int main(int argc, char **argv)
         *p3,
         *p4;
    int  natoms,
-        TorNum;
+        TorNum = 0;
    char *sel[4];
    REAL tors[3];
    BOOL Radians      = FALSE,
@@ -363,10 +365,11 @@ void ShowTorsions(FILE *out, PDB *pdb, REAL *tors, BOOL Radians,
 -  12.06.95 Added -c
 -  22.07.14 V1.3 By: CTP
 -  06.11.14 V1.5 By: ACRM
+-  07.11.14 V1.6 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbtorsions V1.5 (c) 1994-2014 Andrew Martin, UCL. \
+   fprintf(stderr,"\npdbtorsions V1.6 (c) 1994-2014 Andrew Martin, UCL. \
 Freely Distributable\n");
    fprintf(stderr,"Generates a set of backbone torsions from a PDB \
 file.\n\n");

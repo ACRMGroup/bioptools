@@ -3,8 +3,8 @@
 
    \file       pdborder.c
    
-   \version    V1.3
-   \date       22.07.14
+   \version    V1.4
+   \date       07.11.14
    \brief      Correct the atom order in a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2014
@@ -51,6 +51,7 @@
 -  V1.2  31.05.02 Changed PDB field from 'junk' to 'record_type'
 -  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.4  07.11.14 Initialized variables
 
 *************************************************************************/
 /* Includes
@@ -302,10 +303,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  24.08.94 Added -v
 -  15.01.97 V1.1
 -  22.07.14 V1.2 By: CTP
+-  07.11.14 V1.4 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBOrder V1.2 (c) 1994-2014, Andrew C.R. Martin, \
+   fprintf(stderr,"\nPDBOrder V1.4 (c) 1994-2014, Andrew C.R. Martin, \
 UCL\n\n");
    fprintf(stderr,"Usage: pdborder [-c] [-i] [-g] [<in.pdb> \
 [<out.pdb>]]\n");
@@ -331,13 +333,14 @@ N,CA,C,O,s/c atom\n");
 -  23.08.94 Original    By: ACRM
 -  24.08.94 Added code to handle additional Hs at NTER and O at CTER
             Only tries to re-order ATOM records.
+-  07.11.14 Initialized variables
 */
 PDB *CorrectOrder(PDB *pdb, BOOL COLast)
 {
-   PDB  *start,
-        *prev,
-        *ret,
-        *end,
+   PDB  *start = NULL,
+        *prev  = NULL,
+        *ret   = NULL,
+        *end   = NULL,
         *p;
    char chain = '-';
    int  terminus;

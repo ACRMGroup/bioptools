@@ -3,8 +3,8 @@
 
    \file       pdb2pir.c
    
-   \version    V2.10
-   \date       26.08.14
+   \version    V2.11
+   \date       07.11.14
    \brief      Convert PDB to PIR sequence file
    
    \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2014
@@ -70,6 +70,8 @@
                   Added doxygen annotation. By: CTP
 -  V2.10 26.08.14 Use renamed macros blPDB2SeqXNoX() and blPDB2SeqX(). 
                   By: CTP
+-  V2.11 07.11.14 Initialized a variable  By: ACRM
+
 *************************************************************************/
 /* Includes
 */
@@ -394,10 +396,11 @@ int main(int argc, char **argv)
 -  12.03.07 V2.7
 -  22.05.09 V2.8
 -  22.07.14 V2.9 By: CTP
+-  07.11.14 V2.11 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdb2pir V2.9 (c) 1994-2014 Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"\npdb2pir V2.11 (c) 1994-2014 Dr. Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"\nUsage: pdb2pir [-h] [-l label] [-t title] [-s] [-c] \
 [-u] [-p] [-q] [-x] [-f] [-n] [-i] [infile [outfile]]\n");
@@ -471,13 +474,14 @@ way.\n");
 -  26.08.97 No longer reads DNA/RNA
 -  07.03.07 Added code to check for modified amino acids
             Now reads from wpdb rather than from the file
+-  07.11.14 Initialize lastchain
 */
 char *ReadSEQRES(WHOLEPDB *wpdb, char *chains, MODRES *modres)
 {
    static char *sequence = NULL;
    char        buffer[MAXBUFF],
                chain,
-               lastchain,
+               lastchain = '\0',
                seq3[13][4];
    int         i,
                nchain    = 0,

@@ -3,8 +3,8 @@
 
    \file       pdbfindresrange.c
    
-   \version    V1.3
-   \date       06.11.14
+   \version    V1.4
+   \date       07.11.14
    \brief      Find a residue range given a key residue and a number
                of residues on either side
    
@@ -52,6 +52,7 @@
 -  V1.2   22.07.14  Renamed deprecated functions with bl prefix.
                     Added doxygen annotation. By: CTP
 -  V1.3   06.11.14  Renamed from findresrange
+-  V1.4   07.11.14  Removed an unused variable
 
 *************************************************************************/
 /* Includes
@@ -162,6 +163,7 @@ int main(int argc, char **argv)
 
 -  02.06.10 Returns NO_KEYRES properly
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  07.11.14 Removed an unused variable
 */
 int GetResidueRange(PDB *pdb, char *keyres, int width, char *startres, 
                     char *endres)
@@ -171,7 +173,6 @@ int GetResidueRange(PDB *pdb, char *keyres, int width, char *startres,
    PDBRESIDUE *pdbr, *endr, *startr;
    char       chain[8], insert[8];
    int        resnum, i;
-   BOOL       found = FALSE;
    
    
    if((pdbs = blAllocPDBStructure(pdb))==NULL)
@@ -189,7 +190,6 @@ int GetResidueRange(PDB *pdb, char *keyres, int width, char *startres,
                   (pdbr->insert[0] == insert[0]))
                {
                   startr = endr = pdbr;
-                  found = TRUE;
                   for(i=0; i<width; i++)
                   {
                      if(endr!=NULL)   endr   = endr->next;
@@ -305,10 +305,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
 -  22.07.14 V1.2 By: CTP
 -  06.11.14 V1.3 By: ACRM
+-  07.11.14 V1.4 By: ACRM
 */
 void Usage(void)
 {
-   printf("\npdbfindresrange V1.3 (c) 2010-2014 UCL, Andrew C.R. \
+   printf("\npdbfindresrange V1.4 (c) 2010-2014 UCL, Andrew C.R. \
 Martin\n");
    printf("\nUsage: pdbfindresrange keyres width [input.pdb \
 [output.txt]]\n");

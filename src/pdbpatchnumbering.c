@@ -3,8 +3,8 @@
 
    \file       pdbpatchnumbering.c
    
-   \version    V1.5
-   \date       06.11.14
+   \version    V1.6
+   \date       07.11.14
    \brief      Patch the numbering of a PDB file from a file of numbers
                and sequence (as created by KabatSeq, etc)
    
@@ -56,6 +56,7 @@
 -  V1.4  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.5  06.11.14 Renamed from patchpdbnum By: ACRM
+-  V1.6  07.11.14 Initialized a variable
 
 *************************************************************************/
 /* Includes
@@ -254,11 +255,12 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  14.06.06 Skips records where the amino acid is in lower case
             Also fixed for newer GetWord() which needs buffer size
 -  28.08.13 Modified for new ParseResSpec()
+-  07.11.14 Initialized p
 */
 PATCH *ReadPatchFile(FILE *fp)
 {
    PATCH *patch = NULL,
-         *p;
+         *p     = NULL;
    char  buffer[MAXBUFF],
          resid[MAXBUFF],
          aacode[MAXBUFF],
@@ -334,10 +336,11 @@ PATCH *ReadPatchFile(FILE *fp)
 -  14.06.06 V1.2
 -  28.08.13 V1.3
 -  22.07.14 V1.4 By: CTP
+-  07.11.14 V1.6 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPdbpatchnumbering V1.4 (c) 1995-2014, Dr. Andrew \
+   fprintf(stderr,"\nPdbpatchnumbering V1.6 (c) 1995-2014, Dr. Andrew \
 C.R. Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: pdbpatchnumbering <patchfile> [<in.pdb> \
