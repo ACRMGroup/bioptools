@@ -13,7 +13,8 @@ This assumes that you have installed BiopLib in $HOME/lib with include
 files in $HOME/include and you wish to install the programs in
 $HOME/bin
 
-You may change these default locations with
+You may change these default locations with the following options for
+the makemake.pl script
 
 -   -prefix=xxxx - Change the prefix in front of all directories from
                    $HOME to xxxx
@@ -39,7 +40,8 @@ If you have NOT downloaded and installed BiopLib already
 
 This assumes that you wish to install the programs in $HOME/bin
 
-You may change this default location with
+You may change this default location with the following options for
+the makemake.pl script
 
 -   -prefix=xxxx - Change the prefix in front of all directories from
                    $HOME to xxxx

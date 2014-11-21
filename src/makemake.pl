@@ -105,8 +105,8 @@ sub GetBiopLib
 {
     if(-d "../.git")
     {
-        system("git submodule init");
-        system("git submodule update");
+        system("(cd ..; git submodule init)");
+        system("(cd ..; git submodule update)");
     }
     else
     {
