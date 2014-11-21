@@ -4,8 +4,8 @@
 #   Program:    makemake
 #   File:       makemake.pl
 #   
-#   Version:    V1.3
-#   Date:       07.11.14
+#   Version:    V1.4
+#   Date:       21.11.14
 #   Function:   Build the Makefile for BiopTools
 #   
 #   Copyright:  (c) Dr. Andrew C. R. Martin, UCL, 2014
@@ -54,6 +54,7 @@
 #   V1.3    07.11.14  Grabs the bioplib submodule if this is unpacked
 #                     using git clone. If obtained as an archive then
 #                     this grabs the bioplib archive as well
+#   V1.4    21.11.14  Added -install option
 #
 #*************************************************************************
 $::biopversion = "3.2";
@@ -63,10 +64,11 @@ $::biopext     = ".tar.gz";
 #*************************************************************************
 # Deal with the command line
 UsageDie() if(defined($::h) || defined($::help));
-$::bioplib = 0                if(!defined($::bioplib));
-$::prefix  = $ENV{'HOME'}     if(!defined($::prefix));
-$::bindir  = "$::prefix/bin"  if(!defined($::bindir));
-$::datadir = "$::prefix/data" if(!defined($::datadir));
+$::bioplib = 0                 if(!defined($::bioplib));
+$::prefix  = $ENV{'HOME'}      if(!defined($::prefix));
+$::install = $::prefix         if(!defined($::install));
+$::bindir  = "$::install/bin"  if(!defined($::bindir));
+$::datadir = "$::install/data" if(!defined($::datadir));
 if($::bioplib)
 {
     $::libdir  = "./bioplib"     if(!defined($::libdir));
@@ -361,8 +363,15 @@ Usage: ./makemake.pl [-bioplib] [-prefix=xxx] [-bindir=xxx] [-datadir=xxx]
                      [-libdir=xxx] [-incdir=xxx]
                      
        -bioplib     - Build a local version of BiopLib
+
+    The following options are shown in reverse order of priority - in
+    other words the more specific options (such as -bindir) will take
+    priority over global settings such as -prefix and -install
        -prefix=xxx  - Change the prefix in front of all directories from
                       \$HOME to xxx
+       -install=xxx - Change the prefix in front of the installation 
+                      directories from \$HOME (or whatever is specified
+                      with -prefix) to xxx
        -bindir=xxx  - Change the installation binary directory to xxx
        -datadir=xxx - Change the installation data directory to xxx
        -libdir=xxx  - Change the location of the BiopLib libraries to xxx
