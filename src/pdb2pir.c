@@ -3,8 +3,8 @@
 
    \file       pdb2pir.c
    
-   \version    V2.11
-   \date       07.11.14
+   \version    V2.12
+   \date       25.11.14
    \brief      Convert PDB to PIR sequence file
    
    \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2014
@@ -71,6 +71,7 @@
 -  V2.10 26.08.14 Use renamed macros blPDB2SeqXNoX() and blPDB2SeqX(). 
                   By: CTP
 -  V2.11 07.11.14 Initialized a variable  By: ACRM
+-  V2.12 25.11.14 Initialized a variable  By: ACRM
 
 *************************************************************************/
 /* Includes
@@ -153,6 +154,7 @@ void LookupModres(char *orig, char *new, MODRES *modres);
 -  22.05.09 Added -i option
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  26.08.14 Use renamed macros blPDB2SeqXNoX() and blPDB2SeqX(). By: CTP
+-  25.11.14 Initialized seqres  By: ACRM
 */
 int main(int argc, char **argv)
 {
@@ -162,7 +164,7 @@ int main(int argc, char **argv)
         *out      = stdout;
    char *sequence,
         *fixedsequence,
-        *seqres,
+        *seqres = NULL,
         seqchains[MAXCHAINS],
         atomchains[MAXCHAINS],
         outchains[MAXCHAINS],
@@ -397,10 +399,11 @@ int main(int argc, char **argv)
 -  22.05.09 V2.8
 -  22.07.14 V2.9 By: CTP
 -  07.11.14 V2.11 By: ACRM
+-  25.11.14 V2.12
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdb2pir V2.11 (c) 1994-2014 Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"\npdb2pir V2.12 (c) 1994-2014 Dr. Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"\nUsage: pdb2pir [-h] [-l label] [-t title] [-s] [-c] \
 [-u] [-p] [-q] [-x] [-f] [-n] [-i] [infile [outfile]]\n");

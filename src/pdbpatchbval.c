@@ -3,8 +3,8 @@
 
    \file       pdbpatchbval.c
    
-   \version    V1.4
-   \date       06.11.14
+   \version    V1.5
+   \date       25.11.14
    \brief      Patch the b-value (or occupancy) column using values from 
                a file
    
@@ -53,8 +53,8 @@
 -  V1.2  28.08.13 Modified for new ParseResSpec()
 -  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
--  V1.4  06.11.14 Renamed from patchbval
-
+-  V1.4  06.11.14 Renamed from patchbval  By: ACRM
+-  V1.5  25.11.14 Initialized a variable 
 *************************************************************************/
 /* Includes
 */
@@ -276,6 +276,7 @@ BOOL ApplyPatches(FILE *in, FILE *out, PATCH *patch, BOOL occup,
 
 -  29.05.96 Original   By: ACRM
 -  28.08.13 Modified for new ParseResSpec()
+-  25.11.14 Initialized p
 */
 PATCH *ReadPatchFile(FILE *fp)
 {
@@ -283,7 +284,7 @@ PATCH *ReadPatchFile(FILE *fp)
          resspec[MAXBUFF];
    REAL  value;
    PATCH *patch = NULL,
-         *p;
+         *p     = NULL;
    
    while(fgets(buffer, MAXBUFF, fp))
    {
@@ -407,10 +408,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *datafile, char *infile,
 -  28.08.13 V1.2
 -  22.07.14 V1.3 By: CTP
 -  06.11.14 V1.4 By: ACRM
+-  25.11.14 V1.5
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbpatchbval V1.4 (c) 1996-2014, Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbpatchbval V1.5 (c) 1996-2014, Dr. Andrew C.R. \
 Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: pdbpatchbval [-o] [-v] patchfile [in.pdb \

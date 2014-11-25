@@ -3,8 +3,8 @@
 
    \file       setpdbnumbering.c
    
-   \version    V1.2
-   \date       06.11.14
+   \version    V1.3
+   \date       25.11.14
    \brief      Apply standard numbering to a set of PDB files
    
    \copyright  (c) Dr. Andrew C. R. Martin 1996-2014
@@ -57,6 +57,7 @@
 -  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.2  06.11.14 Renamed from numpdb By: ACRM
+-  V1.3  25.11.14 Initialized a variable
 
 *************************************************************************/
 /* Includes
@@ -171,10 +172,11 @@ int main(int argc, char **argv)
 -  05.02.96 Original    By: ACRM
 -  22.07.14 V1.1 By: CTP
 -  06.11.14 V1.2 By: ACRM
+-  25.11.14 V1.3 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nsetpdbnumbering V1.2, (c) 1996-2014 Dr. Andrew C.R. \
+   fprintf(stderr,"\nsetpdbnumbering V1.3 (c) 1996-2014 Dr. Andrew C.R. \
 Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: setpdbnumbering <alnfile>\n");
@@ -287,6 +289,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile)
    comment line) and sequence strings
 
 -  05.02.96 Original    By: ACRM
+-  25.11.14 Initialize ns
 */
 NAMSEQ *ReadSequenceData(FILE *in, int *nres)
 {         
@@ -297,7 +300,7 @@ NAMSEQ *ReadSequenceData(FILE *in, int *nres)
            NLastStruc = 0;
    BOOL    punct, error;
    NAMSEQ  *namseq = NULL,
-           *ns;
+           *ns     = NULL;
 
    while((nchain = blReadPIR(in, TRUE, seqs, MAXCHAIN, 
                              &seqinfo, &punct, &error))!=0)

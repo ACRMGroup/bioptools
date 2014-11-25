@@ -3,8 +3,8 @@
 
    \file       naccess2bval.c
    
-   \version    V1.8
-   \date       06.11.14
+   \version    V1.9
+   \date       25.11.14
    \brief      Sum B-vals over each residue and replace with the
                summed or average value
    
@@ -58,7 +58,8 @@
 -  V1.6  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.7  15.08.14 Updated ReadSolv() to use CLEAR_PDB(). By: CTP
--  V1.8  06.11.14 Renamed as naccess2bval
+-  V1.8  06.11.14 Renamed as naccess2bval  By: ACRM
+-  V1.9  25.11.14 Initialized a variable
 
 *************************************************************************/
 /* Includes
@@ -218,10 +219,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 -  30.09.05 V1.5
 -  22.07.14 V1.6 By: CTP
 -  06.11.14 V1.8 By: ACRM
+-  25.11.14 V1.9
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nnaccess2bval V1.8 (c) 1994-2014, Andrew C.R. Martin, \
+   fprintf(stderr,"\nnaccess2bval V1.9 (c) 1994-2014, Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"Usage: naccess2bval [<in.pdb>] [<out.pdb>]\n");
    fprintf(stderr,"Rewrites the output from naccess solvent accessibility \
@@ -246,6 +248,7 @@ and radius in the\n");
 -  05.07.94 Original based on doReadPDB()   By: ACRM
 -  03.06.05 FixAtomName() now needs the occupancy
 -  15.08.14 Updated to use CLEAR_PDB(). By: CTP
+-  25.11.14 Initialized p  By: ACRM
 */
 PDB *ReadSolv(FILE *fp, int *natom)
 {
@@ -262,7 +265,7 @@ PDB *ReadSolv(FILE *fp, int *natom)
             occ,
             bval;
    PDB      *pdb  = NULL,
-            *p;
+            *p    = NULL;
 
    *natom         = 0;
 

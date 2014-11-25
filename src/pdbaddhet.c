@@ -3,8 +3,8 @@
 
    \file       pdbaddhet.c
    
-   \version    V2.2
-   \date       06.11.14
+   \version    V2.3
+   \date       25.11.14
    \brief      Add HETATMs back into a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 2002-2014
@@ -50,6 +50,7 @@
 -  V2.1  22.07.14    Renamed deprecated functions with bl prefix.
                      Added doxygen annotation. By: CTP
 -  V2.2  06.11.14    Changed name from addhet to pdbaddhet
+-  V2.3  25.11.14    Initialized a variable  By: ACRM
 
 *************************************************************************/
 /* Includes */
@@ -189,9 +190,10 @@ void DetermineBoundingBox (PDB *pdb, REAL *xmin, REAL *xmax,
 /* OK */
 PDB *ReadPDBHetAtoms(FILE *fp1, int *natoms)
 {
-   PDB *pdb = NULL, 
+   PDB *pdb       = NULL, 
        *pdbHetatm = NULL, 
-       *p, *q;
+       *p, 
+       *q         = NULL;   /* Initialized  ACRM 25.11.14              */
    int natoms2;
        *natoms = 0;
    

@@ -3,8 +3,8 @@
 
    \file       pdbgetresidues.c
    
-   \version    V1.2
-   \date       06.11.14
+   \version    V1.3
+   \date       25.11.14
    \brief      Extract a set of residues from a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 2010-2014
@@ -49,7 +49,9 @@
 -  V1.0  15.06.10 Original
 -  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
--  V1.2  06.11.14 Renamed from getresidues
+-  V1.2  06.11.14 Renamed from getresidues  By: ACRM
+-  V1.3  25.11.14 Initialized a variable
+
 
 *************************************************************************/
 /* Includes
@@ -174,7 +176,8 @@ RESLIST *ReadResidueList(FILE *fp)
    char buffer[MAXBUFF];
    char chain[8], insert[8];
    int  resnum;
-   RESLIST *reslist = NULL, *r;
+   RESLIST *reslist = NULL, 
+           *r       = NULL;  /* ACRM 25.11.15 Initialize this           */
    
    while(fgets(buffer, MAXBUFF, fp))
    {
@@ -300,10 +303,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *resfile,
 
 -  22.07.14 V1.1 By: CTP
 -  06.11.14 V1.2 By: ACRM
+-  25.11.14 V1.3 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbgetresidues V1.2 (c) 2010-2014, UCL, Dr. Andrew \
+   fprintf(stderr,"\npdbgetresidues V1.3 (c) 2010-2014, UCL, Dr. Andrew \
 C.R. Martin\n");
    fprintf(stderr,"\nUsage: pdbgetresidues resfile [in.pdb [out.pdb]]\n");
 
