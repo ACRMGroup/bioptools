@@ -1,7 +1,7 @@
 /************************************************************************/
 /**
 
-   \file       
+   \file       pdbtorsions.c
    
    \version    V2.0
    \date       27.11.14
@@ -36,11 +36,16 @@
 
    Description:
    ============
+   Calculate torsion angles from a PDB file
 
 **************************************************************************
 
    Usage:
    ======
+   NOTE! If the executable is called 'torsions' rather than 'pdbtorsions'
+   this has the effect of setting the '-o' (old style) flag by default.
+   Consequently a symbolic link to the program can be used to obtain
+   old-style output for backwards compatibility
 
 **************************************************************************
 
@@ -119,7 +124,7 @@ void doFullTorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians,
                     BOOL oldStyle);
 void PrintCARecord(FILE *out, PDB *p, REAL tor, BOOL terse, 
                    BOOL showLabel, BOOL dummy);
-BOOL SetStyle(char *progname);
+BOOL SetOldStyle(char *progname);
 REAL CalcTorsion(PDB *p1, PDB *p2, PDB *p3, PDB *p4, BOOL Radians);
 void PrintFullRecord(FILE *out, PDB *p, REAL phi, REAL psi, REAL omega, 
                      BOOL terse, BOOL showLabel);
@@ -156,7 +161,7 @@ int main(int argc, char **argv)
    /* Set the default output style based on whether the program is called
       pdbtorsions or torsions
    */
-   oldStyle = SetStyle(argv[0]);
+   oldStyle = SetOldStyle(argv[0]);
 
    if(ParseCmdLine(argc, argv, inFile, outFile, 
                    &CATorsions, &terse, &Radians, &oldStyle))
@@ -194,13 +199,18 @@ output file\n");
 
 
 /************************************************************************/
-/*>BOOL SetStyle(char *progname)
-   -----------------------------
+/*>BOOL SetOldStyle(char *progname)
+   --------------------------------
 *//**
+   \param[in]     *progname    Program name (argv[0])
+   \return                     Is the program name 'torsions'?
+
+   Tests if the program name 'torsions' rather than 'pdbtorsions' - this
+   then sets the oldStyle flag to TRUE by default
 
 - 27.11.14 Original   By: ACRM
 */
-BOOL SetStyle(char *progname)
+BOOL SetOldStyle(char *progname)
 {
    char *chp;
    
@@ -222,12 +232,21 @@ BOOL SetStyle(char *progname)
 }
 
 
-
 /************************************************************************/
-/*>BOOL CalculateAndDisplayTorsions(FILE *out, PDB *fullpdb, BOOL CATorsions,
-                                 BOOL terse, BOOL Radians, BOOL oldStyle)
-   --------------------------------------------------------------------------
+/*>BOOL CalculateAndDisplayTorsions(FILE *out, PDB *fullpdb, 
+                                    BOOL CATorsions, BOOL terse, 
+                                    BOOL Radians, BOOL oldStyle)
+   -----------------------------------------------------------------------
 *//**
+
+   \param[in]    *out          Output file pointer
+   \param[in]    *fullpdb      Full PDB linked list
+   \param[in]    CATorsions    Do CA pseudo-torsions
+   \param[in]    terse         Terse (single letter code AAs) output
+   \param[in]    Radians       Use radians instead of degrees
+   \param[in]    oldStyle      Old style output
+
+   Calculate and display the torsion angles as required
 
 - 27.11.14 Original   By: ACRM
 */
@@ -262,180 +281,7 @@ atoms from PDB file (no memory?)\n");
    {
       doFullTorsions(out, pdb, terse, Radians, oldStyle);
    }
-   return(TRUE);
-}
 
-/************************************************************************/
-/*>void PrintCARecord(FILE *out, PDB *p, REAL tor, BOOL terse, 
-                   BOOL showLabel, BOOL dummy)
-   ------------------------------------------------------------
-*//**
-
-- 27.11.14 Original   By: ACRM
-*/
-void PrintCARecord(FILE *out, PDB *p, REAL tor, BOOL terse, 
-                   BOOL showLabel, BOOL dummy)
-{
-   char resnam[16];
-   char label[16];
-
-   if(terse)
-   {
-      resnam[0] = blThrone(p->resnam);
-      resnam[1] = '\0';
-   }
-   else
-   {
-      strcpy(resnam, p->resnam);
-   }
-
-   if(showLabel)
-      BuildLabel(label, p, 8, TRUE);
-   else
-      label[0] = '\0';
-
-   if(dummy)
-   {
-      fprintf(out,"%s   %s        -\n",label, resnam);
-   }
-   else
-   {
-      fprintf(out,"%s   %s    %8.3f\n",label, resnam,tor);
-   }
-}
-
-
-/************************************************************************/
-/*>void Usage(void)
-   ----------------
-*//**
-
-   Displays a usage message
-
--  10.06.94 original   By: ACRM
--  16.08.94 Added -m
--  12.06.95 Added -c
--  22.07.14 V1.3 By: CTP
--  06.11.14 V1.5 By: ACRM
--  07.11.14 V1.6
--  27.11.14 V2.0
-*/
-void Usage(void)
-{
-   fprintf(stderr,"\npdbtorsions V2.0 (c) 1994-2014 Andrew Martin, \
-UCL.\n");
-   fprintf(stderr,"\nUsage: pdbtorsions [-h][-r][-c][-t][-o][-n] \
-[<in.pdb> [<out.tor>]]\n");
-   fprintf(stderr,"       -h   This help message\n");
-   fprintf(stderr,"       -r   Give results in radians\n");
-   fprintf(stderr,"       -c   Generate CA-CA pseudo-torsions\n");
-   fprintf(stderr,"       -t   Terse format - use 1-letter code\n");
-   fprintf(stderr,"       -o   Old format (see below)\n");
-   fprintf(stderr,"       -n   New format (see below)\n");
-
-   fprintf(stderr,"\nGenerates a set of backbone torsions from a PDB \
-file.\n\n");
-   fprintf(stderr,"I/O is through stdin/stdout if unspecified.\n");
-
-   fprintf(stderr,"\nV1.x of this program associated the omega torsion angle with the residue\n");
-   fprintf(stderr,"before the torsion instead of the standard way of associating it with\n");
-   fprintf(stderr,"the residue after. In addition chain labels were not displayed since\n");
-   fprintf(stderr,"the code did not handle multiple chains correctly (i.e. it displayed\n");
-   fprintf(stderr,"non-existent torsion angles between the residues at the termini of chains\n");
-   fprintf(stderr,"since it assumed everything was a single chain).\n");
-
-   fprintf(stderr,"\nV2.x corrects the association of the omega torsion angle and changes the \n");
-   fprintf(stderr,"output format to include the chain label in the residue number. It treats\n");
-   fprintf(stderr,"multiple chains correctly. The old behaviour of associating the omega\n");
-   fprintf(stderr,"angle with the preceding residue and the old output format can be \n");
-   fprintf(stderr,"obtained by using the -o (old) flag. However the chain breaks are still\n");
-   fprintf(stderr,"handled correctly.\n");
-
-   fprintf(stderr,"\nThe old behaviour is also obtained if the executable is named 'torsions'\n");
-   fprintf(stderr,"rather than 'pdbtorsions'. In that case the new behaviour can be obtained\n");
-   fprintf(stderr,"by using the -n (new) flag.\n\n");
-
-}
-
-
-/************************************************************************/
-/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                     BOOL *CATorsions, BOOL *terse, BOOL *Radians, 
-                     BOOL *oldStyle)
-   ---------------------------------------------------------------------
-*//**
-
-   \param[in]      argc         Argument count
-   \param[in]      **argv       Argument array
-   \param[out]     *infile      Input file (or blank string)
-   \param[out]     *outfile     Output file (or blank string)
-   \return                      Success?
-
-   Parse the command line
-   
--  05.02.96 Original    By: ACRM
-*/
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  BOOL *CATorsions, BOOL *terse, BOOL *Radians, 
-                  BOOL *oldStyle)
-{
-   argc--;
-   argv++;
-
-   infile[0] = outfile[0] = '\0';
-   
-   while(argc)
-   {
-      if(argv[0][0] == '-')
-      {
-         switch(argv[0][1])
-         {
-         case 'c':
-            *CATorsions = TRUE;
-            break;
-         case 't':
-            *terse = TRUE;
-            break;
-         case 'r':
-            *Radians = TRUE;
-            break;
-         case 'o':
-            *oldStyle = TRUE;
-            break;
-         case 'n':
-            *oldStyle = FALSE;
-            break;
-         default:
-            return(FALSE);
-            break;
-         }
-      }
-      else
-      {
-         /* Check that there are <= 2 arguments left                    */
-         if(argc > 2)
-            return(FALSE);
-         
-         /* Copy the first to infile                                    */
-         if(argc)
-         {
-            strcpy(infile, argv[0]);
-            argc--;
-         }
-         
-         /* Copy the second to outfile                                  */
-         if(argc)
-         {
-            strcpy(infile, argv[0]);
-            argc--;
-         }
-         
-         return(TRUE);
-      }
-      argc--;
-      argv++;
-   }
-   
    return(TRUE);
 }
 
@@ -445,6 +291,13 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                      BOOL oldStyle)
    -----------------------------------------------------------------
 *//**
+   \param[in]    *out      Output file pointer
+   \param[in]    *pdb      PDB linked list
+   \param[in]    terse     Terse output
+   \param[in]    Radians   Radians in output instead of degrees
+   \param[in]    oldStyle  Old style output
+
+   Main routine for doing CA pseudo-torsions
 
 - 27.11.14 Original   By: ACRM
 */
@@ -513,7 +366,55 @@ void doCATorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians,
          PrintCARecord(out, p3, tor, terse, !oldStyle, TRUE);
       PrintCARecord(out, p4, tor, terse, !oldStyle, TRUE);
    }
-   
+}
+
+
+/************************************************************************/
+/*>void PrintCARecord(FILE *out, PDB *p, REAL tor, BOOL terse, 
+                      BOOL showLabel, BOOL dummy)
+   ------------------------------------------------------------
+*//**
+
+   \param[in]    *out        Output file pointer
+   \param[in]    *p          Pointer to amino acid of interest
+   \param[in]    tor         CA pseudo-torsion angle to print
+   \param[in]    terse       Terse output style
+   \param[in]    showLabel   Whether to show the residue label
+   \param[in]    dummy       This is a dummy record (no torsion)
+
+   Does the work of printing a CA pseudo-torsion in the required format
+
+- 27.11.14 Original   By: ACRM
+*/
+void PrintCARecord(FILE *out, PDB *p, REAL tor, BOOL terse, 
+                   BOOL showLabel, BOOL dummy)
+{
+   char resnam[16];
+   char label[16];
+
+   if(terse)
+   {
+      resnam[0] = blThrone(p->resnam);
+      resnam[1] = '\0';
+   }
+   else
+   {
+      strcpy(resnam, p->resnam);
+   }
+
+   if(showLabel)
+      BuildLabel(label, p, 8, TRUE);
+   else
+      label[0] = '\0';
+
+   if(dummy)
+   {
+      fprintf(out,"%s   %s        -\n",label, resnam);
+   }
+   else
+   {
+      fprintf(out,"%s   %s    %8.3f\n",label, resnam,tor);
+   }
 }
 
 
@@ -522,6 +423,13 @@ void doCATorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians,
                        BOOL oldStyle)
    -------------------------------------------------------------------
 *//**
+   \param[in]    *out       Output file pointer
+   \param[in]    *pdb       PDB linked list
+   \param[in]    terse      Terse output
+   \param[in]    Radians    Radians in output instead of degrees
+   \param[in]    oldStyle   Old style output
+
+   Main routine for doing normal full torsion angles
 
 - 27.11.14 Original   By: ACRM
 */
@@ -541,7 +449,7 @@ void doFullTorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians,
    /* Print title                                                       */
    if(oldStyle)
    {
-      fprintf(out,"               PHI      PSI      OMEGA\n");
+      fprintf(out,"               PHI      PSI     OMEGA\n");
       fprintf(out,"--------------------------------------\n");
    }
    else
@@ -597,53 +505,24 @@ void doFullTorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians,
          PrintFullRecord(out, N[2], phi, psi, omega2, terse, oldStyle);
       else
          PrintFullRecord(out, N[2], phi, psi, omega, terse, oldStyle);
-      
    }
 }
 
 
 /************************************************************************/
-/*>void BuildLabel(char *label, PDB *p, int width, BOOL LeftJustify)
-   -----------------------------------------------------------------
+/*>void PrintFullRecord(FILE *out, PDB *p, REAL phi, REAL psi, 
+                        REAL omega, BOOL terse, BOOL oldStyle)
+   -----------------------------------------------------------
 *//**
+   \param[in]    *out      Output file pointer
+   \param[in]    *p        Pointer to PDB record
+   \param[in]    phi       Phi angle to print
+   \param[in]    psi       Psi angle to print
+   \param[in]    omega     Omega angle to print
+   \param[in]    terse     Terse output
+   \param[in]    oldStyle  Old style output
 
-- 27.11.14 Original   By: ACRM
-*/
-void BuildLabel(char *label, PDB *p, int width, BOOL LeftJustify)
-{
-   char format[16];
-   
-   if(p==NULL)
-   {
-      label[0] = '\0';
-   }
-   else
-   {
-      if((strlen(p->chain) > 1) || isdigit(p->chain[0]))
-      {
-         sprintf(label,"%s.%d%s", p->chain, p->resnum, p->insert);
-      }
-      else
-      {
-         sprintf(label,"%s%d%s", p->chain, p->resnum, p->insert);
-      }
-   }
-   
-   /* If left justifying then the format string specifies the width     */
-   if(LeftJustify)
-      sprintf(format, "%%-%ds", width);
-   else
-      strcpy(format, "%s");
-
-   sprintf(label, format, label);
-}
-
-
-/************************************************************************/
-/*>void PrintFullRecord(FILE *out, PDB *p, REAL phi, REAL psi, REAL omega, 
-                        BOOL terse, BOOL oldStyle)
-   ------------------------------------------------------------------------
-*//**
+   Does the work of printing a record for a normal full torsion angle
 
 - 27.11.14 Original   By: ACRM
 */
@@ -681,9 +560,62 @@ void PrintFullRecord(FILE *out, PDB *p, REAL phi, REAL psi, REAL omega,
 
 
 /************************************************************************/
+/*>void BuildLabel(char *label, PDB *p, int width, BOOL LeftJustify)
+   -----------------------------------------------------------------
+*//**
+   \param[out]   *label      Residue label
+   \param[in]    *p          Pointer to PDB record
+   \param[in]    width       Width for left-justified labels
+   \param[in]    LeftJustify Should we left-justify
+
+   Builds a label by concatenating chain label, residue number and insert
+   code
+
+- 27.11.14 Original   By: ACRM
+*/
+void BuildLabel(char *label, PDB *p, int width, BOOL LeftJustify)
+{
+   char format[16];
+   
+   if(p==NULL)
+   {
+      label[0] = '\0';
+   }
+   else
+   {
+      if((strlen(p->chain) > 1) || isdigit(p->chain[0]))
+      {
+         sprintf(label,"%s.%d%s", p->chain, p->resnum, p->insert);
+      }
+      else
+      {
+         sprintf(label,"%s%d%s", p->chain, p->resnum, p->insert);
+      }
+   }
+   
+   /* If left justifying then the format string specifies the width     */
+   if(LeftJustify)
+      sprintf(format, "%%-%ds", width);
+   else
+      strcpy(format, "%s");
+
+   sprintf(label, format, label);
+}
+
+
+/************************************************************************/
 /*>REAL CalcTorsion(PDB *p1, PDB *p2, PDB *p3, PDB *p4, BOOL Radians)
    ------------------------------------------------------------------
 *//**
+   \param[in]    *p1      Pointer to PDB record
+   \param[in]    *p2      Pointer to PDB record
+   \param[in]    *p3      Pointer to PDB record
+   \param[in]    *p4      Pointer to PDB record
+   \param[in]    Radians  Output radians rather than degrees?
+   \return                Torsion angle
+
+   Wraps around the blPhi() function to take (and check) PDB pointers
+   rather than coordinates, handle conversion from radians, etc.
 
 - 27.11.14 Original   By: ACRM
 */
@@ -705,6 +637,145 @@ REAL CalcTorsion(PDB *p1, PDB *p2, PDB *p3, PDB *p4, BOOL Radians)
       tor *= 180/PI;
 
    return(tor);
+}
+
+
+/************************************************************************/
+/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
+                     BOOL *CATorsions, BOOL *terse, BOOL *Radians, 
+                     BOOL *oldStyle)
+   ---------------------------------------------------------------------
+*//**
+
+   \param[in]     argc         Argument count
+   \param[in]     **argv       Argument array
+   \param[out]    *infile      Input file (or blank string)
+   \param[out]    *outfile     Output file (or blank string)
+   \param[out]    *CATorsions  Do CA pseudo-torsions
+   \param[out]    *terse       Terse (1-letter AA code) output
+   \param[out]    *Radians     Output radians rather than degrees
+   \param[out]    *oldStyle    Old style output
+   \return                     Success?
+
+   Parse the command line
+   
+-  05.02.96 Original    By: ACRM
+-  27.02.14 V2.0
+*/
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
+                  BOOL *CATorsions, BOOL *terse, BOOL *Radians, 
+                  BOOL *oldStyle)
+{
+   argc--;
+   argv++;
+
+   infile[0] = outfile[0] = '\0';
+   
+   while(argc)
+   {
+      if(argv[0][0] == '-')
+      {
+         switch(argv[0][1])
+         {
+         case 'c':
+            *CATorsions = TRUE;
+            break;
+         case 't':
+            *terse = TRUE;
+            break;
+         case 'r':
+            *Radians = TRUE;
+            break;
+         case 'o':
+            *oldStyle = TRUE;
+            break;
+         case 'n':
+            *oldStyle = FALSE;
+            break;
+         default:
+            return(FALSE);
+            break;
+         }
+      }
+      else
+      {
+         /* Check that there are <= 2 arguments left                    */
+         if(argc > 2)
+            return(FALSE);
+         
+         /* Copy the first to infile                                    */
+         if(argc)
+         {
+            strcpy(infile, argv[0]);
+            argc--;
+         }
+         
+         /* Copy the second to outfile                                  */
+         if(argc)
+         {
+            strcpy(infile, argv[0]);
+            argc--;
+         }
+         
+         return(TRUE);
+      }
+      argc--;
+      argv++;
+   }
+   
+   return(TRUE);
+}
+
+
+/************************************************************************/
+/*>void Usage(void)
+   ----------------
+*//**
+
+   Displays a usage message
+
+-  10.06.94 original   By: ACRM
+-  16.08.94 Added -m
+-  12.06.95 Added -c
+-  22.07.14 V1.3 By: CTP
+-  06.11.14 V1.5 By: ACRM
+-  07.11.14 V1.6
+-  27.11.14 V2.0
+*/
+void Usage(void)
+{
+   fprintf(stderr,"\npdbtorsions V2.0 (c) 1994-2014 Andrew Martin, \
+UCL.\n");
+   fprintf(stderr,"\nUsage: pdbtorsions [-h][-r][-c][-t][-o][-n] \
+[<in.pdb> [<out.tor>]]\n");
+   fprintf(stderr,"       -h   This help message\n");
+   fprintf(stderr,"       -r   Give results in radians\n");
+   fprintf(stderr,"       -c   Generate CA-CA pseudo-torsions\n");
+   fprintf(stderr,"       -t   Terse format - use 1-letter code\n");
+   fprintf(stderr,"       -o   Old format (see below)\n");
+   fprintf(stderr,"       -n   New format (see below)\n");
+
+   fprintf(stderr,"\nGenerates a set of backbone torsions from a PDB \
+file.\n\n");
+   fprintf(stderr,"I/O is through stdin/stdout if unspecified.\n");
+
+   fprintf(stderr,"\nV1.x of this program associated the omega torsion angle with the residue\n");
+   fprintf(stderr,"before the torsion instead of the standard way of associating it with\n");
+   fprintf(stderr,"the residue after. In addition chain labels were not displayed since\n");
+   fprintf(stderr,"the code did not handle multiple chains correctly (i.e. it displayed\n");
+   fprintf(stderr,"non-existent torsion angles between the residues at the termini of chains\n");
+   fprintf(stderr,"since it assumed everything was a single chain).\n");
+
+   fprintf(stderr,"\nV2.x corrects the association of the omega torsion angle and changes the \n");
+   fprintf(stderr,"output format to include the chain label in the residue number. It treats\n");
+   fprintf(stderr,"multiple chains correctly. The old behaviour of associating the omega\n");
+   fprintf(stderr,"angle with the preceding residue and the old output format can be \n");
+   fprintf(stderr,"obtained by using the -o (old) flag. However the chain breaks are still\n");
+   fprintf(stderr,"handled correctly.\n");
+
+   fprintf(stderr,"\nThe old behaviour is also obtained if the executable is named 'torsions'\n");
+   fprintf(stderr,"rather than 'pdbtorsions'. In that case the new behaviour can be obtained\n");
+   fprintf(stderr,"by using the -n (new) flag.\n\n");
 }
 
 
