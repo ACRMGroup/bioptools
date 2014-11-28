@@ -1,0 +1,30 @@
+                              BiopTools
+                              =========
+
+                 (c)1990-2014, Dr. Andrew C.R. Martin
+                           SciTech Software
+
+                                 and
+
+                      University College London
+            Institute of Structural and Molecular Biology
+                       Division of Biosciences
+                           Darwin Building
+                             Gower Street
+                           London WC1E 6BT
+
+                 EMail:   andrew@bioinf.org.uk
+                          andrew.martin@ucl.ac.uk
+
+
+
+
+BiopTools is a set of small programs which use the BiopLib library.
+Many of these tools act as filters taking PDB format as input and
+generating PDB format as output. All programs that take only a PDB
+file as input have names that start with 'pdb'.
+
+
+BiopTools is licensed under the Gnu Public Licence Version 3.
+
+
