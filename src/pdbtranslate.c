@@ -3,8 +3,8 @@
 
    \file       pdbtranslate.c
    
-   \version    V1.2
-   \date       06.11.14
+   \version    V1.3
+   \date       12.02.15
    \brief      Simple program to translate PDB files
    
    \copyright  (c) Dr. Andrew C. R. Martin 1995-2014
@@ -50,6 +50,7 @@
 -  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.2  06.11.14 Renamed from transpdb  By: ACRM
+-  V1.3  12.02.15 Uses whole PDB
 
 *************************************************************************/
 /* Includes
@@ -95,13 +96,13 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 */
 int main(int argc, char **argv)
 {
-   FILE    *in      = stdin,
-           *out     = stdout;
-   PDB     *pdb;
-   int     natoms;
-   VEC3F   TVec;
-   char    infile[MAXBUFF],
-           outfile[MAXBUFF];
+   FILE     *in      = stdin,
+            *out     = stdout;
+   WHOLEPDB *wpdb;
+   PDB      *pdb;
+   VEC3F    TVec;
+   char     infile[MAXBUFF],
+            outfile[MAXBUFF];
 
    TVec.x = TVec.y = TVec.z = (REAL)0.0;
 
@@ -110,10 +111,11 @@ int main(int argc, char **argv)
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb=blReadPDB(in, &natoms))!=NULL)
+         if((wpdb=blReadWholePDB(in))!=NULL)
          {
+            pdb = wpdb->pdb;
             blTranslatePDB(pdb, TVec);
-            blWritePDB(out, pdb);
+            blWriteWholePDB(out, wpdb);
          }
          else
          {
@@ -139,10 +141,11 @@ int main(int argc, char **argv)
 -  14.09.95 Original    By: ACRM
 -  22.07.14 V1.1 By: CTP
 -  06.11.14 V1.2 By: ACRM
+-  12.02.15 V1.3 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbtranslate V1.2  (c) 1995-2014 Andrew C.R. \
+   fprintf(stderr,"\npdbtranslate V1.3  (c) 1995-2015 Andrew C.R. \
 Martin\n");
    fprintf(stderr,"Freely distributable if no profit is made\n\n");
    fprintf(stderr,"Usage: pdbtranslate [-x <x>] [-y <y>] [-z <z>] [-h]\n");

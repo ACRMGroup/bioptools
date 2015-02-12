@@ -3,12 +3,12 @@
 
    \file       pdbatomcount.c
    
-   \version    V1.5
-   \date       06.11.14
+   \version    V1.7
+   \date       12.02.15
    \brief      Count atoms neighbouring each atom in a PDB file
                Results output in B-val column
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -56,6 +56,7 @@
 -  V1.4  19.08.14 Fixed call to renamed function: blStripWatersPDBAsCopy()
                   By: CTP
 -  V1.6  06.11.14 Renamed from atomcount
+-  V1.7  12.02.15 Uses WholePDB
 
 *************************************************************************/
 /* Includes
@@ -121,8 +122,7 @@ int main(int argc, char **argv)
         outfile[MAXBUFF];
    REAL radius = DEFRAD;
    PDB  *pdb;
-   int  natoms,
-        CountType;
+   int  CountType;
    BOOL StripWater = TRUE;
    
    if(ParseCmdLine(argc, argv, infile, outfile, &radius, &CountType,
@@ -133,8 +133,10 @@ int main(int argc, char **argv)
       
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb = blReadPDB(in,&natoms)) != NULL)
+         WHOLEPDB *wpdb;
+         if((wpdb = blReadWholePDB(in)) != NULL)
          {
+            pdb = wpdb->pdb;
             if(StripWater)
             {
                PDB *pdb2;
@@ -142,10 +144,10 @@ int main(int argc, char **argv)
                
                pdb2 = blStripWatersPDBAsCopy(pdb, &natoms);
                FREELIST(pdb, PDB);
-               pdb = pdb2;
+               wpdb->pdb = pdb = pdb2;
             }
             CountNeighbours(pdb, radius, CountType);
-            blWritePDB(out, pdb);
+            blWriteWholePDB(out, wpdb);
          }
          else
          {
@@ -511,13 +513,14 @@ BOOL ResSep(PDB *pdb, PDB *pr, PDB *qr)
 -  29.04.08 V1.2
 -  22.07.14 V1.3 By: CTP
 -  06.11.14 V1.5 By: ACRM
+-  12.02.15 V1.7
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbatomcount V1.5 (c) 1994-2014, Andrew C.R. \
+   fprintf(stderr,"\npdbatomcount V1.7 (c) 1994-2014, Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"Usage: pdbatomcount [-r <rad>] [-d|-b|-c|-n] [-w] \
-[<in.pdb>] [<out.pdb>]\n");
+[<in.pdb> [<out.pdb>]]\n");
    fprintf(stderr,"                 -r Specify radius (Default: %.2f or \
 %.2f with -c/-n)\n", DEFRAD, DEFCRAD);
    fprintf(stderr,"                 -d Ignore atoms in current \

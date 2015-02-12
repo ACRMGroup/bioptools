@@ -3,11 +3,11 @@
 
    \file       pdbaddhet.c
    
-   \version    V2.3
-   \date       25.11.14
+   \version    V2.4
+   \date       12.02.15
    \brief      Add HETATMs back into a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 2002-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 2002-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -51,6 +51,7 @@
                      Added doxygen annotation. By: CTP
 -  V2.2  06.11.14    Changed name from addhet to pdbaddhet
 -  V2.3  25.11.14    Initialized a variable  By: ACRM
+-  V2.4  12.02.15    Updated usage message
 
 *************************************************************************/
 /* Includes */
@@ -95,8 +96,22 @@ int main (int argc, char *argv[])
    /* check correct number of files are specified on command line */
    if(argc !=4)
    {
-      fprintf(stderr, "Usage: pdbaddhet complete.pdb domain.pdb \
-domhet.pdb\n");
+      fprintf(stderr, "\npdbaddhet V2.4 (c) 2002-2015, UCL, \
+Dr. Andrew C.R. Martin\n\n");
+      fprintf(stderr, "Usage: pdbaddhet whole.pdb part.pdb \
+out.pdb\n");
+      fprintf(stderr, "       whole.pdb - a complete PDB file\n");
+      fprintf(stderr, "       part.pdb  - the ATOM records of a \
+region of the same PDB file\n");
+      fprintf(stderr, "       out.pdb   - part.pdb with HETATMs \
+that are within 6A added\n\n");
+      fprintf(stderr, "addhet is used to add HETATMs back from a \
+whole PDB file when\n");
+      fprintf(stderr, "the ATOM records of a region of that file \
+has been extracted,\n");
+      fprintf(stderr, "perhaps as a domain specified in CATH or \
+SCOP\n\n");
+      
       exit(1);
    }
    
