@@ -3,11 +3,11 @@
 
    \file       pdbsolv.c
    
-   \version    V1.2
-   \date       06.11.14
+   \version    V1.3
+   \date       13.02.15
    \brief      Solvent accessibility using bioplib
    
-   \copyright  (c) UCL, Dr. Andrew C.R. Martin, 2014
+   \copyright  (c) UCL, Dr. Andrew C.R. Martin, 2014-2015
    \author     Dr. Andrew C.R. Martin
    \par
                Institute of Structural & Molecular Biology,
@@ -48,7 +48,8 @@
 -   V1.0   16.07.14 Original   By: ACRM
 -   V1.1   19.08.14 Fixed call to renamed function: 
                     blStripWatersPDBAsCopy() By: CTP
--   V1.2   06.11.14 Renamed from solv
+-   V1.2   06.11.14 Renamed from solv  By: ACRM
+-   V1.3   13.02.15 Modified to use whole PDB
 
 *************************************************************************/
 /* Includes
@@ -96,28 +97,29 @@ void PrintResidueAccessibility(FILE *out, PDB *pdb, RESRAD *resrad);
 -  17.07.14 Original   By: ACRM
 -  19.08.14 Fixed call to renamed function: blStripWatersPDBAsCopy()
                   By: CTP
+-  13.02.15 Modified to use whole PDB   By: ACRM
 
 */
 int main(int argc, char **argv)
 {
-   RESRAD *resrad;
-   FILE   *in     = stdin,
-          *out    = stdout,
-          *resout = stdout,
-          *fpRad  = NULL;
-   int    natoms;
-   PDB    *pdb, 
-          *pdbAll;
-   BOOL   doAccessibility = FALSE,
-          noenv           = FALSE,
-          noAtoms         = FALSE,
-          doResaccess     = FALSE;
-   REAL   integrationAccuracy,
-          probeRadius;
-   char   infile[MAXBUFF],
-          outfile[MAXBUFF],
-          radfile[MAXBUFF],
-          resfile[MAXBUFF];
+   RESRAD   *resrad;
+   FILE     *in     = stdin,
+            *out    = stdout,
+            *resout = stdout,
+            *fpRad  = NULL;
+   int      natoms;
+   WHOLEPDB *wpdb;
+   PDB      *pdb;
+   BOOL     doAccessibility = FALSE,
+            noenv           = FALSE,
+            noAtoms         = FALSE,
+            doResaccess     = FALSE;
+   REAL     integrationAccuracy,
+            probeRadius;
+   char     infile[MAXBUFF],
+            outfile[MAXBUFF],
+            radfile[MAXBUFF],
+            resfile[MAXBUFF];
    
    if(!ParseCmdLine(argc, argv, infile, outfile, 
                     &integrationAccuracy, &probeRadius, 
@@ -126,17 +128,17 @@ int main(int argc, char **argv)
       Usage();
       return(0);
    }
+
    if(resfile[0] != '\0')
    {
       doResaccess = TRUE;
       if((resout = blOpenOrPipe(resfile))==NULL)
       {
-         fprintf(stderr, "Error (pdbsolv): Unable to open file of pipe for \
-residue accessibility data (%s)\n", resfile);
+         fprintf(stderr, "Error (pdbsolv): Unable to open file or pipe \
+for residue accessibility data (%s)\n", resfile);
          return(1);
       }
    }
-   
 
    if(!blOpenStdFiles(infile, outfile, &in, &out))
    {
@@ -145,21 +147,25 @@ file\n");
       return(1);
    }
 
-   if((pdbAll = blReadPDB(in, &natoms))==NULL)
+   if((wpdb = blReadWholePDB(in))==NULL)
    {
-      fprintf(stderr, "Error (pdbsolv): No atoms read from PDB file, %s\n",
-              infile);
+      fprintf(stderr, "Error (pdbsolv): No atoms read from PDB \
+file, %s\n", infile);
       return(1);
    }
 
    /* Strip waters                                                      */
-   if((pdb = blStripWatersPDBAsCopy(pdbAll, &natoms))==NULL)
+   if((pdb = blStripWatersPDBAsCopy(wpdb->pdb, &natoms))==NULL)
    {
       fprintf(stderr, "Error (pdbsolv): No memory to strip waters from \
 PDB file, %s\n",
               infile);
       return(1);
    }
+
+   /* Free the original linked list of atoms and patch in the new one   */
+   FREELIST(wpdb->pdb, PDB);
+   wpdb->pdb = pdb;
          
    /* Open the radius file                                              */
    if((fpRad=blOpenFile(radfile, DATA_ENV, "r", &noenv))==NULL)
@@ -187,13 +193,14 @@ arrays\n");
       return(1);
    }
             
-   /* And populate the B-values with the accessibility                  */
+   /* And populate the B-values with the accessibility and write the
+      new PDB file
+   */
    if(!noAtoms)
    {
       PopulateBValWithAccess(pdb);
-      blWritePDB(out, pdb);
+      blWriteWholePDB(out, wpdb);
    }
-   
 
    if(doResaccess)
    {
@@ -319,10 +326,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
 -   17.07.14 Original   By: ACRM
 -   06.11.14 V1.2
+-   13.02.15 V1.3
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbsolv V1.2 (c) 2014 UCL, Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbsolv V1.3 (c) 2014-2015 UCL, Dr. Andrew C.R. \
 Martin\n");
 
    fprintf(stderr,"\nUsage: pdbsolv [-i val] [-p val] [-f radfile] \

@@ -3,11 +3,11 @@
 
    \file       pdborigin.c
    
-   \version    V1.1
-   \date       22.07.14
+   \version    V1.2
+   \date       13.02.15
    \brief      Add hydrogens to a PDB file
    
-   \copyright  (c) UCL, Dr. Andrew C. R. Martin 1999-2014
+   \copyright  (c) UCL, Dr. Andrew C. R. Martin 1999-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -49,6 +49,7 @@
 -  V1.0  28.01.99 Original
 -  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.2  13.02.15 Added whole PDB support  By: ACRM
 
 *************************************************************************/
 /* Includes
@@ -88,24 +89,26 @@ void Usage(void);
 
 -  28.01.99 Original    By: ACRM
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  13.02.15 Added whole PDB support  By: ACRM
 */
 int main(int argc, char **argv)
 {
-   FILE *in  = stdin,
-        *out = stdout;
-   char infile[MAXBUFF],
-        outfile[MAXBUFF];
-   PDB  *pdb;
-   int  natoms;
+   FILE     *in  = stdin,
+            *out = stdout;
+   char     infile[MAXBUFF],
+            outfile[MAXBUFF];
+   WHOLEPDB *wpdb;
+   PDB      *pdb;
    
    if(ParseCmdLine(argc, argv, infile, outfile))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb = blReadPDB(in,&natoms)) != NULL)
+         if((wpdb = blReadWholePDB(in)) != NULL)
          {
+            pdb=wpdb->pdb;
             blOriginPDB(pdb);
-            blWritePDB(out, pdb);
+            blWriteWholePDB(out, wpdb);
          }
          else
          {
@@ -188,12 +191,16 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 
 -  28.01.99 Original    By: ACRM
 -  22.07.14 V1.1 By: CTP
+-  13.02.15 V1.2 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBOrigin V1.1 (c) 1999-2014, UCL, Andrew C.R. Martin\n\n");
+   fprintf(stderr,"\nPDBOrigin V1.2 (c) 1999-2015, UCL, Andrew C.R. \
+Martin\n\n");
    fprintf(stderr,"Usage: pdborigin [<in.pdb> [<out.pdb>]]\n");
-   fprintf(stderr,"\nMoves a set of PDB coordinates to the origin.\n\n");
+   fprintf(stderr,"\nMoves a set of PDB coordinates such that the \
+centre of geometry\n");
+   fprintf(stderr,"is at the origin.\n\n");
 }
 
 

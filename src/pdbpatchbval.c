@@ -3,12 +3,12 @@
 
    \file       pdbpatchbval.c
    
-   \version    V1.5
-   \date       25.11.14
+   \version    V1.6
+   \date       13.02.15
    \brief      Patch the b-value (or occupancy) column using values from 
                a file
    
-   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1996-2014
+   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1996-2016
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -55,6 +55,8 @@
                   Added doxygen annotation. By: CTP
 -  V1.4  06.11.14 Renamed from patchbval  By: ACRM
 -  V1.5  25.11.14 Initialized a variable 
+-  V1.6  13.02.15 Added whole PDB support
+
 *************************************************************************/
 /* Includes
 */
@@ -179,19 +181,21 @@ data\n");
 BOOL ApplyPatches(FILE *in, FILE *out, PATCH *patch, BOOL occup,
                   BOOL verbose)
 {
-   PDB   *pdb,
-         *end,
-         *p,
-         *q;
-   PATCH *pa;
-   int   natoms;
+   WHOLEPDB *wpdb;
+   PDB      *pdb,
+            *end,
+            *p,
+            *q;
+   PATCH    *pa;
    
    
-   if((pdb = blReadPDB(in, &natoms))==NULL)
+   if((wpdb = blReadWholePDB(in))==NULL)
    {
-      fprintf(stderr,"Unable to read atoms from PDB file\n");
+      fprintf(stderr,"Unable to read PDB file\n");
       return(FALSE);
    }
+
+   pdb = wpdb->pdb;
 
    /* Set values to 0.0                                                 */
    for(p=pdb; p!=NULL; NEXT(p))
@@ -261,7 +265,7 @@ BOOL ApplyPatches(FILE *in, FILE *out, PATCH *patch, BOOL occup,
    }
    
    /* Write the patched PDB file                                        */
-   blWritePDB(out,pdb);
+   blWriteWholePDB(out,wpdb);
 
    return(TRUE);
 }
@@ -409,10 +413,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *datafile, char *infile,
 -  22.07.14 V1.3 By: CTP
 -  06.11.14 V1.4 By: ACRM
 -  25.11.14 V1.5
+-  13.02.15 V1.6
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbpatchbval V1.5 (c) 1996-2014, Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbpatchbval V1.6 (c) 1996-2015, Dr. Andrew C.R. \
 Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: pdbpatchbval [-o] [-v] patchfile [in.pdb \
@@ -427,10 +432,12 @@ residue specifications and\n");
 occupancy) for that\n");
    fprintf(stderr,"residue with the specified values. The residue \
 specification is of the\n");
-   fprintf(stderr,"form [c]nnn[i], where [c] is an optional chain \
+   fprintf(stderr,"form [c[.]]nnn[i], where [c] is an optional chain \
 identifier, nnn is a\n");
    fprintf(stderr,"residue number and [i] is an optional insertion \
 code.\n\n");
+   fprintf(stderr,"Note that the residue specification is case \
+sensitive.\n\n");
 }
 
 

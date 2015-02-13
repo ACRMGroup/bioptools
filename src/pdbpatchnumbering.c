@@ -3,12 +3,12 @@
 
    \file       pdbpatchnumbering.c
    
-   \version    V1.6
-   \date       07.11.14
+   \version    V1.7
+   \date       13.02.15
    \brief      Patch the numbering of a PDB file from a file of numbers
                and sequence (as created by KabatSeq, etc)
    
-   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1995-2014
+   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1995-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -57,6 +57,7 @@
                   Added doxygen annotation. By: CTP
 -  V1.5  06.11.14 Renamed from patchpdbnum By: ACRM
 -  V1.6  07.11.14 Initialized a variable
+-  V1.7  13.02.15 Added whole PDB support
 
 *************************************************************************/
 /* Includes
@@ -113,15 +114,15 @@ BOOL ApplyPatches(PDB *pdb, PATCH *patches);
 */
 int main(int argc, char **argv)
 {
-   PATCH *patches = NULL;
-   FILE  *in      = stdin,
-         *out     = stdout,
-         *patchfp = NULL;
-   char  infile[MAXBUFF],
-         outfile[MAXBUFF],
-         patchfile[MAXBUFF];
-   PDB   *pdb;
-   int   natoms;
+   PATCH    *patches = NULL;
+   FILE     *in      = stdin,
+            *out     = stdout,
+            *patchfp = NULL;
+   char     infile[MAXBUFF],
+            outfile[MAXBUFF],
+            patchfile[MAXBUFF];
+   WHOLEPDB *wpdb;
+   PDB      *pdb;
    
    if(ParseCmdLine(argc, argv, infile, outfile, patchfile))
    {
@@ -141,11 +142,12 @@ file\n");
             return(1);
          }
 
-         if((pdb = blReadPDB(in,&natoms)) != NULL)
+         if((wpdb = blReadWholePDB(in)) != NULL)
          {
+            pdb=wpdb->pdb;
             if(ApplyPatches(pdb, patches))
             {
-               blWritePDB(out, pdb);
+               blWriteWholePDB(out, wpdb);
             }
             else
             {
@@ -337,20 +339,21 @@ PATCH *ReadPatchFile(FILE *fp)
 -  28.08.13 V1.3
 -  22.07.14 V1.4 By: CTP
 -  07.11.14 V1.6 By: ACRM
+-  13.02.15 V1.7 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPdbpatchnumbering V1.6 (c) 1995-2014, Dr. Andrew \
+   fprintf(stderr,"\npdbpatchnumbering V1.7 (c) 1995-2015, Dr. Andrew \
 C.R. Martin, UCL\n");
 
-   fprintf(stderr,"\nUsage: pdbpatchnumbering <patchfile> [<in.pdb> \
-[<out.pdb>]]\n");
+   fprintf(stderr,"\nUsage: pdbpatchnumbering patchfile [in.pdb \
+[out.pdb]]\n");
    fprintf(stderr,"PDB file I/O is through stdin/stdout if files are not \
 specified.\n");
 
    fprintf(stderr,"\npdbpatchnumbering patches the numbering of a PDB \
 file from a patch file\n");
-   fprintf(stderr,"containing residue numbers in the form [c]num[i] \
+   fprintf(stderr,"containing residue numbers in the form [c[.]]num[i] \
 (where c is an optional\n");
    fprintf(stderr,"chain name, num is the residue number and i is an \
 optional insert code)\n");
@@ -359,6 +362,11 @@ of the PDB file\n");
    fprintf(stderr,"is modified to match that in the patch file and the \
 PDB file is \n");
    fprintf(stderr,"terminated after all specified residues.\n\n");
+   fprintf(stderr,"The patch file must contain all the residues present \
+in the PDB file and\n");
+   fprintf(stderr,"typically comes from a program such as abnum or \
+abynum which applies\n");
+   fprintf(stderr,"standard numbering to a sequence.\n\n");
 }
 
 

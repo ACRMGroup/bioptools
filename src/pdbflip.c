@@ -3,11 +3,11 @@
 
    \file       pdbflip.c
    
-   \version    V1.3
-   \date       06.11.14
+   \version    V1.4
+   \date       13.02.15
    \brief      Standardise equivalent atom labelling
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1996-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1996-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -51,6 +51,7 @@
                    Added doxygen annotation. By: CTP
 -  V1.2   19.08.14 Removed unused variable in DoFlipping() By: CTP
 -  V1.3   06.11.14 Renamed from flip
+-  V1.4   13.02.15 Added whole PDB support
 
 *************************************************************************/
 /* Includes
@@ -106,25 +107,27 @@ void DoAFlip(PDB *atom4, PDB *atom4b, PDB *connect4, PDB *connect4b);
 
 -  08.11.96 Original   By: ACRM
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  13.02.15 Added whole PDB support.  By: ACRM
 */
 int main(int argc, char **argv)
 {
-   FILE *in  = stdin,
-        *out = stdout;
-   char infile[MAXBUFF],
-        outfile[MAXBUFF];
-   PDB  *pdb;
-   int  natoms;
-   BOOL verbose, quiet;
+   FILE     *in  = stdin,
+            *out = stdout;
+   char     infile[MAXBUFF],
+            outfile[MAXBUFF];
+   WHOLEPDB *wpdb;
+   PDB      *pdb;
+   BOOL     verbose, quiet;
    
    if(ParseCmdLine(argc, argv, infile, outfile, &verbose, &quiet))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb = blReadPDB(in,&natoms)) != NULL)
+         if((wpdb = blReadWholePDB(in)) != NULL)
          {
+            pdb = wpdb->pdb;
             DoFlipping(pdb,verbose,quiet);
-            blWritePDB(out, pdb);
+            blWriteWholePDB(out, wpdb);
          }
          else
          {

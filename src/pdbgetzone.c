@@ -3,11 +3,11 @@
 
    \file       pdbgetzone.c
    
-   \version    V1.6
-   \date       06.11.14
+   \version    V1.7
+   \date       13.02.15
    \brief      Extract a numbered zone from a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1996-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1996-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -60,6 +60,9 @@
 -  V1.5   19.08.14  Fixed call to renamed function: 
                     blExtractZonePDBAsCopy() By: CTP
 -  V1.6   06.11.14  Renamed from getpdb  By: ACRM
+-  V1.7   13.02.15  Removed handling of -l option since there are now
+                    too many PDB files with lower case chain labels for
+                    it to make sense
 
 *************************************************************************/
 /* Includes
@@ -82,7 +85,7 @@
 */
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
-                  char *infile, char *outfile, BOOL *uppercaseresspec);
+                  char *infile, char *outfile);
 void Usage(void);
 
 
@@ -98,6 +101,7 @@ void Usage(void);
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  19.08.14 Added AsCopy suffix for call to blExtractZonePDBAsCopy() 
             By: CTP
+-  13.02.15 Removed -l handling - this is now the only option By: ACRM
 */
 int main(int argc, char **argv)
 {
@@ -112,11 +116,9 @@ int main(int argc, char **argv)
    int  res1,    res2,
         natom;
    PDB  *pdb;
-   BOOL uppercaseresspec;
    
 
-   if(ParseCmdLine(argc, argv, Zone1, Zone2, InFile, OutFile, 
-                   &uppercaseresspec))
+   if(ParseCmdLine(argc, argv, Zone1, Zone2, InFile, OutFile))
    {
       if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
@@ -128,20 +130,11 @@ int main(int argc, char **argv)
             return(1);
          }
          
-         if (uppercaseresspec == TRUE) 
-         {
-            ParseResSpec1Result = blParseResSpec(Zone1, chain1, 
-                                                 &res1, insert1);
-            ParseResSpec2Result = blParseResSpec(Zone2, chain2, 
-                                                 &res2, insert2);
-         }
-         else 
-         {
-            ParseResSpec1Result = blParseResSpecNoUpper(Zone1, chain1, 
-                                                        &res1, insert1);
-            ParseResSpec2Result = blParseResSpecNoUpper(Zone2, chain2, 
-                                                        &res2, insert2);
-         }
+         ParseResSpec1Result = blParseResSpec(Zone1, chain1, 
+                                              &res1, insert1);
+         ParseResSpec2Result = blParseResSpec(Zone2, chain2, 
+                                              &res2, insert2);
+
          if(!ParseResSpec1Result)
          {
             fprintf(stderr,"pdbgetzone: Illegal residue specification \
@@ -174,7 +167,7 @@ int main(int argc, char **argv)
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
-                     char *infile, char *outfile, BOOL *uppercaseresspec)
+                     char *infile, char *outfile)
    ----------------------------------------------------------------------
 *//**
 
@@ -184,8 +177,6 @@ int main(int argc, char **argv)
    \param[out]     *Zone2       Second end of zone
    \param[out]     *infile      Input file (or blank string)
    \param[out]     *outfile     Output file (or blank string)
-   \param[out]     *uppercaseresspec  Should residue spec be upcased?
-                                (Default: yes)
    \return                     Success?
 
    Parse the command line
@@ -193,17 +184,18 @@ int main(int argc, char **argv)
 -  22.07.96 Original    By: ACRM
 -  29.09.05 Added uppercaseresspec param and handling of -l  By: TL
 -  05.11.07 Added first check that at least one parameter is on the
-            command line
+            command line  By: ACRM
+-  13.02.15 -l option is now ignored - the program is always case 
+            sensitive
 */
 BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
-                     char *infile, char *outfile, BOOL *uppercaseresspec)
+                     char *infile, char *outfile)
 {
    argc--;
    argv++;
 
    infile[0] = outfile[0] = '\0';
    Zone1[0]  = Zone2[0]   = '\0';
-   *uppercaseresspec = TRUE;
 
    if(!argc)               /* 05.11.07 Added this                       */
    {
@@ -220,7 +212,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
             return(FALSE);
             break;
          case 'l':
-            *uppercaseresspec = FALSE;
+            fprintf(stderr, "-l option is now deprecated\n");
             break;
          default:
             return(FALSE);
@@ -276,19 +268,20 @@ BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
 
 -  22.07.14 V1.4 By: CTP
 -  06.11.14 V1.6 By: ACRM
+-  13.02.15 V1.7 By: ACRM
 */
 void Usage(void)
 {
    fprintf(stderr,"\n");
-   fprintf(stderr,"pdbgetzone V1.6 (c) 1996-2014, Dr. Andrew C.R. Martin, \
-UCL.\n");
-   fprintf(stderr,"            Modified by Tony Lewis, UCL, 2005\n");
+   fprintf(stderr,"pdbgetzone V1.7 (c) 1996-2015, Dr. Andrew C.R. \
+Martin, UCL.\n");
+   fprintf(stderr,"                    Modified by Tony Lewis, \
+UCL, 2005\n");
 
-   fprintf(stderr,"\nUsage: pdbgetzone [-l] start end [in.pdb [out.pdb]]\n");
-   fprintf(stderr,"       -l  Do not uppercase residue \
-specifications.\n");
-   fprintf(stderr,"           Default behaviour is to uppercase \
-specifications.\n");
+   fprintf(stderr,"\nUsage: pdbgetzone [-l] start end [in.pdb \
+[out.pdb]]\n");
+   fprintf(stderr,"       -l  Redundant - kept for backwards \
+compatibility\n");
    fprintf(stderr,"\n");
    fprintf(stderr,"Start and end are residue specifications in the \
 form [c]nnn[i]\n");
@@ -296,9 +289,12 @@ form [c]nnn[i]\n");
 a residue number\n");
    fprintf(stderr,"and [i] is an optional insertion code.\n");
 
-   fprintf(stderr,"\npdbgetzone extracts a specified zone from a PDB file \
-writing it out in\n");
+   fprintf(stderr,"\npdbgetzone extracts a specified zone from a PDB \
+file writing it out in\n");
    fprintf(stderr,"PDB format. I/O is through standard input/output if \
 filenames are\n");
    fprintf(stderr,"not specified.\n\n");
+   fprintf(stderr,"Note that the residue specification is case \
+sensitive. The -l option\n");
+   fprintf(stderr,"used to be required for case sensitivity.\n\n");
 }

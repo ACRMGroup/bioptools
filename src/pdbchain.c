@@ -3,11 +3,11 @@
 
    \file       pdbchain.c
    
-   \version    V1.8
-   \date       06.11.14
+   \version    V1.9
+   \date       13.02.15
    \brief      Insert chain labels into a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -61,6 +61,7 @@
 -  V1.7  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.8  06.11.14 Renamed from chainpdb By: ACRM
+-  V1.9  13.02.15 Added whole PDB suport
 
 *************************************************************************/
 /* Includes
@@ -112,29 +113,31 @@ void DoChain(PDB *pdb, char *chains, BOOL BumpChainOnHet);
 */
 int main(int argc, char **argv)
 {
-   FILE *in  = stdin,
-        *out = stdout;
-   char infile[MAXBUFF],
-        outfile[MAXBUFF],
-        chains[MAXCHAIN];
-   PDB  *pdb;
-   int  natoms;
-   BOOL BumpChainOnHet = FALSE;  /* Flag to indicate ATOMs after HETATMs
-                                    should be start of a new residue    */
+   FILE     *in  = stdin,
+            *out = stdout;
+   char     infile[MAXBUFF],
+            outfile[MAXBUFF],
+            chains[MAXCHAIN];
+   PDB      *pdb;
+   WHOLEPDB *wpdb;
+   BOOL     BumpChainOnHet = FALSE;  /* Flag to indicate ATOMs after 
+                                        HETATMs should be start of a new
+                                        residue                         */
 
         
    if(ParseCmdLine(argc, argv, infile, outfile, chains, &BumpChainOnHet))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb=blReadPDB(in, &natoms))==NULL)
+         if((wpdb=blReadWholePDB(in))==NULL)
          {
             fprintf(stderr,"No atoms read from input file\n");
          }
          else
          {
+            pdb = wpdb->pdb;
             DoChain(pdb,chains,BumpChainOnHet);
-            blWritePDB(out, pdb);
+            blWriteWholePDB(out, wpdb);
          }
       }
       else
@@ -259,6 +262,10 @@ criteria\n\n");
 used.\n");
    fprintf(stderr,"If a chain is to be skipped with -c, use a - \
 instead of the label or\nnumber.\n\n");
+   fprintf(stderr,"Note that chain labels used in the headers will \
+not be updated as this is\n");
+   fprintf(stderr,"designed to be used with models and partial PDB \
+files.\n");
 }
 
 

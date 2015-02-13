@@ -3,11 +3,11 @@
 
    \file       pdbrotate.c
    
-   \version    V1.4
-   \date       06.11.14
-   \brief      Simple program to pdbrotate PDB files
+   \version    V1.5
+   \date       13.02.15
+   \brief      Program to rotate PDB files
    
-   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1994-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -52,6 +52,7 @@
 -  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.4  06.11.14 Renamed from rotate  By: ACRM
+-  V1.5  13.02.15 Added whole PDB support
 
 *************************************************************************/
 /* Includes
@@ -102,18 +103,19 @@ BOOL SetupMatrix(int argc, char **argv, REAL matrix[3][3]);
 -  21.07.95 Added -m
 -  29.09.97 Added -n
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  13.02.15 Added whole PDB support   By: ACRM
 */
 int main(int argc, char **argv)
 {
-   FILE    *in      = stdin,
-           *out     = stdout;
-   ROTLIST *rotlist = NULL;
-   PDB     *pdb;
-   int     natoms;
-   BOOL    GotMatrix = FALSE,
-           GotRot    = FALSE,
-           DoCentre  = TRUE;
-   REAL    matrix[3][3];
+   FILE     *in      = stdin,
+            *out     = stdout;
+   ROTLIST  *rotlist = NULL;
+   WHOLEPDB *wpdb;
+   PDB      *pdb;
+   BOOL     GotMatrix = FALSE,
+            GotRot    = FALSE,
+            DoCentre  = TRUE;
+   REAL     matrix[3][3];
 
    argc--;
    argv++;
@@ -218,7 +220,8 @@ with -m\n");
    {
       if((out=fopen(argv[0],"w"))==NULL)
       {
-         fprintf(stderr,"Unable to open output file: %s\n",argv[0]);
+         fprintf(stderr,"pdbrotate: Unable to open output file: %s\n",
+                 argv[0]);
          return(1);
       }
       argc--;
@@ -226,11 +229,13 @@ with -m\n");
    }
    
    /* Read in the PDB file                                              */
-   if((pdb = blReadPDB(in, &natoms))==NULL)
+   if((wpdb = blReadWholePDB(in))==NULL)
    {
-      fprintf(stderr,"No atoms read from PDB file\n");
+      fprintf(stderr,"pdbrotate: Unable to read from PDB file\n");
       return(1);
    }
+
+   pdb=wpdb->pdb;
 
    /* Apply the rotations                                               */
    if(GotMatrix)
@@ -246,7 +251,7 @@ with -m\n");
    }
    
    /* Write the new PDB file                                            */
-   blWritePDB(out,pdb);
+   blWriteWholePDB(out,wpdb);
    
    return(0);
 }
@@ -328,10 +333,11 @@ BOOL BuildRotInstruct(ROTLIST **pRotList, char direction, char *amount)
 -  29.09.97 V1.2 Added -n
 -  22.07.14 V1.3 By: CTP
 -  06.11.14 V1.4 By: ACRM
+-  13.02.15 V1.5 
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbrotate V1.4  (c) 1994-2014 Andrew C.R. \
+   fprintf(stderr,"\npdbrotate V1.5 (c) 1994-2015 Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"Freely distributable if no profit is made\n\n");
    fprintf(stderr,"Usage: pdbrotate [-m 11 12 13 21 22 23 31 32 33] \

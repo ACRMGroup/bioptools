@@ -3,11 +3,11 @@
 
    \file       pdborder.c
    
-   \version    V1.4
-   \date       07.11.14
+   \version    V1.5
+   \date       13.02.15
    \brief      Correct the atom order in a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -52,6 +52,7 @@
 -  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.4  07.11.14 Initialized variables
+-  V1.5  13.02.15 Added whole PDB support and fixed some core dumps
 
 *************************************************************************/
 /* Includes
@@ -64,12 +65,14 @@
 #include "bioplib/pdb.h"
 #include "bioplib/macros.h"
 #include "bioplib/general.h"
+#include "bioplib/array.h"
 
 /************************************************************************/
 /* Defines and macros
 */
 #define MAXBUFF 160
 #define MAXATOMS 19
+#define MAXATNAM 8
 #define TERM_MIDCHAIN 0
 #define TERM_NTER     1
 #define TERM_CTER     2
@@ -77,67 +80,7 @@
 /************************************************************************/
 /* Globals
 */
-char *gAtomLists[][MAXATOMS] =   /* Residue/atom table                  */
-{  {"ALA ","N   ","H   ","CA  ","C   ","O   ","CB  ",NULL  ,NULL  ,
-    NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"CYS ","N   ","H   ","CA  ","C   ","O   ","CB  ","SG  ",NULL  ,
-    NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"CYS1","N   ","H   ","CA  ","C   ","O   ","CB  ","SG  ",NULL  ,
-    NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"CYS2","N   ","H   ","CA  ","C   ","O   ","CB  ","SG  ",NULL  ,
-    NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"CYSH","N   ","H   ","CA  ","C   ","O   ","CB  ","SG  ","HG  ",
-    NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"ASP ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","OD1 ",
-    "OD2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"GLU ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ",
-    "OE1 ","OE2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"PHE ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ",
-    "CD2 ","CE1 ","CE2 ","CZ  ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"GLY ","N   ","H   ","CA  ","C   ","O   ",NULL  ,NULL  ,NULL  ,
-    NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"HIS ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","ND1 ",
-    "HD1 ","CD2 ","CE1 ","NE2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"HIS1","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","ND1 ",
-    "HD1 ","CD2 ","CE1 ","NE2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"HISB","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","ND1 ",
-    "CD2 ","CE1 ","NE2 ","HE2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"HISH","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","ND1 ",
-    "HD1 ","CD2 ","CE1 ","NE2 ","HE2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"ILE ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG1 ","CG2 ",
-    "CD1 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"LYS ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ",
-    "CE  ","NZ  ","HZ1 ","HZ2 ","HZ3 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"LEU ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ",
-    "CD2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"MET ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","SD  ",
-    "CE  ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"ASN ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","OD1 ",
-    "ND2 ","HD21","HD22",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"PRO ","N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ",NULL  ,
-    NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"GLN ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ",
-    "OE1 ","NE2 ","HE21","HE22",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"ARG ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ",
-    "NE  ","HE  ","CZ  ","NH1 ","HH11","HH12","NH2 ","HH21","HH22",NULL},
-   {"SER ","N   ","H   ","CA  ","C   ","O   ","CB  ","OG  ","HG  ",
-    NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"THR ","N   ","H   ","CA  ","C   ","O   ","CB  ","OG1 ","HG1 ",
-    "CG2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"VAL ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG1 ","CG2 ",
-    NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"TRP ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ",
-    "CD2 ","NE1 ","HE1 ","CE2 ","CE3 ","CZ2 ","CZ3 ","CH2 ",NULL  ,NULL},
-   {"TYR ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ",
-    "CD2 ","CE1 ","CE2 ","CZ  ","OH  ","HH  ",NULL  ,NULL  ,NULL  ,NULL},
-   {"CTER","OT2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,
-    NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {"NTER","HT1 ","HT2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,
-    NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
-   {NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,
-    NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL}
-}  ;
-
+char ***gAtomLists = NULL;
 BOOL gVerbose = FALSE,
      gWarnH   = FALSE;
 
@@ -154,6 +97,7 @@ void FixGromosILE(PDB *pdb,BOOL Gromos);
 void SpliceNTerHs(PDB **from, PDB **to);
 void SpliceCTerOs(PDB **from, PDB **to);
 BOOL GotSomeHydrogens(PDB *pdb);
+BOOL InitializeGlobalAtomLists(void);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -165,24 +109,35 @@ BOOL GotSomeHydrogens(PDB *pdb);
 -  23.08.94 Original    By: ACRM
 -  24.08.94 Changed to call OpenStdFiles()
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  13.02.15 Added whole PDB support and initialize atom lists
+            dynamically  By: ACRM
 */
 int main(int argc, char **argv)
 {
-   FILE *in  = stdin,
-        *out = stdout;
-   char infile[MAXBUFF],
-        outfile[MAXBUFF];
-   PDB  *pdb;
-   int  natoms;
-   BOOL COLast    = FALSE,
-        GromosILE = FALSE;
+   FILE     *in  = stdin,
+            *out = stdout;
+   char     infile[MAXBUFF],
+            outfile[MAXBUFF];
+   WHOLEPDB *wpdb;
+   PDB      *pdb;
+   BOOL     COLast    = FALSE,
+            GromosILE = FALSE;
    
    if(ParseCmdLine(argc, argv, infile, outfile, &COLast, &GromosILE))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb = blReadPDB(in,&natoms)) != NULL)
+         if((wpdb = blReadWholePDB(in)) != NULL)
          {
+            pdb = wpdb->pdb;
+
+            if(!InitializeGlobalAtomLists())
+            {
+               fprintf(stderr,"pdborder (error): No memory for atom \
+lists\n");
+               return(1);
+            }
+
             FixGromosILE(pdb,GromosILE);
             
             if((pdb = CorrectOrder(pdb, COLast)) != NULL)
@@ -191,11 +146,11 @@ int main(int argc, char **argv)
                {
                   if(GotSomeHydrogens(pdb))
                   {
-                     fprintf(stderr,"Warning: There were hydrogens \
-missing.\n");
+                     fprintf(stderr,"pdborder (warning): There were \
+hydrogens missing.\n");
                   }
                }
-               blWritePDB(out, pdb);
+               blWriteWholePDB(out, wpdb);
             }
          }
          else
@@ -224,7 +179,7 @@ missing.\n");
    \param[out]     *outfile     Output file (or blank string)
    \param[out]     *COLast      Put the C and O after the s/c
    \param[out]     *GromosILE   Change ILE CD1 to CD for GROMOS
-   \return                     Success?
+   \return                      Success?
 
    Parse the command line
 
@@ -304,10 +259,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  15.01.97 V1.1
 -  22.07.14 V1.2 By: CTP
 -  07.11.14 V1.4 By: ACRM
+-  13.02.15 V1.5 
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBOrder V1.4 (c) 1994-2014, Andrew C.R. Martin, \
+   fprintf(stderr,"\nPDBOrder V1.5 (c) 1994-2015, Andrew C.R. Martin, \
 UCL\n\n");
    fprintf(stderr,"Usage: pdborder [-c] [-i] [-g] [<in.pdb> \
 [<out.pdb>]]\n");
@@ -399,9 +355,16 @@ PDB *CorrectOrder(PDB *pdb, BOOL COLast)
          }
       }
          
-      /* Walk to the last atom in this residue                          */
-      for(p = prev->next; p->next != NULL && p->next != end; NEXT(p)) ;
-      prev = p;
+      if(prev != NULL)            /* 13.02.15                           */
+      {
+         /* Walk to the last atom in this residue                       
+            13.02.15 Added check on p!=NULL
+          */
+         for(p = prev->next; 
+             p != NULL && p->next != NULL && p->next != end; 
+             NEXT(p)) ;
+         prev = p;
+      }
       
       /* Step to the next residue                                       */
       start = end;
@@ -619,7 +582,10 @@ void FixGromosILE(PDB *pdb, BOOL Gromos)
       {
          if(!strncmp(p->resnam,"ILE ",4) &&
             !strncmp(p->atnam, "CD1 ",4))
-            strcpy(p->atnam,"CD  ");
+         {
+            strcpy(p->atnam,     "CD  ");
+            strcpy(p->atnam_raw, " CD ");
+         }
       }
       
       /* Fix the atom order list ILE CD1->CD                            */
@@ -631,7 +597,7 @@ void FixGromosILE(PDB *pdb, BOOL Gromos)
             {
                if(!strncmp(gAtomLists[offset][i],"CD1 ",4))
                {
-                  strcpy(gAtomLists[offset][i],"CD  ");
+                  strncpy(gAtomLists[offset][i],"CD  ", 4);
                   break;
                }
             }
@@ -793,7 +759,7 @@ void SpliceCTerOs(PDB **from, PDB **to)
 *//**
 
    \param[in]      *pdb     PDB linked list to search for hydrogens
-   \return                     Were any hydrogens found?
+   \return                  Were any hydrogens found?
 
    Tests whether there are any hydrogens in the PDB linked list.
 
@@ -809,3 +775,111 @@ BOOL GotSomeHydrogens(PDB *pdb)
    }
    return(FALSE);
 }   
+
+/************************************************************************/
+/*>BOOL InitializeGlobalAtomLists(void)
+   ------------------------------------
+*//**
+
+   \return                    Success?
+
+   Initializes the global atom name array. We can't just use the static
+   hard-coded version since we need to write to it for Gromos ILE CD
+
+-  13.02.15  Original   By: ACRM
+*/
+BOOL InitializeGlobalAtomLists(void)
+{
+   char *atomLists[][MAXATOMS] =   /* Residue/atom table                  */
+      {  {"ALA ","N   ","H   ","CA  ","C   ","O   ","CB  ",NULL  ,NULL  ,
+          NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"CYS ","N   ","H   ","CA  ","C   ","O   ","CB  ","SG  ",NULL  ,
+          NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"CYS1","N   ","H   ","CA  ","C   ","O   ","CB  ","SG  ",NULL  ,
+          NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"CYS2","N   ","H   ","CA  ","C   ","O   ","CB  ","SG  ",NULL  ,
+          NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"CYSH","N   ","H   ","CA  ","C   ","O   ","CB  ","SG  ","HG  ",
+          NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"ASP ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","OD1 ",
+          "OD2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"GLU ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ",
+          "OE1 ","OE2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"PHE ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ",
+          "CD2 ","CE1 ","CE2 ","CZ  ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"GLY ","N   ","H   ","CA  ","C   ","O   ",NULL  ,NULL  ,NULL  ,
+          NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"HIS ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","ND1 ",
+          "HD1 ","CD2 ","CE1 ","NE2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"HIS1","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","ND1 ",
+          "HD1 ","CD2 ","CE1 ","NE2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"HISB","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","ND1 ",
+          "CD2 ","CE1 ","NE2 ","HE2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"HISH","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","ND1 ",
+          "HD1 ","CD2 ","CE1 ","NE2 ","HE2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"ILE ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG1 ","CG2 ",
+          "CD1 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"LYS ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ",
+          "CE  ","NZ  ","HZ1 ","HZ2 ","HZ3 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"LEU ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ",
+          "CD2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"MET ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","SD  ",
+          "CE  ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"ASN ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","OD1 ",
+          "ND2 ","HD21","HD22",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"PRO ","N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ",NULL  ,
+          NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"GLN ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ",
+          "OE1 ","NE2 ","HE21","HE22",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"ARG ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ",
+          "NE  ","HE  ","CZ  ","NH1 ","HH11","HH12","NH2 ","HH21","HH22",NULL},
+         {"SER ","N   ","H   ","CA  ","C   ","O   ","CB  ","OG  ","HG  ",
+          NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"THR ","N   ","H   ","CA  ","C   ","O   ","CB  ","OG1 ","HG1 ",
+          "CG2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"VAL ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG1 ","CG2 ",
+          NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"TRP ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ",
+          "CD2 ","NE1 ","HE1 ","CE2 ","CE3 ","CZ2 ","CZ3 ","CH2 ",NULL  ,NULL},
+         {"TYR ","N   ","H   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ",
+          "CD2 ","CE1 ","CE2 ","CZ  ","OH  ","HH  ",NULL  ,NULL  ,NULL  ,NULL},
+         {"CTER","OT2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,
+          NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {"NTER","HT1 ","HT2 ",NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,
+          NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL},
+         {NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,
+          NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL  ,NULL}
+      }  ;
+   int nres, atom, res;
+
+   /* Count how many residues we have specified                         */           
+   for(nres=0; atomLists[nres][0] != NULL; nres++);
+   nres++;
+
+   /* Creat the malloc'd 3D array                                       */
+   if((gAtomLists = (char ***)blArray3D(sizeof(char), nres, 
+                                        MAXATOMS, MAXATNAM))==NULL)
+   {
+      return(FALSE);
+   }
+
+   /* Copy in the names                                                 */
+   for(res=0; res<nres; res++)
+   {
+      for(atom=0; atom<MAXATOMS; atom++)
+      {
+         /* Free up the memory if there was no atom name                */
+         if(atomLists[res][atom] == NULL)
+         {
+            free(gAtomLists[res][atom]);
+            gAtomLists[res][atom] = NULL;
+         }
+         else
+         {
+            strcpy(gAtomLists[res][atom], atomLists[res][atom]);
+         }
+      }
+   }
+
+   return(TRUE);
+}

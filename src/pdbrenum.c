@@ -3,11 +3,11 @@
 
    \file       pdbrenum.c
    
-   \version    V1.10
-   \date       06.11.14
+   \version    V1.11
+   \date       13.02.15
    \brief      Renumber a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1994-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -59,6 +59,7 @@
 -  V1.9  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.10 06.11.14 Renamed from renumpdb  By: ACRM
+-  V1.11 13.02.15 Added whole PDB support
 
 *************************************************************************/
 /* Includes
@@ -90,7 +91,7 @@ int  main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   BOOL *DoSeq, BOOL *KeepChain, BOOL *DoAtoms,
                   char *chains, int *ResStart, int *AtomStart, 
-                  BOOL *DoRes);
+                  BOOL *DoRes, BOOL *ForceHeader);
 void Usage(void);
 void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain, 
                 BOOL DoAtoms, BOOL DoRes, char *chains, int *ResStart, 
@@ -108,37 +109,45 @@ void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain,
 -  24.08.94 Changed to call OpenStdFiles()
 -  04.01.95 Added DoRes handling
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  13.02.15 Added whole PDB support   By: ACRM
 */
 int main(int argc, char **argv)
 {
-   FILE *in  = stdin,
-        *out = stdout;
-   char infile[MAXBUFF],
-        outfile[MAXBUFF],
-        chains[MAXCHAIN];
-   BOOL DoSequential = FALSE,
-        KeepChain    = FALSE,
-        DoAtoms      = TRUE,
-        DoRes        = TRUE;
-   PDB  *pdb;
-   int  natoms,
-        ResStart[MAXCHAIN],
-        AtomStart;
+   FILE     *in  = stdin,
+            *out = stdout;
+   char     infile[MAXBUFF],
+            outfile[MAXBUFF],
+            chains[MAXCHAIN];
+   BOOL     DoSequential = FALSE,
+            KeepChain    = FALSE,
+            DoAtoms      = TRUE,
+            DoRes        = TRUE,
+            ForceHeader  = FALSE;
+   WHOLEPDB *wpdb;
+   PDB      *pdb;
+   int      ResStart[MAXCHAIN],
+            AtomStart;
         
    if(ParseCmdLine(argc, argv, infile, outfile, &DoSequential, &KeepChain,
-                   &DoAtoms, chains, ResStart, &AtomStart, &DoRes))
+                   &DoAtoms, chains, ResStart, &AtomStart, &DoRes,
+                   &ForceHeader))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb=blReadPDB(in, &natoms))==NULL)
+         if((wpdb=blReadWholePDB(in))==NULL)
          {
-            fprintf(stderr,"No atoms read from input file\n");
+            fprintf(stderr,"pdbrenum: Unable to read input PDB file\n");
          }
          else
          {
+            pdb=wpdb->pdb;
             DoRenumber(pdb,DoSequential,KeepChain,DoAtoms,DoRes,chains,
                        ResStart, AtomStart);
+            if(!DoRes || ForceHeader)
+               blWriteWholePDBHeader(out, wpdb);
             blWritePDB(out, pdb);
+            if(!DoAtoms || ForceHeader)
+               blWriteWholePDBTrailer(out, wpdb);
          }
       }
       else
@@ -160,7 +169,7 @@ int main(int argc, char **argv)
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                      BOOL *DoSeq, BOOL *KeepChain, BOOL *DoAtoms, 
                      char *chains, int *ResStart, int *AtomStart,
-                     BOOL *DoRes)
+                     BOOL *DoRes, BOOL *ForceHeader)
    ----------------------------------------------------------------------
 *//**
 
@@ -175,6 +184,9 @@ int main(int argc, char **argv)
    \param[out]     *ResStart   Chain residue start numbers
    \param[out]     *AtomStart  First chain atom start number
    \param[out]     *DoRes      Renumber residues
+   \param[out]     *ForceHeader   Do not print the header if residues
+                               have been renumbered or footer if
+                               atoms have been renumbered
    \return                     Success
 
    Parse the command line
@@ -184,11 +196,12 @@ int main(int argc, char **argv)
             Initialise chains array.
 -  04.01.95 Added -d
 -  13.05.96 Checks argc after -c/-r/-a options
+-  13.02.15 Added -x
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   BOOL *DoSeq, BOOL *KeepChain, BOOL *DoAtoms, 
                   char *chains, int *ResStart, int *AtomStart, 
-                  BOOL *DoRes)
+                  BOOL *DoRes, BOOL *ForceHeader)
 {
    int  ChainCount;
    char *chp,
@@ -234,6 +247,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             break;
          case 'd':
             *DoRes = FALSE;
+            break;
+         case 'f':
+            *ForceHeader = FALSE;
             break;
          case 'r':
             if(!(--argc))
@@ -321,15 +337,17 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  14.11.96 V1.8
 -  22.07.14 V1.9 By: CTP
 -  06.11.14 V1.10 By: ACRM
+-  13.02.15 V1.11
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbrenum V1.10 (c) 1994-2014 Dr. Andrew C.R. Martin, \
-UCL\n");
-   fprintf(stderr,"Freely distributable if no profit is made\n\n");
-   fprintf(stderr,"Usage: pdbrenum [-s] [-k] [-c <chains>] [-n] [-d] \
-[-r <num>,<num>...] [-a <num> ]\n                \
+   fprintf(stderr,"\npdbrenum V1.11 (c) 1994-2015 Dr. Andrew C.R. \
+Martin, UCL\n");
+   fprintf(stderr,"Usage: pdbrenum [-f][-s][-k][-c <chains>][-n][-d]\
+[-r <num>,<num>...][-a <num> ]\n                \
 [<infile>] [<outfile>]\n");
+   fprintf(stderr,"       -f Force printing of header or footer even \
+if numbering has changed\n");
    fprintf(stderr,"       -s Renumber sequentially throughout \
 structure\n");
    fprintf(stderr,"       -k Keep chain names when using -s\n");

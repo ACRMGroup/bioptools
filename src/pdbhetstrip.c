@@ -3,11 +3,11 @@
 
    \file       pdbhetstrip.c
    
-   \version    V1.2
-   \date       06.11.14
+   \version    V1.3
+   \date       13.02.15
    \brief      Strip het atoms from a PDB file. Acts as filter
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1995-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1995-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -50,6 +50,7 @@
 -  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.2  06.11.14 Renamed from hetstrip By: ACRM
+-  V1.3  13.02.15 Added whole PDB support
 
 *************************************************************************/
 /* Includes
@@ -90,23 +91,23 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile);
 -  04.07.94 Original    By: ACRM
 -  15.07.94 Now writes TER cards and returns 0 correctly
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  13.02.15 Added whole PDB support  By: ACRM
 */
 int main(int argc, char **argv)
 {
-   PDB  *pdb;
-   int  natom;
-   FILE *in  = stdin, 
-        *out = stdout;
-   char infile[MAXBUFF],
-        outfile[MAXBUFF];
+   WHOLEPDB  *wpdb;
+   FILE      *in  = stdin, 
+             *out = stdout;
+   char      infile[MAXBUFF],
+             outfile[MAXBUFF];
 
    if(ParseCmdLine(argc, argv, infile, outfile))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb=blReadPDBAtoms(in,&natom))!=NULL)
+         if((wpdb=blReadWholePDBAtoms(in))!=NULL)
          {
-            blWritePDB(out,pdb);
+            blWriteWholePDB(out,wpdb);
          }
       }
    }
@@ -189,10 +190,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 -  17.03.95 Original    By: ACRM
 -  22.07.14 V1.1 By: CTP
 -  06.11.14 V1.2 By: ACRM
+-  13.02.15 V1.3 By: ACRM
 */
 void Usage(void)
 {            
-   fprintf(stderr,"\npdbhetstrip V1.2 (c) 1994-2014, Andrew C.R. \
+   fprintf(stderr,"\npdbhetstrip V1.3 (c) 1994-2015, Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"Usage: pdbhetstrip [<in.pdb> [<out.pdb>]]\n\n");
    fprintf(stderr,"Removes het atoms from a PDB file. I/O is through \

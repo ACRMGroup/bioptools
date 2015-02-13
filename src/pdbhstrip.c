@@ -3,11 +3,11 @@
 
    \file       pdbhstrip.c
    
-   \version    V1.3
-   \date       06.11.14
+   \version    V1.4
+   \date       13.02.15
    \brief      Strip hydrogens from a PDB file. Acts as filter
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -51,6 +51,8 @@
 -  V1.2  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.3  06.11.14 Renamed from hstrip  By: ACRM
+-  V1.4  13.02.15 Added whole PDB support and re-written to use
+                  blStripHPDBAsCopy()
 
 *************************************************************************/
 /* Includes
@@ -89,15 +91,14 @@ void Usage(void);
 -  04.07.94 Original    By: ACRM
 -  15.07.94 Now writes TER cards and returns 0 correctly
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  13.02.15 Added whole PDB support and re-written to use
+            blStripHPDBAsCopy()  By: ACRM
 */
 int main(int argc, char **argv)
 {
-   PDB  *pdb, 
-        *p;
-   int  natom;
-   FILE *in  = stdin, 
-        *out = stdout;
-   char lastchain;
+   WHOLEPDB *wpdb;
+   FILE     *in  = stdin, 
+            *out = stdout;
 
    argc--;
    argv++;
@@ -155,23 +156,17 @@ int main(int argc, char **argv)
       return(1);
    }
 
-   if((pdb=blReadPDB(in,&natom))!=NULL)
+   if((wpdb=blReadWholePDB(in))!=NULL)
    {
-      lastchain = pdb->chain[0];
-      
-      for(p=pdb; p!=NULL; NEXT(p))
-      {
-         if(p->atnam[0] != 'H')
-         {
-            if(p->chain[0] != lastchain)
-            {
-               lastchain = p->chain[0];
-               fprintf(out,"TER   \n");
-            }
-            blWritePDBRecord(out,p);
-         }
-      }
-      fprintf(out,"TER   \n");
+      PDB *pdbin  = NULL,
+          *pdbout = NULL;
+      int natoms;
+      pdbin  = wpdb->pdb;
+      pdbout = blStripHPDBAsCopy(pdbin, &natoms);
+      FREELIST(pdbin, PDB);
+      wpdb->pdb = pdbout;
+
+      blWriteWholePDB(out, wpdb);
    }
 
    return(0);
@@ -187,12 +182,13 @@ int main(int argc, char **argv)
 -  04.07.94 Original    By: ACRM
 -  22.07.14 V1.2 By: CTP
 -  06.11.14 V1.3 By: ACRM
+-  13.02.15 V1.4
 */
 void Usage(void)
 {            
-   fprintf(stderr,"\npdbhstrip V1.3 (c) 1994-2014, Andrew C.R. Martin, \
+   fprintf(stderr,"\npdbhstrip V1.4 (c) 1994-2015, Andrew C.R. Martin, \
 UCL\n");
-   fprintf(stderr,"Usage: pdbhstrip [<in.pdb> [<out.pdb>]]\n\n");
+   fprintf(stderr,"Usage: pdbhstrip [in.pdb [out.pdb]]\n\n");
    fprintf(stderr,"Removes hydrogens from a PDB file. I/O is through \
 stdin/stdout if files\n");
    fprintf(stderr,"are not specified.\n\n");

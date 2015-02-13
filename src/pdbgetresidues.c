@@ -222,9 +222,7 @@ RESLIST *ReadResidueList(FILE *fp)
    \param[out]     *Zone2       Second end of zone
    \param[out]     *infile      Input file (or blank string)
    \param[out]     *outfile     Output file (or blank string)
-   \param[out]     *uppercaseresspec  Should residue spec be upcased?
-                                (Default: yes)
-   \return                     Success?
+   \return                      Success?
 
    Parse the command line
    
@@ -324,5 +322,6 @@ files are specified. \n");
 
    fprintf(stderr,"\nTakes a list of residue specifications and extracts \
 just those residues \n");
-   fprintf(stderr,"from a PDB file\n");
+   fprintf(stderr,"from a PDB file. Note that residue specifications are \
+case sensitive.\n");
 }

@@ -89,7 +89,7 @@ WriteFlags($makefp, $::libdir, $::incdir, $::bindir, $::datadir);
 WriteTargets($makefp, @exeFiles);
 WriteDummyRule($makefp, $::bioplib);
 WriteInstallRule($makefp, @exeFiles);
-WriteCleanRule($makefp, $::bioplib, @exeFiles);
+WriteCleanRules($makefp, $::bioplib, @exeFiles);
 WriteLinksRule($makefp);
 foreach my $cFile (@cFiles)
 {
@@ -192,12 +192,16 @@ __EOF
 # Writes the rule to remove the executables from the source directory
 #
 # 06.11.14 Original   By: ACRM
-sub WriteCleanRule
+# 13.02.15 Added distclean
+sub WriteCleanRules
 {
     my($makefp, $bioplib, @exeFiles) = @_;
     if($bioplib)
     {
         print $makefp <<__EOF;
+
+distclean : clean
+\t\\rm Makefile
 
 clean : 
 \t\\rm -rf bioplib
@@ -209,6 +213,9 @@ __EOF
     else
     {
         print $makefp <<__EOF;
+
+distclean : clean
+\t\\rm Makefile
 
 clean : 
 \t\\rm -f \$(TARGETS)

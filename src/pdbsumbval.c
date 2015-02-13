@@ -3,12 +3,12 @@
 
    \file       pdbsumbval.c
    
-   \version    V1.4
-   \date       06.11.14
+   \version    V1.5
+   \date       13.02.15
    \brief      Sum B-vals over each residue and replace with the
                summed or average value
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -53,6 +53,7 @@
 -  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.4  06.11.14 Renamed from sumbval  By: ACRM
+-  V1.5  13.02.15 Added whole PDB support
 
 *************************************************************************/
 /* Includes
@@ -95,32 +96,34 @@ void SumBVals(PDB *pdb, BOOL average, BOOL sidechain, BOOL quiet);
 -  05.07.94 Original    By: ACRM
 -  24.08.94 Changed to call OpenStdFiles()
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  13.02.15 Added whole PDB support   By: ACRM
 */
 int main(int argc, char **argv)
 {
-   FILE *in       = stdin,
-        *out      = stdout;
-   BOOL average   = FALSE,
-        sidechain = FALSE,
-        quiet     = FALSE;
-   char infile[MAXBUFF],
-        outfile[MAXBUFF];
-   int  natoms;
-   PDB  *pdb;
+   FILE     *in       = stdin,
+            *out      = stdout;
+   BOOL     average   = FALSE,
+            sidechain = FALSE,
+            quiet     = FALSE;
+   char     infile[MAXBUFF],
+            outfile[MAXBUFF];
+   WHOLEPDB *wpdb;
+   PDB      *pdb;
    
    if(ParseCmdLine(argc, argv, infile, outfile, &average, &sidechain,
                    &quiet))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb = blReadPDB(in,&natoms)) != NULL)
+         if((wpdb = blReadWholePDB(in)) != NULL)
          {
+            pdb=wpdb->pdb;
             SumBVals(pdb, average, sidechain, quiet);
-            blWritePDB(out, pdb);
+            blWriteWholePDB(out, wpdb);
          }
          else
          {
-            fprintf(stderr,"No atoms read from PDB file\n");
+            fprintf(stderr,"pdbsumbval: No atoms read from PDB file\n");
          }
       }
    }
@@ -215,13 +218,14 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  24.08.94 V1.2
 -  22.07.14 V1.3 By: CTP
 -  06.11.14 V1.4 By: ACRM
+-  13.02.15 V1.5
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbsumbval V1.4 (c) 1994-2014, Andrew C.R. \
+   fprintf(stderr,"\npdbsumbval V1.5 (c) 1994-2015, Andrew C.R. \
 Martin, UCL\n");
-   fprintf(stderr,"Usage: pdbsumbval [-a] [-s] [-q] [<in.pdb>] \
-[<out.pdb>]\n");
+   fprintf(stderr,"Usage: pdbsumbval [-a] [-s] [-q] [in.pdb \
+[[out.pdb]\n");
    fprintf(stderr,"                -a Average over the residues\n");
    fprintf(stderr,"                -s Separate s/c and m/c\n");
    fprintf(stderr,"                -q Do not display overall mean and \

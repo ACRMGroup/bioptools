@@ -209,7 +209,7 @@ void Usage(void)
 {
    fprintf(stderr,"\npdbcount V1.4 (c) 1994-2014 Dr. Andrew C.R. \
 Martin, UCL\n");
-   fprintf(stderr,"\nUsage: pdbcount [<infile>] [<outfile>]\n\n");
+   fprintf(stderr,"\nUsage: pdbcount [in.pdb [out.txt]]\n\n");
    fprintf(stderr,"If files are not specified, stdin and stdout are \
 used.\n");
    fprintf(stderr,"Counts chains, residues & atoms in a PDB file.\n\n");

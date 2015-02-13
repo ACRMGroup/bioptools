@@ -3,11 +3,11 @@
 
    \file       pdbhadd.c
    
-   \version    V1.2
-   \date       22.07.14
+   \version    V1.3
+   \date       13.02.15
    \brief      Add hydrogens to a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -50,6 +50,7 @@
 -  V1.1  24.11.95 Changes NT atoms to N
 -  V1.2  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.3  13.02.15 Added whole PDB support  By: ACRM
 
 *************************************************************************/
 /* Includes
@@ -91,20 +92,21 @@ void Usage(void);
 
 -  23.08.94 Original    By: ACRM
 -  24.11.95 Added call to FixNTerNames()
-
+-  13.02.15 Added whole PDB support
 */
 int main(int argc, char **argv)
 {
-   FILE *in  = stdin,
-        *out = stdout,
-        *pgp = NULL;
-   char infile[MAXBUFF],
-        outfile[MAXBUFF],
-        pgpfile[MAXBUFF];
-   PDB  *pdb;
-   int  natoms, nhyd;
-   BOOL AllH   = FALSE,
-        Charmm = FALSE;
+   FILE     *in  = stdin,
+            *out = stdout,
+            *pgp = NULL;
+   char     infile[MAXBUFF],
+            outfile[MAXBUFF],
+            pgpfile[MAXBUFF];
+   WHOLEPDB *wpdb;
+   PDB      *pdb;
+   int      nhyd;
+   BOOL     AllH   = FALSE,
+            Charmm = FALSE;
    
    if(ParseCmdLine(argc, argv, infile, outfile, pgpfile, &AllH, &Charmm))
    {
@@ -112,8 +114,9 @@ int main(int argc, char **argv)
       {
          if(blOpenStdFiles(infile, outfile, &in, &out))
          {
-            if((pdb = blReadPDB(in,&natoms)) != NULL)
+            if((wpdb = blReadWholePDB(in)) != NULL)
             {
+               pdb = wpdb->pdb;
                FixNTerNames(pdb);
                
                nhyd = blHAddPDB(pgp, pdb);
@@ -123,7 +126,7 @@ int main(int argc, char **argv)
 
                blRenumAtomsPDB(pdb);
                
-               blWritePDB(out, pdb);
+               blWriteWholePDBNoConnect(out, wpdb);
             }
             else
             {
@@ -243,7 +246,6 @@ void FixNTerNames(PDB *pdb)
 }
 
 
-
 /************************************************************************/
 /*>void Usage(void)
    ----------------
@@ -253,10 +255,12 @@ void FixNTerNames(PDB *pdb)
 
 -  23.08.94 Original    By: ACRM
 -  22.07.14 V1.2 By: CTP
+-  13.02.15 V1.3 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBHAdd V1.2 (c) 1994-2014, Andrew C.R. Martin, UCL\n\n");
+   fprintf(stderr,"\nPDBHAdd V1.3 (c) 1994-2015, Andrew C.R. Martin, \
+UCL\n\n");
    fprintf(stderr,"Usage: pdbhadd [-p pgpfile] [-a] [-c] [<in.pdb> \
 [<out.pdb>]]\n");
    fprintf(stderr,"               -p Specify proton generation \
@@ -267,7 +271,3 @@ parameter file\n");
    fprintf(stderr,"Note that you should first strip any existing \
 hydrogens with hstrip.\n\n");
 }
-
-
-
-

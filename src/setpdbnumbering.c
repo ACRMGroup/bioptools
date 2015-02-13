@@ -140,7 +140,7 @@ int main(int argc, char **argv)
          if((namseq = ReadSequenceData(in, &nres))!=NULL)
          {
             /* Allocate memory for numbering                            */
-            if((Numbering = (char **)blArray2D(sizeof(char),nres,8))==NULL)
+            if((Numbering=(char **)blArray2D(sizeof(char),nres,8))==NULL)
             {
                fprintf(stderr,"No memory to store numbering\n");
                return(1);

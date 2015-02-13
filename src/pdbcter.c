@@ -209,7 +209,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 void Usage(void)
 {
    fprintf(stderr,"\nPDBCTer V1.1 (c) 1994-2014, Andrew C.R. Martin, UCL\n\n");
-   fprintf(stderr,"Usage: pdbcter [-g] [-c] [<in.pdb>] [<out.pdb>]\n");
+   fprintf(stderr,"Usage: pdbcter [-g] [-c] [in.pdb [out.pdb]]\n");
    fprintf(stderr,"               -g Gromos style C-terminii\n");
    fprintf(stderr,"               -c Charmm style C-terminii\n\n");
    fprintf(stderr,"Rename C-terminal oxygens in required style and \

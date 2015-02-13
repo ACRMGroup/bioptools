@@ -3,11 +3,11 @@
 
    \file       pdbgetchain.c
    
-   \version    V1.7
-   \date       06.11.14
+   \version    V1.8
+   \date       13.02.15
    \brief      Extract chains from a PDB file
    
-   \copyright  (c) UCL / Dr. Andrew C. R. Martin 1997-2014
+   \copyright  (c) UCL / Dr. Andrew C. R. Martin 1997-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -57,7 +57,7 @@
 -  V1.6  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.7  06.11.14 Renamed from getchain  By: ACRM
-
+-  V1.8  13.02.15 Removed -k option - headers are always kept
 
 *************************************************************************/
 /* Includes
@@ -89,12 +89,12 @@
 */
 int main(int argc, char **argv);
 void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, 
-                    BOOL numeric, BOOL keepHeader);
+                    BOOL numeric);
 BOOL WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains);
 void Usage(void);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   char *chains, BOOL *numeric, BOOL *lowercase,
-                  BOOL *keepHeader, BOOL *atomsOnly);
+                  BOOL *atomsOnly);
 
 
 /************************************************************************/
@@ -109,6 +109,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  22.05.09 Added keepHeader
 -  29.06.09 Added atomsOnly
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  13.02.15 Now always keeps header  By: ACRM
 */
 int main(int argc, char **argv)
 {
@@ -119,12 +120,11 @@ int main(int argc, char **argv)
         *out = stdout;
    BOOL numeric = FALSE,
         lowercase = FALSE,
-        keepHeader = FALSE,
         atomsOnly = FALSE;
    WHOLEPDB *wpdb = NULL;
    
    if(ParseCmdLine(argc, argv, InFile, OutFile, chains, &numeric,
-                   &lowercase, &keepHeader, &atomsOnly))
+                   &lowercase, &atomsOnly))
    {
       /* 06.04.09 Added lowercase option                                */
       if(!lowercase)
@@ -152,7 +152,7 @@ int main(int argc, char **argv)
          }
          else
          {
-            WritePDBChains(out, wpdb, chains, numeric, keepHeader);
+            WritePDBChains(out, wpdb, chains, numeric);
          }
       }
    }
@@ -166,13 +166,13 @@ int main(int argc, char **argv)
 
 /************************************************************************/
 /*>void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, 
-                       BOOL numeric, BOOL keepHeader)
+                       BOOL numeric)
    ------------------------------------------------------------
 *//**
 
    \param[in]      *out      Output file pointer
    \param[in]      *pdb      WHOLEPDB structure containing PDB linked 
-   \param[in]      Input:   char     *chains   Chain names to be written to output file
+   \param[in]      *chains   Chain names to be written to output file
    \param[in]      numeric   Chains are specified numerically
 
    Like blWritePDB(), but takes a list of chain names to be written. Other
@@ -187,9 +187,9 @@ int main(int argc, char **argv)
 -  06.01.99 Added numeric parameter
 -  22.05.09 Now takes WHOLEPDB rather than PDB with keepHeader
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  13.02.15 Now always keeps header  By: ACRM
 */
-void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric,
-                    BOOL keepHeader)
+void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric)
 {
    PDB *p;
    char PrevChain;
@@ -197,10 +197,7 @@ void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric,
         Written   = FALSE;
    PDB  *pdb = wpdb->pdb;
    
-   if(keepHeader)
-   {
-      blWriteWholePDBHeader(out, wpdb);
-   }
+   blWriteWholePDBHeader(out, wpdb);
 
    if(numeric)
    {
@@ -254,10 +251,7 @@ void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric,
       fprintf(out,"TER   \n");
    }
 
-   if(keepHeader)
-   {
-      blWriteWholePDBTrailer(out, wpdb);
-   }
+   blWriteWholePDBTrailer(out, wpdb);
 }
 
 
@@ -334,38 +328,43 @@ BOOL WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains)
 -  29.06.09 V1.5
 -  22.07.14 V1.6 By: CTP
 -  06.11.14 V1.7 By: ACRM
+-  13.02.15 V1.8
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbgetchain V1.7 (c) 1997-2014 Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbgetchain V1.8 (c) 1997-2015 Dr. Andrew C.R. \
 Martin, UCL\n");
 
-   fprintf(stderr,"\nUsage: pdbgetchain [-n] [-l] [-k] [-a] chains \
+   fprintf(stderr,"\nUsage: pdbgetchain [-n] [-l] [-a] chains \
 [in.pdb [out.pdb]]\n");
    fprintf(stderr,"       -n Specify chains numerically: 1 is the first \
 chain, 2 the second,\n");
    fprintf(stderr,"          etc. Maximum chain number is therefore 0 \
 (representing 10) such\n");
-   fprintf(stderr,"          that 120 would represent chains 1, 2 and 10\n");
+   fprintf(stderr,"          that 120 would represent chains 1, 2 and \
+10\n");
    fprintf(stderr,"       -l Retain lower case chain names\n");
-   fprintf(stderr,"       -k Retain PDB headers\n");
    fprintf(stderr,"       -a ATOMs only (discard HETATMs)\n");
 
-   fprintf(stderr,"\npdbgetchain reads a PDB file and write out only those \
-chains specified\n");
+   fprintf(stderr,"\npdbgetchain reads a PDB file and write out only \
+those chains specified\n");
    fprintf(stderr,"on the command line. If input and output filenames \
 are not given\n");
    fprintf(stderr,"I/O is through standard input/output\n");
    fprintf(stderr,"\nIf chain 0 is specified and there is no chain of \
 that name then any chain\n");
    fprintf(stderr,"with a blank chain name will be written.\n\n");
+   fprintf(stderr,"The headers are kept (the -k option in previous \
+versions is now deprecated)\n");
+   fprintf(stderr,"but may contain references to chains that are no \
+longer present.\n\n");
 } 
 
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                      char *chains, BOOL *numeric, BOOL *lowercase,
-                     BOOL *keepHeader, BOOL *atomsOnly)
+                     BOOL *atomsOnly)
    ----------------------------------------------------------------------
 *//**
 
@@ -376,7 +375,6 @@ that name then any chain\n");
    \param[out]     *chains     Chain names to be written
    \param[out]     *numeric    Chains are specified numerically
    \param[out]     *lowercase  Chain names may be in lower case
-   \param[out]     *keepHeader Keep PDB headers
    \param[out]     *atomsOnly  Discard HETATMs
    \return                     Success
 
@@ -390,7 +388,7 @@ that name then any chain\n");
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   char *chains, BOOL *numeric, BOOL *lowercase,
-                  BOOL *keepHeader, BOOL *atomsOnly)
+                  BOOL *atomsOnly)
 {
    argc--;
    argv++;
@@ -410,7 +408,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             *lowercase = TRUE;
             break;
          case 'k':
-            *keepHeader = TRUE;
+            fprintf(stderr,"The -k option is now deprecated\n");
             break;
          case 'a':
             *atomsOnly = TRUE;
