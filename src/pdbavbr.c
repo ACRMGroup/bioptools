@@ -3,11 +3,11 @@
 
    \file       pdbavbr.c
    
-   \version    V1.2
-   \date       22.07.14
+   \version    V1.3
+   \date       12.02.15
    \brief      Calc means and SDs of BValues by residue type
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -49,7 +49,8 @@
 -  V1.0  07.10.94 Original
 -  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
--  V1.2  06.11.14 Renamed from avbr
+-  V1.2  06.11.14 Renamed from avbr  By: ACRM
+-  V1.3  12.02.15 Some minor fixes and more usage info
 
 *************************************************************************/
 /* Includes
@@ -106,26 +107,27 @@ BOOL DoBarsForRes(FILE *out, PDB *pdb, char *resnam, BOOL FindMax,
 
 -  07.10.94 Original    By: ACRM
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  12.02.15 WholePDB support  By: ACRM
 */
 int main(int argc, char **argv)
 {
-   FILE *in  = stdin,
-        *out = stdout;
-   PDB  *pdb;
-   int  natoms,
-        NBin;
-   char InFile[MAXBUFF],
-        OutFile[MAXBUFF];
-   REAL MaxVal;
-   BOOL FindMax   = TRUE,
-        Normalise = FALSE;
+   FILE     *in  = stdin,
+            *out = stdout;
+   PDB      *pdb;
+   int      NBin,
+            natoms;
+   char     InFile[MAXBUFF],
+            OutFile[MAXBUFF];
+   REAL     MaxVal;
+   BOOL     FindMax   = TRUE,
+            Normalise = FALSE;
    
    if(ParseCmdLine(argc, argv, InFile, OutFile, &FindMax, &MaxVal, 
                    &Normalise, &NBin))
    {
       if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
-         if((pdb = blReadPDB(in, &natoms)) != NULL)
+         if((pdb = blReadPDBAtoms(in, &natoms)) != NULL)
          {
             DoMeanSD(out, pdb);
             if(!DoBarchart(out, pdb, FindMax, MaxVal, Normalise, NBin))
@@ -135,7 +137,7 @@ int main(int argc, char **argv)
          }
          else
          {
-            fprintf(stderr,"abvr: No atoms read from PDB file\n");
+            fprintf(stderr,"pdbavbr: No atoms read from PDB file\n");
             return(1);
          }
       }
@@ -164,18 +166,25 @@ int main(int argc, char **argv)
 -  07.10.94 Original    By: ACRM
 -  22.07.14 V1.1 By: CTP
 -  06.11.14 V1.2 By: ACRM
+-  12.02.15 V1.3 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbavbr V1.2 (c) 1994-2014, Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbavbr V1.3 (c) 1994-2015, Dr. Andrew C.R. \
 Martin, UCL\n");
-   fprintf(stderr,"Usage: pdbavbr [-n] [-m maxval] [-b nbin] [in.pdb] \
-[output.txt]\n");
+   fprintf(stderr,"Usage: pdbavbr [-n] [-m maxval] [-b nbin] [in.pdb \
+[output.txt]]\n");
    fprintf(stderr,"       -n  Normalise output bars (sum will be 1.0)\n");
    fprintf(stderr,"       -m  Specify max value on x-axis\n");
    fprintf(stderr,"       -b  Specify number of bins (default: 10)\n\n");
    fprintf(stderr,"Calculates means and standard deviations for \
 B-values per residue.\n");
+   fprintf(stderr,"Also displays results in bins that can be plotted as \
+a barchart.\n");
+   fprintf(stderr,"Residue types that are not seen are given mean and \
+standard deviation\n");
+   fprintf(stderr,"values of 0.0 and a maximum value in the barchart of \
+-1000000\n");
    fprintf(stderr,"I/O through standard input/output if files not \
 specified.\n\n");
 }

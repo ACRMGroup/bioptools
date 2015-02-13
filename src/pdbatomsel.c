@@ -3,11 +3,11 @@
 
    \file       pdbatomsel.c
    
-   \version    V1.5
-   \date       07.11.14
+   \version    V1.6
+   \date       12.02.15
    \brief      Select atoms from a PDB file. Acts as filter
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -53,6 +53,7 @@
 -  V1.3  19.08.14 Removed unused variables in ParseCmdLine() By: CTP
 -  V1.4  06.11.14 Renamed from atomsel By: ACRM
 -  V1.5  07.11.14 Initialized a variable
+-  V1.6  12.02.15 Uses Whole PDB
 
 *************************************************************************/
 /* Includes
@@ -104,12 +105,14 @@ BOOL InAtomList(ATOMTYPE *atoms, PDB *p);
 -  04.07.94 Original    By: ACRM
 -  24.08.94 Changed to call OpenStdFiles()
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  12.02.15 WholePDB support
+            Better support for TER cards
 */
 int main(int argc, char **argv)
 {
    PDB      *pdb, 
             *p;
-   int      natom;
+   WHOLEPDB *wpdb;
    char     infile[MAXBUFF],
             outfile[MAXBUFF],
             lastchain;
@@ -139,25 +142,37 @@ list.\n");
          UpcaseTypes(atoms);
 
          /* Read in the PDB file                                        */
-         if((pdb=blReadPDB(in,&natom))!=NULL)
+         if((wpdb=blReadWholePDB(in))!=NULL)
          {
+            BOOL TerDone = FALSE;
+            pdb       = wpdb->pdb;
             lastchain = pdb->chain[0];
+
+            /* Write the header                                         */
+            blWriteWholePDBHeader(out,wpdb);
             
             /* Run through the linked list writing out atoms in the
                required atom list
             */
+            TerDone = FALSE;
             for(p=pdb;p!=NULL;NEXT(p))
             {
                if(p->chain[0] != lastchain)
                {
                   lastchain = p->chain[0];
-                  fprintf(out,"TER   \n");
+                  if(!TerDone)
+                     fprintf(out,"TER   \n");
+                  TerDone = TRUE;
                }
                   
                if(InAtomList(atoms, p))
+               {
                   blWritePDBRecord(out,p);
+                  TerDone = FALSE;
+               }
             }
-            fprintf(out,"TER   \n");
+            if(!TerDone)
+               fprintf(out,"TER   \n");
          }
          else
          {
@@ -185,16 +200,20 @@ list.\n");
 -  22.07.14 V1.2 By: CTP
 -  06.11.14 V1.4 By: ACRM
 -  07.11.14 V1.5
+-  12.02.15 V1.6
 */
 void Usage(void)
 {            
-   fprintf(stderr,"\npdbatomsel V1.5 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\npdbatomsel V1.6 (c) 1994-2015, Andrew C.R. \
+Martin, UCL\n");
    fprintf(stderr,"Usage: pdbatomsel [-atom] [-atom...] [<in.pdb>] \
 [<out.pdb>]\n\n");
    fprintf(stderr,"Selects specfied atom types from a PDB file. \
 Assumes C-alpha if no atoms\n");
    fprintf(stderr,"are specified. I/O is through stdin/stdout if files \
 are not specified.\n\n");
+   fprintf(stderr,"Note that this program does not currently support \
+PDBML output\n\n");
 }
 
 /************************************************************************/
