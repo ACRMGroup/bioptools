@@ -3,8 +3,8 @@
 
    \file       pdbrenum.c
    
-   \version    V1.11
-   \date       13.02.15
+   \version    V1.12
+   \date       23.02.15
    \brief      Renumber a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin / UCL 1994-2015
@@ -60,6 +60,8 @@
                   Added doxygen annotation. By: CTP
 -  V1.10 06.11.14 Renamed from renumpdb  By: ACRM
 -  V1.11 13.02.15 Added whole PDB support
+-  V1.12 23.02.15 Modified for new blWritePDBTrailer
+                  Uses blRenumberAtomsPDB() to do the atoms
 
 *************************************************************************/
 /* Includes
@@ -110,6 +112,7 @@ void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain,
 -  04.01.95 Added DoRes handling
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  13.02.15 Added whole PDB support   By: ACRM
+-  23.02.15 Modified for new blWriteWholePDBTrailer()
 */
 int main(int argc, char **argv)
 {
@@ -140,14 +143,16 @@ int main(int argc, char **argv)
          }
          else
          {
+            int numTer;
+            
             pdb=wpdb->pdb;
             DoRenumber(pdb,DoSequential,KeepChain,DoAtoms,DoRes,chains,
                        ResStart, AtomStart);
             if(!DoRes || ForceHeader)
                blWriteWholePDBHeader(out, wpdb);
-            blWritePDB(out, pdb);
+            numTer = blWritePDB(out, pdb);
             if(!DoAtoms || ForceHeader)
-               blWriteWholePDBTrailer(out, wpdb);
+               blWriteWholePDBTrailer(out, wpdb, numTer);
          }
       }
       else
@@ -338,10 +343,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  22.07.14 V1.9 By: CTP
 -  06.11.14 V1.10 By: ACRM
 -  13.02.15 V1.11
+-  23.02.15 V1.12
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbrenum V1.11 (c) 1994-2015 Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbrenum V1.12 (c) 1994-2015 Dr. Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"Usage: pdbrenum [-f][-s][-k][-c <chains>][-n][-d]\
 [-r <num>,<num>...][-a <num> ]\n                \
@@ -389,6 +395,7 @@ instead of the label or\nnumber.\n\n");
 -  06.10.95 If dores was false, inserts were getting blanked.
 -  14.11.96 Initialise LastChain to something other than ' ' as
             -r option wasn't working with blank chain names
+-  23.02.15 Now uses blRenumberAtomsPDB() for atom numbering
 */
 void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain, 
                 BOOL DoAtoms, BOOL DoRes, char *chains, int *ResStart, 
@@ -396,7 +403,6 @@ void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain,
 {
    PDB  *p;
    int  resnum   = 0,
-        atnum    = AtomStart,
         ChainNum = 0,
         LastRes;
    char LastIns,
@@ -474,9 +480,8 @@ Try -s option.\n",MAXCHAIN);
          /* Set the insert code to a blank                              */
          p->insert[0] = ' ';
       }
-      
-      /* Set the atoms number                                           */
-      if(DoAtoms)
-         p->atnum = atnum++;
    }
+   /* Renumber atoms if required                                        */
+   if(DoAtoms)
+      blRenumAtomsPDB(pdb, AtomStart);
 }

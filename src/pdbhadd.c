@@ -3,8 +3,8 @@
 
    \file       pdbhadd.c
    
-   \version    V1.4
-   \date       17.02.15
+   \version    V1.5
+   \date       23.02.15
    \brief      Add hydrogens to a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
@@ -53,6 +53,7 @@
 -  V1.3  13.02.15 Added whole PDB support  By: ACRM
 -  V1.4  17.02.15 Fixed bug in whole PDB not updating to support Nter
                   hydrogens
+-  V1.5  23.02.15 Modified for new blRenumAtomsPDB()
 
 *************************************************************************/
 /* Includes
@@ -96,6 +97,7 @@ void Usage(void);
 -  24.11.95 Added call to FixNTerNames()
 -  13.02.15 Added whole PDB support
 -  17.02.15 Updated wpdb->pdb after adding Nterminal hydrogens
+-  23.02.15 Modified for new blRenumAtomsPDB()
 */
 int main(int argc, char **argv)
 {
@@ -128,9 +130,9 @@ int main(int argc, char **argv)
                
                fprintf(stderr,"%d hydrogens were added.\n",nhyd);
 
-               blRenumAtomsPDB(pdb);
+               blRenumAtomsPDB(pdb, 1);
                
-               blWriteWholePDBNoConect(out, wpdb);
+               blWriteWholePDB(out, wpdb);
             }
             else
             {
@@ -261,10 +263,11 @@ void FixNTerNames(PDB *pdb)
 -  22.07.14 V1.2 By: CTP
 -  13.02.15 V1.3 By: ACRM
 -  17.02.15 V1.4
+-  23.02.15 V1.5
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBHAdd V1.4 (c) 1994-2015, Andrew C.R. Martin, \
+   fprintf(stderr,"\nPDBHAdd V1.5 (c) 1994-2015, Andrew C.R. Martin, \
 UCL\n\n");
    fprintf(stderr,"Usage: pdbhadd [-p pgpfile] [-a] [-c] [<in.pdb> \
 [<out.pdb>]]\n");

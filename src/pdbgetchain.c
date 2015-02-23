@@ -90,7 +90,7 @@
 int main(int argc, char **argv);
 void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, 
                     BOOL numeric);
-BOOL WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains);
+int  WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains);
 void Usage(void);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   char *chains, BOOL *numeric, BOOL *lowercase,
@@ -188,6 +188,8 @@ int main(int argc, char **argv)
 -  22.05.09 Now takes WHOLEPDB rather than PDB with keepHeader
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  13.02.15 Now always keeps header  By: ACRM
+-  23.02.15 Modified to use blWriteTerCard() and new version of 
+            blWriteWholePDBTrailer()
 */
 void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric)
 {
@@ -196,15 +198,17 @@ void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric)
    BOOL FoundZero = FALSE,
         Written   = FALSE;
    PDB  *pdb = wpdb->pdb;
+   int  numTer = 0;
    
    blWriteWholePDBHeader(out, wpdb);
 
    if(numeric)
    {
-      Written = WritePDBChainsByNumber(out, pdb, chains);
+      numTer = WritePDBChainsByNumber(out, pdb, chains);
    }
    else
    {
+      PDB *prev = NULL;
       PrevChain = '\0';
       
       for(p=pdb; p!=NULL; NEXT(p))
@@ -214,7 +218,8 @@ void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric)
             if((PrevChain != p->chain[0]) && (PrevChain != '\0'))
             {
                /* Chain change, insert TER card                         */
-               fprintf(out,"TER   \n");
+               blWriteTerCard(out, prev);
+               numTer++;
             }
             blWritePDBRecord(out,p);
             PrevChain = p->chain[0];
@@ -222,11 +227,14 @@ void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric)
          }
          if(p->chain[0] == '0')
             FoundZero = TRUE;
+
+         prev=p;
       }
       if(Written)
       {
          Written = FALSE;
-         fprintf(out,"TER   \n");
+         blWriteTerCard(out, prev);
+         numTer++;
       }
       
       /* If we were looking for a chain zero and there wasn't a chain 
@@ -242,16 +250,16 @@ void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric)
                Written = TRUE;
             }
          }
+         if(Written)
+         {
+            Written = FALSE;
+            blWriteTerCard(out, prev);
+            numTer++;
+         }
       }
    }
    
-   if(Written)
-   {
-      Written = FALSE;
-      fprintf(out,"TER   \n");
-   }
-
-   blWriteWholePDBTrailer(out, wpdb);
+   blWriteWholePDBTrailer(out, wpdb, numTer);
 }
 
 
@@ -270,15 +278,21 @@ void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, BOOL numeric)
 
 -  06.01.99 Original   By: ACRM
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  23.02.15 Modified to use blWriteTerCard() and new version of 
+            blWriteWholePDBTrailer()
+            Now returns number of TER cards written
 */
-BOOL WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains)
+int WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains)
 {
-   PDB *p;
+   PDB  *p,
+        *prev=NULL;
    char PrevChain,
         ThisChainChar;
-   int  ThisChainNum = 1;
+   int  ThisChainNum = 1,
+        numTer       = 0;
    BOOL Written      = FALSE,
         Warned       = FALSE;
+   
 
    PrevChain = pdb->chain[0];
    ThisChainChar = ITOCHAR(ThisChainNum);
@@ -290,7 +304,8 @@ BOOL WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains)
          /* Chain change, insert TER card                               */
          if(Written)
          {
-            fprintf(out,"TER   \n");
+            blWriteTerCard(out, prev);
+            numTer++;
             Written = FALSE;
          }
          PrevChain = p->chain[0];
@@ -307,9 +322,16 @@ BOOL WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains)
          blWritePDBRecord(out,p);
          Written = TRUE;
       }
+      prev = p;
    }
 
-   return(Written);
+   if(Written)
+   {
+      blWriteTerCard(out, prev);
+      numTer++;
+   }
+
+   return(numTer);
 }
 
 
