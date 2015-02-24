@@ -3,12 +3,12 @@
 
    \file       pdbcter.c
    
-   \version    V1.1
-   \date       22.07.14
+   \version    V1.2
+   \date       24.02.15
    \brief      Set naming for c-terminal oxygens and generate
                coordinates if required.
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -50,6 +50,7 @@
 
 -  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
+-  V1.2  24.02.15 Modified for new blRenumAtomsPDB()
 
 *************************************************************************/
 /* Includes
@@ -111,7 +112,7 @@ int main(int argc, char **argv)
          if((pdb = blReadPDB(in,&natoms)) != NULL)
          {
             blFixCterPDB(pdb, style);
-            blRenumAtomsPDB(pdb);
+            blRenumAtomsPDB(pdb, 1);
                
             blWritePDB(out, pdb);
          }
@@ -205,10 +206,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
 -  23.08.94 Original    By: ACRM
 -  22.07.14 V1.1 By: CTP
+-  24.02.15 V1.2 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBCTer V1.1 (c) 1994-2014, Andrew C.R. Martin, UCL\n\n");
+   fprintf(stderr,"\nPDBCTer V1.2 (c) 1994-2015, Andrew C.R. Martin, UCL\n\n");
    fprintf(stderr,"Usage: pdbcter [-g] [-c] [in.pdb [out.pdb]]\n");
    fprintf(stderr,"               -g Gromos style C-terminii\n");
    fprintf(stderr,"               -c Charmm style C-terminii\n\n");
