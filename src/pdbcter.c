@@ -4,7 +4,7 @@
    \file       pdbcter.c
    
    \version    V1.2
-   \date       24.02.15
+   \date       25.02.15
    \brief      Set naming for c-terminal oxygens and generate
                coordinates if required.
    
@@ -50,7 +50,8 @@
 
 -  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
--  V1.2  24.02.15 Modified for new blRenumAtomsPDB()
+-  V1.2  25.02.15 Modified for new blRenumAtomsPDB()
+                  Supports whole PDB
 
 *************************************************************************/
 /* Includes
@@ -94,27 +95,30 @@ void Usage(void);
 
 -  23.08.94 Original    By: ACRM
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  25.02.15 Supports whole PDB
 */
 int main(int argc, char **argv)
 {
-   FILE *in  = stdin,
-        *out = stdout;
-   char infile[MAXBUFF],
-        outfile[MAXBUFF];
-   PDB  *pdb;
-   int  natoms,
-        style = STYLE_STD;
+   FILE     *in  = stdin,
+            *out = stdout;
+   char     infile[MAXBUFF],
+            outfile[MAXBUFF];
+   WHOLEPDB *wpdb;
+   PDB      *pdb;
+   int      style = STYLE_STD;
    
    if(ParseCmdLine(argc, argv, infile, outfile, &style))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((pdb = blReadPDB(in,&natoms)) != NULL)
+         if((wpdb = blReadWholePDB(in)) != NULL)
          {
+            pdb = wpdb->pdb;
+            
             blFixCterPDB(pdb, style);
             blRenumAtomsPDB(pdb, 1);
                
-            blWritePDB(out, pdb);
+            blWriteWholePDB(out, wpdb);
          }
          else
          {
@@ -206,15 +210,23 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
 -  23.08.94 Original    By: ACRM
 -  22.07.14 V1.1 By: CTP
--  24.02.15 V1.2 By: ACRM
+-  24.02.15 V1.2 and improved help message By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBCTer V1.2 (c) 1994-2015, Andrew C.R. Martin, UCL\n\n");
+   fprintf(stderr,"\nPDBCTer V1.2 (c) 1994-2015, Andrew C.R. Martin, \
+UCL\n\n");
    fprintf(stderr,"Usage: pdbcter [-g] [-c] [in.pdb [out.pdb]]\n");
    fprintf(stderr,"               -g Gromos style C-terminii\n");
    fprintf(stderr,"               -c Charmm style C-terminii\n\n");
    fprintf(stderr,"Rename C-terminal oxygens in required style and \
-generate second one if required.\n\n");
+generate second one\n");
+   fprintf(stderr,"if required.\n");
+   fprintf(stderr,"\nDefault is to name and generate second oxygen as \
+OXT. Gromos names and\n");
+   fprintf(stderr,"generates both terminal oxygens as O1 and O2. \
+Charmm names first oxygen\n");
+   fprintf(stderr,"OT1 and generates a CTER residue containing \
+OT2.\n\n");
 }
 
