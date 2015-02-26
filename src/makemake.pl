@@ -55,7 +55,7 @@
 #                     using git clone. If obtained as an archive then
 #                     this grabs the bioplib archive as well
 #   V1.4    21.11.14  Added -install option
-#   V1.5    26.02.15  Added pdb2pdbml
+#   V1.5    26.02.15  Bumped to require BiopLib V3.3
 #
 #*************************************************************************
 $::biopversion = "3.3";

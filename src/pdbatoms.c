@@ -1,11 +1,11 @@
 /************************************************************************/
 /**
 
-   \file       pdb2pdbml.c
+   \file       pdbatoms.c
    
    \version    V1.0
    \date       26.02.15
-   \brief      Convert PDB format to PDBML
+   \brief      Discard header and footer records from PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 2015
    \author     Dr. Andrew C. R. Martin
@@ -85,7 +85,8 @@ int main(int argc, char **argv)
 {
    FILE     *in      = stdin,
             *out     = stdout;
-   WHOLEPDB *wpdb;
+   PDB      *pdb;
+   int      natoms;
    char     infile[MAXBUFF],
             outfile[MAXBUFF];
 
@@ -93,10 +94,9 @@ int main(int argc, char **argv)
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if((wpdb=blReadWholePDB(in))!=NULL)
+         if((pdb=blReadPDB(in, &natoms))!=NULL)
          {
-            FORCEXML;
-            blWriteWholePDB(out, wpdb);
+            blWritePDB(out, pdb);
          }
          else
          {
@@ -123,11 +123,15 @@ int main(int argc, char **argv)
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdb2pdbml V1.0  (c) 2015 UCL, Andrew C.R. \
+   fprintf(stderr,"\npdbatoms V1.0  (c) 2015 UCL, Andrew C.R. \
 Martin\n");
-   fprintf(stderr,"Usage: pdb2pdbml [<input.pdb> [<output.pdb>]]\n");
+   fprintf(stderr,"Usage: pdbatoms [<input.pdb> [<output.pdb>]]\n");
+
+   fprintf(stderr,"\nExtracts only the coordinate records from a PDB \
+or PDBML file (i.e. the\n");
+   fprintf(stderr,"\nATOM and HETATM records), discarding all header \
+and footer information.\n");
    fprintf(stderr,"I/O is to stdin/stdout if not specified\n\n");
-   fprintf(stderr,"Converts a PDB file to PDBML format\n\n");
 }
 
 

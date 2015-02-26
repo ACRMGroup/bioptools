@@ -1,11 +1,11 @@
 /************************************************************************/
 /**
 
-   \file       pdb2pdbml.c
+   \file       pdbconect.c
    
    \version    V1.0
    \date       26.02.15
-   \brief      Convert PDB format to PDBML
+   \brief      Rebuild CONECT records for a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 2015
    \author     Dr. Andrew C. R. Martin
@@ -60,6 +60,7 @@
 /* Defines and macros
 */
 #define MAXBUFF 256
+#define DEF_TOL 0.2
 
 /************************************************************************/
 /* Globals
@@ -70,7 +71,8 @@
 */
 int main(int argc, char **argv);
 void Usage(void);
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile);
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+                  REAL *tol);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -88,14 +90,15 @@ int main(int argc, char **argv)
    WHOLEPDB *wpdb;
    char     infile[MAXBUFF],
             outfile[MAXBUFF];
+   REAL     tol = DEF_TOL;
 
-   if(ParseCmdLine(argc, argv, infile, outfile))
+   if(ParseCmdLine(argc, argv, infile, outfile, &tol))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
          if((wpdb=blReadWholePDB(in))!=NULL)
          {
-            FORCEXML;
+            blBuildConectData(wpdb->pdb, tol);
             blWriteWholePDB(out, wpdb);
          }
          else
@@ -123,16 +126,24 @@ int main(int argc, char **argv)
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdb2pdbml V1.0  (c) 2015 UCL, Andrew C.R. \
+   fprintf(stderr,"\npdbconect V1.0  (c) 2015 UCL, Andrew C.R. \
 Martin\n");
-   fprintf(stderr,"Usage: pdb2pdbml [<input.pdb> [<output.pdb>]]\n");
+   fprintf(stderr,"Usage: pdbconect [-t x] [<input.pdb> \
+[<output.pdb>]]\n");
+   fprintf(stderr,"       -t specify tolerance [Default: %.1f]\n", 
+           DEF_TOL);
+
+   fprintf(stderr,"\nGenerates CONECT records for a PDB file from the \
+covalent radii of the\n");
+   fprintf(stderr,"elements involved. Existing CONECT records are \
+discarded first\n");
    fprintf(stderr,"I/O is to stdin/stdout if not specified\n\n");
-   fprintf(stderr,"Converts a PDB file to PDBML format\n\n");
 }
 
 
 /************************************************************************/
-/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
+/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+                     REAL *tol)
    ---------------------------------------------------------------------
 *//**
 
@@ -140,18 +151,21 @@ Martin\n");
    \param[in]      **argv       Argument array
    \param[out]     *infile      Input file (or blank string)
    \param[out]     *outfile     Output file (or blank string)
+   \param[out]     *tol         Covalent bond tolerance
    \return                      Success?
 
    Parse the command line
    
 -  26.02.15 Original    By: ACRM
 */
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
+                  REAL *tol)
 {
    argc--;
    argv++;
 
    infile[0] = outfile[0] = '\0';
+   *tol      = DEF_TOL;
    
    while(argc)
    {
@@ -159,6 +173,15 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
       {
          switch(argv[0][1])
          {
+         case 't':
+            argc--;
+            argv++;
+            if(argc)
+            {
+               if(!sscanf(argv[0], "%lf", tol))
+                  return(FALSE);
+            }
+            break;
          default:
             return(FALSE);
             break;

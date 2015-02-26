@@ -13,6 +13,10 @@ pdb2ms
 ------
 Converts a PDB file to input for the Connoly MS program
 
+pdb2pdbml
+---------
+Converts a PDB file to PDBML format
+
 pdb2pir
 -------
 Extracts a PIR sequence file from a PDB file.
@@ -45,11 +49,15 @@ Identifies the residue closest to the centroid of a protein.
 
 pdbchain
 --------
-Splits a PDB file into chains using distance criteria
+Splits a PDB file into chains using distance criteria.
 
 pdbcheckforres
 --------------
 Checks whether a specified residue exists in a PDB file.
+
+pdbconect
+---------
+Builds CONECT records for a PDB file. Deletes existing records.
 
 pdbcount
 --------
