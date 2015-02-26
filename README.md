@@ -30,6 +30,11 @@ pdbatomcount
 Counts the number of atoms within the specified radius of each atom in
 a PDB structure.
 
+pdbatoms
+--------
+Extracts only the coordinates (i.e. ATOM and HETATM records) from a
+PDB file, discarding the header and footer records
+
 pdbatomsel
 ----------
 Selects specfied atom types from a PDB file. Assumes C-alpha if no atoms
