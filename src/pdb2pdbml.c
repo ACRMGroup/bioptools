@@ -1,13 +1,13 @@
 /************************************************************************/
 /**
 
-   \file       pdbtranslate.c
+   \file       pdb2pdbml.c
    
-   \version    V1.3
-   \date       12.02.15
-   \brief      Simple program to translate PDB files
+   \version    V1.0
+   \date       26.02.15
+   \brief      Convert PDB format to PDBML
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1995-2015
+   \copyright  (c) Dr. Andrew C. R. Martin 2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -46,30 +46,20 @@
 
    Revision History:
    =================
--  V1.0  14.09.95 Original
--  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
-                  Added doxygen annotation. By: CTP
--  V1.2  06.11.14 Renamed from transpdb  By: ACRM
--  V1.3  12.02.15 Uses whole PDB
+-  V1.0  26.02.15 Original
 
 *************************************************************************/
 /* Includes
 */
 #include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <math.h>
 
-#include "bioplib/MathType.h"
 #include "bioplib/SysDefs.h"
 #include "bioplib/pdb.h"
-#include "bioplib/macros.h"
-#include "bioplib/general.h"
 
 /************************************************************************/
 /* Defines and macros
 */
-#define MAXBUFF 160
+#define MAXBUFF 256
 
 /************************************************************************/
 /* Globals
@@ -80,15 +70,14 @@
 */
 int main(int argc, char **argv);
 void Usage(void);
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  REAL *x, REAL *y, REAL *z);
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
 *//**
 
-   Main program for PDB translation
+   Main program for PDB rotation
 
 -  17.06.94 Original    By: ACRM
 -  21.07.95 Added -m
@@ -99,22 +88,16 @@ int main(int argc, char **argv)
    FILE     *in      = stdin,
             *out     = stdout;
    WHOLEPDB *wpdb;
-   PDB      *pdb;
-   VEC3F    TVec;
    char     infile[MAXBUFF],
             outfile[MAXBUFF];
 
-   TVec.x = TVec.y = TVec.z = (REAL)0.0;
-
-   if(ParseCmdLine(argc, argv, infile, outfile, 
-                   &(TVec.x), &(TVec.y), &(TVec.z)))
+   if(ParseCmdLine(argc, argv, infile, outfile))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
          if((wpdb=blReadWholePDB(in))!=NULL)
          {
-            pdb = wpdb->pdb;
-            blTranslatePDB(pdb, TVec);
+            FORCEXML;
             blWriteWholePDB(out, wpdb);
          }
          else
@@ -138,26 +121,20 @@ int main(int argc, char **argv)
    ----------------
 *//**
 
--  14.09.95 Original    By: ACRM
--  22.07.14 V1.1 By: CTP
--  06.11.14 V1.2 By: ACRM
--  12.02.15 V1.3 By: ACRM
+-  26.02.15 Original    By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbtranslate V1.3  (c) 1995-2015 Andrew C.R. \
+   fprintf(stderr,"\npdb2pdbml V1.0  (c) 2015 UCL, Andrew C.R. \
 Martin\n");
-   fprintf(stderr,"Freely distributable if no profit is made\n\n");
-   fprintf(stderr,"Usage: pdbtranslate [-x <x>] [-y <y>] [-z <z>] [-h]\n");
-   fprintf(stderr,"              [<input.pdb> [<output.pdb>]]\n");
+   fprintf(stderr,"Usage: pdb2pdbml [<input.pdb> [<output.pdb>]]\n");
    fprintf(stderr,"I/O is to stdin/stdout if not specified\n\n");
-   fprintf(stderr,"Translates a PDB file\n\n");
+   fprintf(stderr,"Converts a PDB file to PDBML format\n\n");
 }
 
 
 /************************************************************************/
-/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                     REAL *x, REAL *y, REAL *z)
+/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
    ---------------------------------------------------------------------
 *//**
 
@@ -165,20 +142,14 @@ Martin\n");
    \param[in]      **argv       Argument array
    \param[out]     *infile      Input file (or blank string)
    \param[out]     *outfile     Output file (or blank string)
-   \param[out]     *x           X-translation
-   \param[out]     *y           Y-translation
-   \param[out]     *z           Z-translation
-   \return                     Success?
+   \return                      Success?
 
    Parse the command line
    
--  05.07.94 Original    By: ACRM
+-  26.02.15 Original    By: ACRM
 */
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  REAL *x, REAL *y, REAL *z)
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 {
-   REAL temp;
-   
    argc--;
    argv++;
 
@@ -190,27 +161,6 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
       {
          switch(argv[0][1])
          {
-         case 'x':
-            argc--;
-            argv++;
-            if(!sscanf(argv[0],"%lf",&temp))
-               return(FALSE);
-            *x += temp;
-            break;
-         case 'y':
-            argc--;
-            argv++;
-            if(!sscanf(argv[0],"%lf",&temp))
-               return(FALSE);
-            *y += temp;
-            break;
-         case 'z':
-            argc--;
-            argv++;
-            if(!sscanf(argv[0],"%lf",&temp))
-               return(FALSE);
-            *z += temp;
-            break;
          default:
             return(FALSE);
             break;

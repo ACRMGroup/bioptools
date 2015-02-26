@@ -4,11 +4,11 @@
 #   Program:    makemake
 #   File:       makemake.pl
 #   
-#   Version:    V1.4
-#   Date:       21.11.14
+#   Version:    V1.5
+#   Date:       26.02.15
 #   Function:   Build the Makefile for BiopTools
 #   
-#   Copyright:  (c) Dr. Andrew C. R. Martin, UCL, 2014
+#   Copyright:  (c) Dr. Andrew C. R. Martin, UCL, 2014-2015
 #   Author:     Dr. Andrew C. R. Martin
 #   Address:    Institute of Structural and Molecular Biology
 #               Division of Biosciences
@@ -55,9 +55,10 @@
 #                     using git clone. If obtained as an archive then
 #                     this grabs the bioplib archive as well
 #   V1.4    21.11.14  Added -install option
+#   V1.5    26.02.15  Added pdb2pdbml
 #
 #*************************************************************************
-$::biopversion = "3.2";
+$::biopversion = "3.3";
 #*************************************************************************
 $::biopgit     = "https://github.com/ACRMGroup/bioplib/archive/V";
 $::biopext     = ".tar.gz";
@@ -364,7 +365,7 @@ sub UsageDie
 {
     print <<__EOF;
 
-makemake.pl (c) 2014 UCL, Dr. Andrew C.R. Martin
+makemake.pl (c) 2014-2015 UCL, Dr. Andrew C.R. Martin
 
 Usage: ./makemake.pl [-bioplib] [-prefix=xxx] [-bindir=xxx] [-datadir=xxx]
                      [-libdir=xxx] [-incdir=xxx]
