@@ -3,8 +3,8 @@
 
    \file       pdbatomsel.c
    
-   \version    V1.6
-   \date       12.02.15
+   \version    V1.7
+   \date       02.03.15
    \brief      Select atoms from a PDB file. Acts as filter
    
    \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
@@ -54,6 +54,7 @@
 -  V1.4  06.11.14 Renamed from atomsel By: ACRM
 -  V1.5  07.11.14 Initialized a variable
 -  V1.6  12.02.15 Uses Whole PDB
+-  V1.7  02.03.15 Major rewrite to use blSelectAtomsPDBAsCopy()
 
 *************************************************************************/
 /* Includes
@@ -69,6 +70,7 @@
 #include "bioplib/pdb.h"
 #include "bioplib/macros.h"
 #include "bioplib/general.h"
+#include "bioplib/array.h"
 
 /************************************************************************/
 /* Defines and macros
@@ -92,8 +94,8 @@ int main(int argc, char **argv);
 void Usage(void);
 BOOL ParseCmdLine(int argc, char **argv, ATOMTYPE **atoms, char *infile, 
                   char *outfile);
-void UpcaseTypes(ATOMTYPE *atoms);
-BOOL InAtomList(ATOMTYPE *atoms, PDB *p);
+void UpcaseAndPadAtomTypes(ATOMTYPE *atoms);
+char **ConvertAtomsToArray(ATOMTYPE *atoms, int *nSelected);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -105,20 +107,20 @@ BOOL InAtomList(ATOMTYPE *atoms, PDB *p);
 -  04.07.94 Original    By: ACRM
 -  24.08.94 Changed to call OpenStdFiles()
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
--  12.02.15 WholePDB support
+-  12.02.15 WholePDB support   By: ACRM
             Better support for TER cards
+-  02.03.15 Major rewrite to use blSelectAtomsPDBAsCopy()
 */
 int main(int argc, char **argv)
 {
-   PDB      *pdb, 
-            *p;
    WHOLEPDB *wpdb;
    char     infile[MAXBUFF],
             outfile[MAXBUFF],
-            lastchain;
+            **selectedAtoms;
    FILE     *in  = stdin, 
             *out = stdout;
    ATOMTYPE *atoms = NULL;
+   int      nSelected;
 
    if(ParseCmdLine(argc, argv, &atoms, infile, outfile))
    {
@@ -139,40 +141,25 @@ list.\n");
          }
 
          /* Upcase all atom names                                       */
-         UpcaseTypes(atoms);
+         UpcaseAndPadAtomTypes(atoms);
+         
+         /* Convert atoms linked list to select array                   */
+         selectedAtoms = ConvertAtomsToArray(atoms, &nSelected);
+         FREELIST(atoms, ATOMTYPE);
 
          /* Read in the PDB file                                        */
          if((wpdb=blReadWholePDB(in))!=NULL)
          {
-            BOOL TerDone = FALSE;
-            pdb       = wpdb->pdb;
-            lastchain = pdb->chain[0];
-
-            /* Write the header                                         */
-            blWriteWholePDBHeader(out,wpdb);
+            PDB *pdb = NULL;
+            int natoms;
             
-            /* Run through the linked list writing out atoms in the
-               required atom list
-            */
-            TerDone = FALSE;
-            for(p=pdb;p!=NULL;NEXT(p))
-            {
-               if(p->chain[0] != lastchain)
-               {
-                  lastchain = p->chain[0];
-                  if(!TerDone)
-                     fprintf(out,"TER   \n");
-                  TerDone = TRUE;
-               }
-                  
-               if(InAtomList(atoms, p))
-               {
-                  blWritePDBRecord(out,p);
-                  TerDone = FALSE;
-               }
-            }
-            if(!TerDone)
-               fprintf(out,"TER   \n");
+            pdb = blSelectAtomsPDBAsCopy(wpdb->pdb, nSelected,
+                                         selectedAtoms, &natoms);
+            FREELIST(wpdb->pdb, PDB);
+            wpdb->pdb    = pdb;
+            wpdb->natoms = natoms;
+
+            blWriteWholePDB(out, wpdb);
          }
          else
          {
@@ -188,6 +175,48 @@ list.\n");
    return(0);
 }
 
+
+/************************************************************************/
+/*>char **ConvertAtomsToArray(ATOMTYPE *atoms, int *nSelected)
+   -----------------------------------------------------------
+*//**
+   \param[in]   *atoms       ATOMTYPE linked list
+   \param[out]  *nSelected   Number of selected atoms in the array
+   \return                   2D array of atom types. Each is padded to
+                             4 chars. NULL on error.
+
+   Converts the linked list of strings to an array of strings
+
+-  02.03.15  Original   By: ACRM
+*/
+char **ConvertAtomsToArray(ATOMTYPE *atoms, int *nSelected)
+{
+   ATOMTYPE *a;
+   char     **selectedAtoms = NULL;
+   int      i;
+
+   /* Count the atom types                                              */
+   *nSelected = 0;
+   for(a=atoms; a!=NULL; NEXT(a))
+      (*nSelected)++;
+
+   /* Allocate a 2D array to contain the list                           */
+   if((selectedAtoms = (char **)blArray2D(sizeof(char), 
+                                          *nSelected, 5))==NULL)
+      return(NULL);
+   
+   /* Populate the array                                                */
+   for(a=atoms, i=0; a!=NULL; NEXT(a), i++)
+   {
+      strncpy(selectedAtoms[i], a->type, 4);
+      selectedAtoms[i][5] = '\0';
+      PADMINTERM(selectedAtoms[i], 4);
+   }
+
+   return(selectedAtoms);
+}
+
+
 /************************************************************************/
 /*>void Usage(void)
    ----------------
@@ -201,13 +230,14 @@ list.\n");
 -  06.11.14 V1.4 By: ACRM
 -  07.11.14 V1.5
 -  12.02.15 V1.6
+-  02.03.15 V1.7
 */
 void Usage(void)
 {            
-   fprintf(stderr,"\npdbatomsel V1.6 (c) 1994-2015, Andrew C.R. \
+   fprintf(stderr,"\npdbatomsel V1.7 (c) 1994-2015, Andrew C.R. \
 Martin, UCL\n");
-   fprintf(stderr,"Usage: pdbatomsel [-atom] [-atom...] [<in.pdb>] \
-[<out.pdb>]\n\n");
+   fprintf(stderr,"Usage: pdbatomsel [-atom] [-atom...] [<in.pdb> \
+[<out.pdb>]]\n\n");
    fprintf(stderr,"Selects specfied atom types from a PDB file. \
 Assumes C-alpha if no atoms\n");
    fprintf(stderr,"are specified. I/O is through stdin/stdout if files \
@@ -295,8 +325,8 @@ list.\n");
 }
 
 /************************************************************************/
-/*>void UpcaseTypes(ATOMTYPE *atoms)
-   ---------------------------------
+/*>void UpcaseAndPadAtomTypes(ATOMTYPE *atoms)
+   -------------------------------------------
 *//**
 
    \param[in,out]  *atoms    Linked list of atom types
@@ -306,44 +336,17 @@ list.\n");
 
 -  15.07.94 Original   By: ACRM
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  02.03.15 Added initial termination of string
 */
-void UpcaseTypes(ATOMTYPE *atoms)
+void UpcaseAndPadAtomTypes(ATOMTYPE *atoms)
 {
    ATOMTYPE *a;
    
    for(a=atoms; a!=NULL; NEXT(a))
    {
+      a->type[5] = '\0';
       blPadterm(a->type, 4);
       UPPER(a->type);
    }
-}
-
-/************************************************************************/
-/*>BOOL InAtomList(ATOMTYPE *atoms, PDB *p)
-   ----------------------------------------
-*//**
-
-   \param[in]      *atoms    Linked list of required atom types
-   \param[in]      *p        PDB item to check against list
-   \return                     In list?
-
-   Compares an atom name from a PDB item with the linked list of allowed
-   atom names.
-
--  15.07.94 Original   By: ACRM
--  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
-*/
-BOOL InAtomList(ATOMTYPE *atoms, PDB *p)
-{
-   ATOMTYPE *a;
-   
-
-   for(a=atoms; a!=NULL; NEXT(a))
-   {
-      if(!strncmp(p->atnam, a->type, 4))
-         return(TRUE);
-   }
-   
-   return(FALSE);
 }
 

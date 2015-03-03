@@ -3,8 +3,8 @@
 
    \file       pdbrenum.c
    
-   \version    V1.12
-   \date       23.02.15
+   \version    V1.13
+   \date       02.03.15
    \brief      Renumber a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin / UCL 1994-2015
@@ -62,6 +62,7 @@
 -  V1.11 13.02.15 Added whole PDB support
 -  V1.12 23.02.15 Modified for new blWritePDBTrailer
                   Uses blRenumberAtomsPDB() to do the atoms
+-  V1.13 02.03.15 Deals better with header and trailer
 
 *************************************************************************/
 /* Includes
@@ -113,6 +114,9 @@ void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain,
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  13.02.15 Added whole PDB support   By: ACRM
 -  23.02.15 Modified for new blWriteWholePDBTrailer()
+-  02.03.15 Now uses blWriteWholePDBHeaderNoRes() if residues have been
+            renumbered and always does blWriteWholePDBTrailer() since
+            this now deals properly with renumbered atoms.
 */
 int main(int argc, char **argv)
 {
@@ -148,11 +152,16 @@ int main(int argc, char **argv)
             pdb=wpdb->pdb;
             DoRenumber(pdb,DoSequential,KeepChain,DoAtoms,DoRes,chains,
                        ResStart, AtomStart);
-            if(!DoRes || ForceHeader)
+            if(DoRes)
+            {
+               blWriteWholePDBHeaderNoRes(out, wpdb);
+            }
+            else
+            {
                blWriteWholePDBHeader(out, wpdb);
+            }
             numTer = blWritePDB(out, pdb);
-            if(!DoAtoms || ForceHeader)
-               blWriteWholePDBTrailer(out, wpdb, numTer);
+            blWriteWholePDBTrailer(out, wpdb, numTer);
          }
       }
       else
@@ -344,10 +353,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  06.11.14 V1.10 By: ACRM
 -  13.02.15 V1.11
 -  23.02.15 V1.12
+-  02.03.15 V1.13
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbrenum V1.12 (c) 1994-2015 Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbrenum V1.13 (c) 1994-2015 Dr. Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"Usage: pdbrenum [-f][-s][-k][-c <chains>][-n][-d]\
 [-r <num>,<num>...][-a <num> ]\n                \
