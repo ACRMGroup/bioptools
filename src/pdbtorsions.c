@@ -3,11 +3,11 @@
 
    \file       pdbtorsions.c
    
-   \version    V2.0
-   \date       27.11.14
+   \version    V2.1
+   \date       04.03.15
    \brief      Calculate torsion angles for a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1996-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1996-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -64,6 +64,7 @@
 -  V2.0  27.11.14 Major rewrite to deal properly with multiple chains
                   and to associate the omega angle with the correct
                   residue. Still makes the old format available
+-  V2.1  04.03.15 Improved checking for old name
 
 *************************************************************************/
 /* Includes
@@ -209,6 +210,7 @@ output file\n");
    then sets the oldStyle flag to TRUE by default
 
 - 27.11.14 Original   By: ACRM
+- 04.03.15 Improved checking for old name
 */
 BOOL SetOldStyle(char *progname)
 {
@@ -219,13 +221,18 @@ BOOL SetOldStyle(char *progname)
       return(TRUE);
    
    /* If it's called as '...path.../torsions' enable oldStyle 
-      First check it contains /torsions 
+      First check if it contains at the end '/torsions' 
+      Then check if it is just if it is just 'torsions'
    */
    if((chp = strstr(progname, "/torsions")) != NULL)
    {
       /* Then check this was the end of the string                      */
       if(*(chp+9) == '\0')
          return(TRUE);
+   }
+   if(!strcmp(progname, "torsions")
+   {
+      return(TRUE);
    }
 
    return(FALSE);
@@ -741,10 +748,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  06.11.14 V1.5 By: ACRM
 -  07.11.14 V1.6
 -  27.11.14 V2.0
+-  04.03.15 V2.1
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbtorsions V2.0 (c) 1994-2014 Andrew Martin, \
+   fprintf(stderr,"\npdbtorsions V2.1 (c) 1994-2015 Andrew Martin, \
 UCL.\n");
    fprintf(stderr,"\nUsage: pdbtorsions [-h][-r][-c][-t][-o][-n] \
 [<in.pdb> [<out.tor>]]\n");

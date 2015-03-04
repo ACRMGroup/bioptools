@@ -3,8 +3,8 @@
 
    \file       pdbgetchain.c
    
-   \version    V1.8
-   \date       13.02.15
+   \version    V2.0
+   \date       04.03.15
    \brief      Extract chains from a PDB file
    
    \copyright  (c) UCL / Dr. Andrew C. R. Martin 1997-2015
@@ -58,6 +58,13 @@
                   Added doxygen annotation. By: CTP
 -  V1.7  06.11.14 Renamed from getchain  By: ACRM
 -  V1.8  13.02.15 Removed -k option - headers are always kept
+-  V2.0  04.03.15 Major rewrite to modify the PDB linked list in place
+                  and write it as a whole rather than writing records
+                  as we go. Also added support for multi-character
+                  chain labels. If called as pdbgetchain, the chains must
+                  be comma separated. If called as getchain, only the old
+                  single character chain labels (not comma-separated) are
+                  supported.
 
 *************************************************************************/
 /* Includes
@@ -66,6 +73,7 @@
 #include "bioplib/pdb.h"
 #include "bioplib/general.h"
 #include "bioplib/macros.h"
+#include "bioplib/array.h"
 
 /************************************************************************/
 /* Defines and macros
@@ -92,9 +100,13 @@ void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains,
                     BOOL numeric);
 int  WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains);
 void Usage(void);
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  char *chains, BOOL *numeric, BOOL *lowercase,
-                  BOOL *atomsOnly);
+char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+                    BOOL *numeric, BOOL *atomsOnly);
+PDB *FindEndOfChain(PDB *chain);
+void SelectPDBChains(WHOLEPDB *wpdb, char **chains, BOOL numeric);
+BOOL ValidChain(PDB *pdb, char **chains, BOOL numeric);
+BOOL CheckProgName(char *progname);
+
 
 
 /************************************************************************/
@@ -110,28 +122,22 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  29.06.09 Added atomsOnly
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  13.02.15 Now always keeps header  By: ACRM
+- Removed lowercase
 */
 int main(int argc, char **argv)
 {
    char InFile[MAXBUFF],
         OutFile[MAXBUFF],
-        chains[MAXCHAIN];
+        **chains = NULL;
    FILE *in  = stdin,
         *out = stdout;
    BOOL numeric = FALSE,
-        lowercase = FALSE,
         atomsOnly = FALSE;
    WHOLEPDB *wpdb = NULL;
    
-   if(ParseCmdLine(argc, argv, InFile, OutFile, chains, &numeric,
-                   &lowercase, &atomsOnly))
+   if((chains = ParseCmdLine(argc, argv, InFile, OutFile, &numeric,
+                             &atomsOnly))!=NULL)
    {
-      /* 06.04.09 Added lowercase option                                */
-      if(!lowercase)
-      {
-         UPPER(chains);
-      }
-      
       if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
          /* 29.06.09 Added atomsOnly option                             */
@@ -152,7 +158,9 @@ int main(int argc, char **argv)
          }
          else
          {
-            WritePDBChains(out, wpdb, chains, numeric);
+            SelectPDBChains(wpdb, chains, numeric);
+            WriteWholePDB(out, wpdb);
+/*            WritePDBChains(out, wpdb, chains, numeric); */
          }
       }
    }
@@ -163,6 +171,67 @@ int main(int argc, char **argv)
 
    return(0);
 }
+
+/************************************************************************/
+void SelectPDBChains(WHOLEPDB *wpdb, char **chains, BOOL numeric)
+{
+   PDB  *chainStart    = NULL,
+        *endOfChain    = NULL,
+        *nextChain     = NULL,
+        *keptChainsEnd = NULL;
+   
+   for(chainStart=wpdb->pdb; chainStart!=NULL; chainStart=nextChain)
+   {
+      endOfChain       = FindEndOfChain(chainStart);
+      nextChain        = endOfChain->next;
+      endOfChain->next = NULL;
+
+      if(ValidChain(chainStart, chains, numeric))
+      {
+         if(keptChainsEnd!=NULL)
+            keptChainsEnd->next = chainStart;
+         keptChainsEnd = endOfChain;
+      }
+      else
+      {
+         if(chainStart == wpdb->pdb)
+            wpdb->pdb = nextChain;
+
+         FREELIST(chainStart, PDB);
+      }
+   }
+}
+
+/************************************************************************/
+BOOL ValidChain(PDB *pdb, char **chains, BOOL numeric)
+{
+   int i;
+/*   static int ChainCount = 0; */
+   
+   for(i=0; ((chains[i] != NULL) && (chains[i][0] != '\0')); i++)
+   {
+      if(CHAINMATCH(pdb->chain, chains[i]))
+         return(TRUE);
+   }
+   return(FALSE);
+}
+
+/************************************************************************/
+PDB *FindEndOfChain(PDB *chain)
+{
+   PDB *p;
+   if(chain==NULL)
+      return(NULL);
+   
+   for(p=chain; 
+       ((p->next !=NULL) && CHAINMATCH(p->chain, p->next->chain));
+       NEXT(p))
+   {
+      continue;
+   }
+   return(p);
+}
+
 
 /************************************************************************/
 /*>void WritePDBChains(FILE *out, WHOLEPDB *wpdb, char *chains, 
@@ -351,21 +420,18 @@ int WritePDBChainsByNumber(FILE *out, PDB *pdb, char *chains)
 -  22.07.14 V1.6 By: CTP
 -  06.11.14 V1.7 By: ACRM
 -  13.02.15 V1.8
+-  04.03.15 V2.0
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbgetchain V1.8 (c) 1997-2015 Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbgetchain V2.0 (c) 1997-2015 Dr. Andrew C.R. \
 Martin, UCL\n");
 
-   fprintf(stderr,"\nUsage: pdbgetchain [-n] [-l] [-a] chains \
-[in.pdb [out.pdb]]\n");
+   fprintf(stderr,"\nUsage: pdbgetchain [-n] [-l] [-a] \
+chain[,chain[...]] [in.pdb [out.pdb]]\n");
    fprintf(stderr,"       -n Specify chains numerically: 1 is the first \
 chain, 2 the second,\n");
-   fprintf(stderr,"          etc. Maximum chain number is therefore 0 \
-(representing 10) such\n");
-   fprintf(stderr,"          that 120 would represent chains 1, 2 and \
-10\n");
-   fprintf(stderr,"       -l Retain lower case chain names\n");
+   fprintf(stderr,"          etc.\n");
    fprintf(stderr,"       -a ATOMs only (discard HETATMs)\n");
 
    fprintf(stderr,"\npdbgetchain reads a PDB file and write out only \
@@ -373,20 +439,23 @@ those chains specified\n");
    fprintf(stderr,"on the command line. If input and output filenames \
 are not given\n");
    fprintf(stderr,"I/O is through standard input/output\n");
-   fprintf(stderr,"\nIf chain 0 is specified and there is no chain of \
-that name then any chain\n");
-   fprintf(stderr,"with a blank chain name will be written.\n\n");
    fprintf(stderr,"The headers are kept (the -k option in previous \
 versions is now deprecated)\n");
    fprintf(stderr,"but may contain references to chains that are no \
 longer present.\n\n");
+   fprintf(stderr,"If the program is called as getchain rather than \
+pdbgetchain, the old\n");
+   fprintf(stderr,"behaviour of only accepting one-character chain names \
+and taking them\n");
+   fprintf(stderr,"as a non-comma separated set is used. e.g. chains L \
+and H, would be\n");
+   fprintf(stderr,"specified as LH rather than L,H\n\n");
 } 
 
 
 /************************************************************************/
-/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                     char *chains, BOOL *numeric, BOOL *lowercase,
-                     BOOL *atomsOnly)
+/*>char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+                       BOOL *numeric, BOOL *atomsOnly)
    ----------------------------------------------------------------------
 *//**
 
@@ -394,11 +463,9 @@ longer present.\n\n");
    \param[in]      **argv      Argument array
    \param[out]     *infile     Input filename (or blank string)
    \param[out]     *outfile    Output filename (or blank string)
-   \param[out]     *chains     Chain names to be written
    \param[out]     *numeric    Chains are specified numerically
-   \param[out]     *lowercase  Chain names may be in lower case
    \param[out]     *atomsOnly  Discard HETATMs
-   \return                     Success
+   \return                     2D array of chain labels
 
    Parse the command line
 
@@ -407,15 +474,23 @@ longer present.\n\n");
 -  06.04.09 Added -l lowercase option
 -  22.05.09 Added -k option
 -  29.06.09 Added -a option
+Removed lowercase
 */
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  char *chains, BOOL *numeric, BOOL *lowercase,
-                  BOOL *atomsOnly)
+char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+                    BOOL *numeric, BOOL *atomsOnly)
 {
+   int i, nchains;
+   char **chains = NULL;
+   BOOL oldStyle = FALSE;
+   
+   fprintf(stderr,"%s\n", argv[0]);
+   
+   oldStyle = CheckProgName(argv[0]);
+
    argc--;
    argv++;
    
-   infile[0] = outfile[0] = chains[0] = '\0';
+   infile[0] = outfile[0] = '\0';
    
    while(argc)
    {
@@ -427,7 +502,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             *numeric = TRUE;
             break;
          case 'l':
-            *lowercase = TRUE;
+            fprintf(stderr,"The -l option is now deprecated\n");
             break;
          case 'k':
             fprintf(stderr,"The -k option is now deprecated\n");
@@ -436,21 +511,60 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             *atomsOnly = TRUE;
             break;
          case 'h':
-            return(FALSE);
+            return(NULL);
             break;
          default:
-            return(FALSE);
+            return(NULL);
             break;
          }
       }
       else
       {
          /* Check that there are 1-3 arguments left                     */
-         if(argc > 3)
-            return(FALSE);
+         if(argc > 3 || argc < 1)
+            return(NULL);
          
-         /* Copy the first to chains                                    */
-         strcpy(chains, argv[0]);
+         /* Parse the chains out of the first argument                  */
+         nchains = strlen(argv[0]);
+         if(oldStyle)
+         {
+            /* Allocate space for chains                                */
+            chains = (char **)blArray2D(sizeof(char), nchains+1, 8);
+         
+            /* And copy in the data                                     */
+            for(i=0; i<nchains; i++)
+            {
+               chains[i][0] = argv[0][i];
+               chains[i][1] = '\0';
+            }
+            chains[nchains][0] = '\0';
+         }
+         else
+         {
+            char *c, *chainSpec;
+            /* Count the number of comma-separated chains in the chain 
+               specifier
+            */
+            nchains = 1;
+            for(c=argv[0]; *c; c++)
+            {
+               if(*c == ',') nchains++;
+            }
+
+            /* Allocate space for chains                                */
+            chains = (char **)blArray2D(sizeof(char), nchains+1, 8);
+         
+            /* And copy in the data                                     */
+            chainSpec = argv[0];
+            for(i=0; i<nchains; i++)
+            {
+               if((c = strchr(chainSpec, ','))!=NULL)
+                  *c = '\0';
+               strncpy(chains[i], chainSpec, 8);
+               chainSpec=c+1;
+            }
+            chains[nchains][0] = '\0';
+         }
          
          /* If there's another, copy it to infile                       */
          argc--;
@@ -466,15 +580,28 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                strcpy(outfile, argv[0]);
          }
 
-         return(TRUE);
+         return(chains);
       }
       argc--;
       argv++;
    }
    
-   if(!chains[0])
-      return(FALSE);
+   return(chains);
+   
+}
 
-   return(TRUE);
+BOOL CheckProgName(char *progname)
+{
+   char *chp;
+   
+   if((chp = strstr(progname, "/getchain"))!=NULL)
+   {
+      if(*(chp+9) == '\0')
+         return(TRUE);
+   }
+   if(!strcmp(progname, "getchain"))
+      return(TRUE);
+   
+   return(FALSE);
 }
 
