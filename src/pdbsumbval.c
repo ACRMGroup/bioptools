@@ -3,8 +3,8 @@
 
    \file       pdbsumbval.c
    
-   \version    V1.5
-   \date       13.02.15
+   \version    V1.6
+   \date       05.03.15
    \brief      Sum B-vals over each residue and replace with the
                summed or average value
    
@@ -54,6 +54,7 @@
                   Added doxygen annotation. By: CTP
 -  V1.4  06.11.14 Renamed from sumbval  By: ACRM
 -  V1.5  13.02.15 Added whole PDB support
+-  V1.6  05.03.15 Replaced blFindEndPDB() with blFindNextResidue()
 
 *************************************************************************/
 /* Includes
@@ -219,10 +220,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  22.07.14 V1.3 By: CTP
 -  06.11.14 V1.4 By: ACRM
 -  13.02.15 V1.5
+-  05.03.15 V1.6
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbsumbval V1.5 (c) 1994-2015, Andrew C.R. \
+   fprintf(stderr,"\npdbsumbval V1.6 (c) 1994-2015, Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"Usage: pdbsumbval [-a] [-s] [-q] [in.pdb \
 [[out.pdb]\n");
@@ -254,6 +256,7 @@ each residue to be\n");
 -  05.07.94 Original    By: ACRM
 -  06.07.94 Added check before divides
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  05.03.15 Replaced blFindEndPDB() with blFindNextResidue() By: ACRM
 */
 void SumBVals(PDB *pdb, BOOL average, BOOL sidechain, BOOL quiet)
 {
@@ -277,7 +280,7 @@ void SumBVals(PDB *pdb, BOOL average, BOOL sidechain, BOOL quiet)
    for(start=pdb; start!=NULL; start=end)
    {
       /* Find start of next residue                                     */
-      end = blFindEndPDB(start);
+      end = blFindNextResidue(start);
 
       /* Zero the totals and counts                                     */
       SumSC   = SumMC   = (REAL)0.0;

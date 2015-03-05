@@ -3,8 +3,8 @@
 
    \file       pdborder.c
    
-   \version    V1.5
-   \date       13.02.15
+   \version    V1.6
+   \date       05.03.15
    \brief      Correct the atom order in a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2015
@@ -53,6 +53,7 @@
                   Added doxygen annotation. By: CTP
 -  V1.4  07.11.14 Initialized variables
 -  V1.5  13.02.15 Added whole PDB support and fixed some core dumps
+-  V1.6  05.03.15 Replaced blFindEndPDB() with blFindNextResidue()
 
 *************************************************************************/
 /* Includes
@@ -260,10 +261,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  22.07.14 V1.2 By: CTP
 -  07.11.14 V1.4 By: ACRM
 -  13.02.15 V1.5 
+-  05.03.15 V1.6
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBOrder V1.5 (c) 1994-2015, Andrew C.R. Martin, \
+   fprintf(stderr,"\nPDBOrder V1.6 (c) 1994-2015, Andrew C.R. Martin, \
 UCL\n\n");
    fprintf(stderr,"Usage: pdborder [-c] [-i] [-g] [<in.pdb> \
 [<out.pdb>]]\n");
@@ -290,6 +292,7 @@ N,CA,C,O,s/c atom\n");
 -  24.08.94 Added code to handle additional Hs at NTER and O at CTER
             Only tries to re-order ATOM records.
 -  07.11.14 Initialized variables
+-  05.03.15 Replaced blFindEndPDB() with blFindNextResidue()
 */
 PDB *CorrectOrder(PDB *pdb, BOOL COLast)
 {
@@ -307,7 +310,7 @@ PDB *CorrectOrder(PDB *pdb, BOOL COLast)
    
    while(start != NULL)
    {
-      end = blFindEndPDB(start);
+      end = blFindNextResidue(start);
       
       /* Only correct the order if this is an amino acid residue        */
       if(!strncmp(start->record_type,"ATOM  ",6))

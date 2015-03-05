@@ -3,11 +3,11 @@
 
    \file       setpdbnumbering.c
    
-   \version    V1.3
-   \date       25.11.14
+   \version    V1.4
+   \date       05.03.15
    \brief      Apply standard numbering to a set of PDB files
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1996-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1996-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -58,6 +58,8 @@
                   Added doxygen annotation. By: CTP
 -  V1.2  06.11.14 Renamed from numpdb By: ACRM
 -  V1.3  25.11.14 Initialized a variable
+-  V1.4  05.03.15 Now calls pdbpatchnumbering rather than assuming the
+                  link to patchpdbnum is available. Improved help message
 
 *************************************************************************/
 /* Includes
@@ -173,10 +175,11 @@ int main(int argc, char **argv)
 -  22.07.14 V1.1 By: CTP
 -  06.11.14 V1.2 By: ACRM
 -  25.11.14 V1.3 By: ACRM
+-  05.03.15 V1.4
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nsetpdbnumbering V1.3 (c) 1996-2014 Dr. Andrew C.R. \
+   fprintf(stderr,"\nsetpdbnumbering V1.4 (c) 1996-2015 Dr. Andrew C.R. \
 Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: setpdbnumbering <alnfile>\n");
@@ -190,7 +193,28 @@ PDB file. The first\n");
    fprintf(stderr,"PDB file will be used to supply the numbering scheme; \
 insertion codes\n");
    fprintf(stderr,"will be supplied relative to this file for the other \
-structures.\n\n");
+structures.\n");
+
+   fprintf(stderr,"\nAll you need as input it a PIR style alignment file \
+with the name of\n");
+   fprintf(stderr,"each PDB file in the comment line:\n");
+
+   fprintf(stderr,"\n   >P1;1abc\n");
+   fprintf(stderr,"   pdb1abc.ent\n");
+   fprintf(stderr,"   ACTDFGIDEFGH--LIPNQRST-VLY*\n");
+   fprintf(stderr,"   >P2;2def\n");
+   fprintf(stderr,"   pdb2def.ent\n");
+   fprintf(stderr,"   ACSEYG--EFGRTLLVPQQKSSRVLY*\n");
+
+   fprintf(stderr,"\n2def will then be read and rewritten as pdb2def.num \
+using the numbering\n");
+   fprintf(stderr,"scheme of 1abc (The file can contain a multiple \
+alignment - everything\n");
+   fprintf(stderr,"will be written numbered according to 1abc.)\n");
+
+   fprintf(stderr,"\nNote that the program makes use of \
+pdbpatchnumbering program which must\n");
+   fprintf(stderr,"be in your path.\n\n");
 }
 
 
@@ -478,7 +502,7 @@ the alphabet\n");
 *//**
 
    Applies the numbering scheme to each PDB file in turn by calling out
-   to the patchpdbnum program to do the work
+   to the pdbpatchnumbering program to do the work
 
 -  05.02.96 Original    By: ACRM
 */
@@ -508,7 +532,7 @@ BOOL ApplyNumbering(NAMSEQ *namseq, char **Numbering)
       fclose(fp);
 
       /* Run the patch program                                          */
-      sprintf(buffer,"patchpdbnum %s %s %s.num",gPatchFile,
+      sprintf(buffer,"pdbpatchnumbering %s %s %s.num",gPatchFile,
               ns->name,ns->name);
       system(buffer);
    }

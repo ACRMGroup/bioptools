@@ -3,8 +3,8 @@
 
    \file       pdbchain.c
    
-   \version    V1.9
-   \date       13.02.15
+   \version    V1.10
+   \date       05.03.15
    \brief      Insert chain labels into a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
@@ -62,6 +62,7 @@
                   Added doxygen annotation. By: CTP
 -  V1.8  06.11.14 Renamed from chainpdb By: ACRM
 -  V1.9  13.02.15 Added whole PDB suport
+-  V1.10 05.03.15 Replaced blFindEndPDB() with blFindNextResidue()
 
 *************************************************************************/
 /* Includes
@@ -246,11 +247,12 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  30.05.02 V1.6
 -  22.07.14 V1.7 By: CTP
 -  06.11.14 V1.8 By: ACRM
+-  05.03.15 V1.10
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbchain V1.8 (c) 1994-2014 Dr. Andrew C.R. Martin, \
-UCL\n");
+   fprintf(stderr,"\npdbchain V1.10 (c) 1994-2014 Dr. Andrew C.R. \
+Martin, UCL\n");
    fprintf(stderr,"\nUsage: pdbchain [-c <chains>] [<infile> \
 [<outfile>]]\n");
    fprintf(stderr,"       -c Specify chain names to use\n");
@@ -285,6 +287,7 @@ files.\n");
 -  27.01.95 ChainNum count now mod 26 so labels will cycle A-Z
 -  16.10.95 Handles BumpChainOnHet
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  05.03.15 Replaced blFindEndPDB() with blFindNextResidue()
 */
 void DoChain(PDB *pdb, char *chains, BOOL BumpChainOnHet)
 {
@@ -292,12 +295,12 @@ void DoChain(PDB *pdb, char *chains, BOOL BumpChainOnHet)
         *start,
         *end,
         *LastStart = NULL,
-        *N        = NULL,
-        *C        = NULL,
-        *CPrev    = NULL,
-        *CAPrev   = NULL,
-        *CA       = NULL;
-   int  ChainNum  = 0;
+        *N         = NULL,
+        *C         = NULL,
+        *CPrev     = NULL,
+        *CAPrev    = NULL,
+        *CA        = NULL;
+   int  ChainNum   = 0;
    char chain,
         *ch;
    BOOL NewChain;
@@ -309,7 +312,7 @@ void DoChain(PDB *pdb, char *chains, BOOL BumpChainOnHet)
    for(start=pdb; start!=NULL; start=end)
    {
       NewChain = FALSE;
-      end = blFindEndPDB(start);
+      end = blFindNextResidue(start);
 
       CA = N = C = NULL;
       

@@ -230,7 +230,7 @@ BOOL SetOldStyle(char *progname)
       if(*(chp+9) == '\0')
          return(TRUE);
    }
-   if(!strcmp(progname, "torsions")
+   if(!strcmp(progname, "torsions"))
    {
       return(TRUE);
    }
