@@ -327,8 +327,6 @@ char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    char **chains = NULL;
    BOOL oldStyle = FALSE;
    
-   fprintf(stderr,"%s\n", argv[0]);
-   
    oldStyle = CheckProgName(argv[0]);
 
    argc--;
