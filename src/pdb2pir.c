@@ -451,6 +451,9 @@ also added then SEQRES\n");
    fprintf(stderr,"sequences with no matching chain in the ATOM records \
 are skipped.\n");
 
+   fprintf(stderr,"\nNote that the -c and -s options are not yet \
+supported for PDBML files\n");
+
    fprintf(stderr,"\nThe -n option causes the sequence to be output \
 again in records of the\n");
    fprintf(stderr,"form:\n");
