@@ -80,6 +80,7 @@
 */
 #define MAXBUFF  160
 #define MAXCHAIN 160
+#define MAXCHAINLABEL 8
 
 /* Converts an integer to a character representation of that integer.
    The input integer is expected to be between 1 and 10. Behaviour
@@ -371,7 +372,8 @@ char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
          if(oldStyle)
          {
             /* Allocate space for chains                                */
-            chains = (char **)blArray2D(sizeof(char), nchains+1, 8);
+            chains = (char **)blArray2D(sizeof(char), nchains+1, 
+                                        MAXCHAINLABEL);
          
             /* And copy in the data                                     */
             for(i=0; i<nchains; i++)
@@ -383,29 +385,13 @@ char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
          }
          else
          {
-            char *c, *chainSpec;
-            /* Count the number of comma-separated chains in the chain 
-               specifier
-            */
-            nchains = 1;
-            for(c=argv[0]; *c; c++)
+            if((chains = blSplitStringOnCommas(argv[0], MAXCHAINLABEL))
+               ==NULL)
             {
-               if(*c == ',') nchains++;
+               fprintf(stderr,"No memory for storing chain labels: %s\n",
+                       argv[0]);
+               exit(1);
             }
-
-            /* Allocate space for chains                                */
-            chains = (char **)blArray2D(sizeof(char), nchains+1, 8);
-         
-            /* And copy in the data                                     */
-            chainSpec = argv[0];
-            for(i=0; i<nchains; i++)
-            {
-               if((c = strchr(chainSpec, ','))!=NULL)
-                  *c = '\0';
-               strncpy(chains[i], chainSpec, 8);
-               chainSpec=c+1;
-            }
-            chains[nchains][0] = '\0';
          }
          
          /* If there's another, copy it to infile                       */

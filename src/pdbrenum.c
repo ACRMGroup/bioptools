@@ -3,8 +3,8 @@
 
    \file       pdbrenum.c
    
-   \version    V1.13
-   \date       02.03.15
+   \version    V2.0
+   \date       10.03.15
    \brief      Renumber a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin / UCL 1994-2015
@@ -63,6 +63,7 @@
 -  V1.12 23.02.15 Modified for new blWritePDBTrailer
                   Uses blRenumberAtomsPDB() to do the atoms
 -  V1.13 02.03.15 Deals better with header and trailer
+-  V2.0  10.03.15 Chains specified with -c are now comma separated
 
 *************************************************************************/
 /* Includes
@@ -80,8 +81,9 @@
 /************************************************************************/
 /* Defines and macros
 */
-#define MAXBUFF 160
-#define MAXCHAIN 64
+#define MAXBUFF  160
+#define MAXCHAIN 160
+#define MAXCHAINLABEL 8
 
 /************************************************************************/
 /* Globals
@@ -93,11 +95,11 @@
 int  main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   BOOL *DoSeq, BOOL *KeepChain, BOOL *DoAtoms,
-                  char *chains, int *ResStart, int *AtomStart, 
-                  BOOL *DoRes, BOOL *ForceHeader);
+                  char ***chains, int *ResStart, int *AtomStart, 
+                  BOOL *DoRes);
 void Usage(void);
 void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain, 
-                BOOL DoAtoms, BOOL DoRes, char *chains, int *ResStart, 
+                BOOL DoAtoms, BOOL DoRes, char **chains, int *ResStart, 
                 int AtomStart);
 
 /************************************************************************/
@@ -117,6 +119,7 @@ void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain,
 -  02.03.15 Now uses blWriteWholePDBHeaderNoRes() if residues have been
             renumbered and always does blWriteWholePDBTrailer() since
             this now deals properly with renumbered atoms.
+-  10.03.15 Chains now an array of strings
 */
 int main(int argc, char **argv)
 {
@@ -124,20 +127,18 @@ int main(int argc, char **argv)
             *out = stdout;
    char     infile[MAXBUFF],
             outfile[MAXBUFF],
-            chains[MAXCHAIN];
+            **chains;
    BOOL     DoSequential = FALSE,
             KeepChain    = FALSE,
             DoAtoms      = TRUE,
-            DoRes        = TRUE,
-            ForceHeader  = FALSE;
+            DoRes        = TRUE;
    WHOLEPDB *wpdb;
    PDB      *pdb;
    int      ResStart[MAXCHAIN],
             AtomStart;
         
    if(ParseCmdLine(argc, argv, infile, outfile, &DoSequential, &KeepChain,
-                   &DoAtoms, chains, ResStart, &AtomStart, &DoRes,
-                   &ForceHeader))
+                   &DoAtoms, &chains, ResStart, &AtomStart, &DoRes))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
@@ -182,8 +183,8 @@ int main(int argc, char **argv)
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                      BOOL *DoSeq, BOOL *KeepChain, BOOL *DoAtoms, 
-                     char *chains, int *ResStart, int *AtomStart,
-                     BOOL *DoRes, BOOL *ForceHeader)
+                     char ***chains, int *ResStart, int *AtomStart,
+                     BOOL *DoRes)
    ----------------------------------------------------------------------
 *//**
 
@@ -194,13 +195,10 @@ int main(int argc, char **argv)
    \param[out]     *DoSeq      Number residues sequentially throughout
    \param[out]     *KeepChain  Keep chain labels when DoSeq TRUE
    \param[out]     *DoAtoms    Renumber atoms
-   \param[out]     *chains     Chain labels
+   \param[out]     ***chains     Chain labels
    \param[out]     *ResStart   Chain residue start numbers
    \param[out]     *AtomStart  First chain atom start number
    \param[out]     *DoRes      Renumber residues
-   \param[out]     *ForceHeader   Do not print the header if residues
-                               have been renumbered or footer if
-                               atoms have been renumbered
    \return                     Success
 
    Parse the command line
@@ -211,15 +209,20 @@ int main(int argc, char **argv)
 -  04.01.95 Added -d
 -  13.05.96 Checks argc after -c/-r/-a options
 -  13.02.15 Added -x
+-  10.03.15 -c now takes comma separated chain list
+            Chains now an array of strings
+            Removed redundant ForceHeader
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   BOOL *DoSeq, BOOL *KeepChain, BOOL *DoAtoms, 
-                  char *chains, int *ResStart, int *AtomStart, 
-                  BOOL *DoRes, BOOL *ForceHeader)
+                  char ***chains, int *ResStart, int *AtomStart, 
+                  BOOL *DoRes)
 {
    int  ChainCount;
    char *chp,
         *chq;
+
+   *chains = NULL;
 
    for(ChainCount = 0; ChainCount < MAXCHAIN; ChainCount++)
       ResStart[ChainCount] = (-9999);
@@ -231,7 +234,6 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    argv++;
    
    infile[0] = outfile[0] = '\0';
-   chains[0] = '\0';
    
    while(argc)
    {
@@ -249,9 +251,13 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                exit(1);
             }
             argv++;
-            strncpy(chains,argv[0],MAXCHAIN);
-            chains[MAXCHAIN-1] = '\0';
-            UPPER(chains);
+            if((*chains = blSplitStringOnCommas(argv[0], MAXCHAINLABEL))
+               ==NULL)
+            {
+               fprintf(stderr,"No memory for storing chain labels: %s\n",
+                       argv[0]);
+               exit(1);
+            }
             break;
          case 'k':
             *KeepChain = TRUE;
@@ -263,7 +269,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             *DoRes = FALSE;
             break;
          case 'f':
-            *ForceHeader = FALSE;
+            fprintf(stderr,"-f is now deprecated\n");
             break;
          case 'r':
             if(!(--argc))
@@ -324,6 +330,16 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             strcpy(outfile, argv[0]);
             
          ResStart[ChainCount]  = (-9999);
+         if(*chains==NULL)
+         {
+            if((*chains = blSplitStringOnCommas("", MAXCHAINLABEL))
+               ==NULL)
+            {
+               fprintf(stderr,"No memory for storing chain labels: %s\n",
+                       argv[0]);
+               exit(1);
+            }
+         }
          return(TRUE);
       }
       argc--;
@@ -331,6 +347,16 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    }
    
    ResStart[ChainCount]  = (-9999);
+   if(*chains == NULL)
+   {
+      if((*chains = blSplitStringOnCommas("", MAXCHAINLABEL))
+         ==NULL)
+      {
+         fprintf(stderr,"No memory for storing chain labels: %s\n",
+                 argv[0]);
+         exit(1);
+      }
+   }
    return(TRUE);
 }
 
@@ -354,16 +380,15 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  13.02.15 V1.11
 -  23.02.15 V1.12
 -  02.03.15 V1.13
+-  10.03.15 V2.0
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbrenum V1.13 (c) 1994-2015 Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbrenum V2.0 (c) 1994-2015 Dr. Andrew C.R. \
 Martin, UCL\n");
-   fprintf(stderr,"Usage: pdbrenum [-f][-s][-k][-c <chains>][-n][-d]\
-[-r <num>,<num>...][-a <num> ]\n                \
-[in.pdb [out.pdb]]\n");
-   fprintf(stderr,"       -f Force printing of header or footer even \
-if numbering has changed\n");
+   fprintf(stderr,"Usage: pdbrenum [-s][-k][-c chain[,chain[...]]]\
+[-n][-d]\n");
+   fprintf(stderr,"                [-r num[,num][...]]][-a num][in.pdb [out.pdb]]\n");
    fprintf(stderr,"       -s Renumber sequentially throughout \
 structure\n");
    fprintf(stderr,"       -k Keep chain names when using -s\n");
@@ -381,9 +406,9 @@ instead of the label or\nnumber.\n\n");
 
 /************************************************************************/
 /*>void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain, 
-                   BOOL DoAtoms, BOOL DoRes, char *chains, int *ResStart,
+                   BOOL DoAtoms, BOOL DoRes, char **chains, int *ResStart,
                    int AtomStart)
-   ------------------------------------------------------------
+   -----------------------------------------------------------------------
 *//**
 
    \param[in,out]  *pdb            PDB linked list
@@ -391,7 +416,7 @@ instead of the label or\nnumber.\n\n");
    \param[in]      KeepChain       Keep chain labels when DoSequential
    \param[in]      DoAtoms         Renumber atoms
    \param[in]      DoRes           Renumber residues
-   \param[in]      *chains         Chain labels (or blank string)
+   \param[in]      **chains        Chain labels
    \param[in]      *ResStart       Residue start numbers
    \param[in]      AtomStart       Atom number for start of first chain
 
@@ -406,25 +431,24 @@ instead of the label or\nnumber.\n\n");
 -  14.11.96 Initialise LastChain to something other than ' ' as
             -r option wasn't working with blank chain names
 -  23.02.15 Now uses blRenumberAtomsPDB() for atom numbering
+-  10.03.15 chains now an array of strings
 */
 void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain, 
-                BOOL DoAtoms, BOOL DoRes, char *chains, int *ResStart, 
+                BOOL DoAtoms, BOOL DoRes, char **chains, int *ResStart, 
                 int AtomStart)
 {
    PDB  *p;
    int  resnum   = 0,
         ChainNum = 0,
+        ChainIndex = 0,
         LastRes;
    char LastIns,
-        LastChain,
-        *ch;
+        LastChain[MAXCHAINLABEL];
    BOOL Incremented;
-   
-   ch = chains;
-   
-   LastRes     = (-1);
-   LastIns     = ' ';
-   LastChain   = '\0';
+
+   LastRes      = (-1);
+   LastIns      = ' ';
+   LastChain[0] = '\0';
    
    for(p=pdb; p!=NULL; NEXT(p))
    {
@@ -442,7 +466,7 @@ void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain,
       }
 
       /* See if we've changed chain                                     */
-      if(p->chain[0] != LastChain)
+      if(!CHAINMATCH(p->chain, LastChain))
       {
          if(DoSequential)
          {
@@ -461,26 +485,26 @@ void DoRenumber(PDB *pdb, BOOL DoSequential, BOOL KeepChain,
             if(++ChainNum >= MAXCHAIN)
             {
                fprintf(stderr,"Maximum number of chains (%d) exceeded. \
-Try -s option.\n",MAXCHAIN);
+Try -s option or increase MAXCHAIN.\n",MAXCHAIN);
                exit(1);
             }
          }
-         LastChain = p->chain[0];
+         strcpy(LastChain, p->chain);
 
          /* If it's not the first atom, step to the next chain name     */
-         if(p != pdb && *ch)
-            ch++;
+         if((p != pdb) && chains[ChainIndex][0])
+            ChainIndex++;
       }
       
       /* Set the chain name if specified                                */
-      if(*ch && *ch != '-') 
-         p->chain[0] = *ch;
+      if(chains[ChainIndex][0] && (chains[ChainIndex][0] != '-'))
+         strcpy(p->chain, chains[ChainIndex]);
          
       /* If we're numbering sequentially and not keeping chain names,
-         set the chain name to a blank
+         set the chain name to 'A'
       */
       if(DoSequential && !KeepChain)
-         p->chain[0] = ' ';
+         strcpy(p->chain, "A");
          
       if(DoRes) 
       {

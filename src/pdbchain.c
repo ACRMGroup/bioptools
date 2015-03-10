@@ -3,8 +3,8 @@
 
    \file       pdbchain.c
    
-   \version    V1.10
-   \date       05.03.15
+   \version    V2.0
+   \date       10.03.15
    \brief      Insert chain labels into a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
@@ -63,6 +63,10 @@
 -  V1.8  06.11.14 Renamed from chainpdb By: ACRM
 -  V1.9  13.02.15 Added whole PDB suport
 -  V1.10 05.03.15 Replaced blFindEndPDB() with blFindNextResidue()
+-  V2.0  10.03.15 Now generates more than 26 chain labels and, if 
+                  specfied with -c expects a comma-separated list of
+                  chain labels instead of a simple string. i.e chains
+                  L and H are now specified as L,H instead of LH
 
 *************************************************************************/
 /* Includes
@@ -77,12 +81,14 @@
 #include "bioplib/MathType.h"
 #include "bioplib/pdb.h"
 #include "bioplib/general.h"
+#include "bioplib/array.h"
 
 /************************************************************************/
 /* Defines and macros
 */
 #define MAXBUFF 160
-#define MAXCHAIN 64
+#define MAXCHAIN 160
+#define MAXCHAINLABEL 8
 
 #define CNDISTSQ  3.5
 #define CADISTSQ 16.0
@@ -95,11 +101,13 @@
 /* Prototypes
 */
 int  main(int argc, char **argv);
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  char *chains, BOOL *BumpChainOnHet);
+char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
+                   BOOL *BumpChainOnHet);
 void Usage(void);
-void DoChain(PDB *pdb, char *chains, BOOL BumpChainOnHet);
+void DoChain(PDB *pdb, char **chains, BOOL BumpChainOnHet);
+char *GetChainLabel(int ChainNum);
 
+char **blSplitStringOnCommas(char *string, int minItemLen);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -118,15 +126,16 @@ int main(int argc, char **argv)
             *out = stdout;
    char     infile[MAXBUFF],
             outfile[MAXBUFF],
-            chains[MAXCHAIN];
+            **chains;
    PDB      *pdb;
    WHOLEPDB *wpdb;
    BOOL     BumpChainOnHet = FALSE;  /* Flag to indicate ATOMs after 
                                         HETATMs should be start of a new
                                         residue                         */
 
-        
-   if(ParseCmdLine(argc, argv, infile, outfile, chains, &BumpChainOnHet))
+
+   if((chains = ParseCmdLine(argc, argv, infile, outfile,
+                             &BumpChainOnHet))!=NULL)
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
@@ -137,7 +146,7 @@ int main(int argc, char **argv)
          else
          {
             pdb = wpdb->pdb;
-            DoChain(pdb,chains,BumpChainOnHet);
+            DoChain(pdb, chains, BumpChainOnHet);
             blWriteWholePDB(out, wpdb);
          }
       }
@@ -158,33 +167,35 @@ int main(int argc, char **argv)
 
 
 /************************************************************************/
-/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                     char *chains, BOOL *BumpChainOnHet)
-   ---------------------------------------------------------------------
+/*>char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
+                       BOOL *BumpChainOnHet)
+   ----------------------------------------------------------------------
 *//**
 
    \param[in]      argc             Argument count
    \param[in]      **argv           Argument array
    \param[out]     *infile          Input filename (or blank string)
    \param[out]     *outfile         Output filename (or blank string)
-   \param[out]     *chains          Chain labels
    \param[out]     *BumpChainOnHet  Bump chain label on ATOMs after HETs
-   \return                          Success
+   \return                          Array of chain labels (if specified)
+                                    NULL on failure
 
    Parse the command line
 
 -  12.07.94 Original    By: ACRM
 -  16.10.95 Sets BumpChainOnHet
+-  10.03.15 Changed chains to strings. Now returns that array
 */
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  char *chains, BOOL *BumpChainOnHet)
+char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
+                   BOOL *BumpChainOnHet)
 {
+   char **chains = NULL;
+   
    argc--;
    argv++;
    
    *BumpChainOnHet = FALSE;
    infile[0] = outfile[0] = '\0';
-   chains[0] = '\0';
    
    while(argc)
    {
@@ -195,15 +206,20 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
          case 'c':
             argc--;
             argv++;
-            strncpy(chains,argv[0],MAXCHAIN);
-            chains[MAXCHAIN-1] = '\0';
-            UPPER(chains);
+
+            if((chains = blSplitStringOnCommas(argv[0], MAXCHAINLABEL))
+               ==NULL)
+            {
+               fprintf(stderr,"No memory for storing chain labels: %s\n",
+                       argv[0]);
+               exit(1);
+            }
             break;
          case 'b':
             *BumpChainOnHet = TRUE;
             break;
          default:
-            return(FALSE);
+            return(NULL);
             break;
          }
       }
@@ -211,7 +227,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
       {
          /* Check that there are only 1 or 2 arguments left             */
          if(argc > 2)
-            return(FALSE);
+            return(NULL);
          
          /* Copy the first to infile                                    */
          strcpy(infile, argv[0]);
@@ -221,13 +237,34 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
          argv++;
          if(argc)
             strcpy(outfile, argv[0]);
-         return(TRUE);
+         if(chains == NULL)
+         {
+            if((chains = blSplitStringOnCommas("", MAXCHAINLABEL))
+               ==NULL)
+            {
+               fprintf(stderr,"No memory for storing chain labels: %s\n",
+                       argv[0]);
+               exit(1);
+            }
+         }
+         
+         return(chains);
       }
       argc--;
       argv++;
    }
    
-   return(TRUE);
+   if(chains == NULL)
+   {
+      if((chains = blSplitStringOnCommas("", MAXCHAINLABEL))
+         ==NULL)
+      {
+         fprintf(stderr,"No memory for storing chain labels: %s\n",
+                 argv[0]);
+         exit(1);
+      }
+   }
+   return(chains);
 }
 
 
@@ -248,13 +285,14 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  22.07.14 V1.7 By: CTP
 -  06.11.14 V1.8 By: ACRM
 -  05.03.15 V1.10
+-  10.03.15 V2.0
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbchain V1.10 (c) 1994-2014 Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbchain V2.0 (c) 1994-2015 Dr. Andrew C.R. \
 Martin, UCL\n");
-   fprintf(stderr,"\nUsage: pdbchain [-c <chains>] [<infile> \
-[<outfile>]]\n");
+   fprintf(stderr,"\nUsage: pdbchain [-c chain[,chain[...]]] [in.pdb \
+[out.pdb]]\n");
    fprintf(stderr,"       -c Specify chain names to use\n");
    fprintf(stderr,"       -b If ATOM records follow HETATM records they \
 start a new chain\n");
@@ -272,12 +310,14 @@ files.\n");
 
 
 /************************************************************************/
-/*>void DoChain(PDB *pdb, char *chains, BOOL BumpChainOnHet)
+/*>void DoChain(PDB *pdb, char **chains, BOOL BumpChainOnHet)
    ---------------------------------------------------------
 *//**
 
    \param[in,out]  *pdb            PDB linked list
    \param[in]      *chains         Chain labels (or blank string)
+   \param[in]      BumpChainOnHet  Bump the chain label when a HETATM
+                                   is found
 
    Do the actual chain naming.
 
@@ -288,8 +328,9 @@ files.\n");
 -  16.10.95 Handles BumpChainOnHet
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  05.03.15 Replaced blFindEndPDB() with blFindNextResidue()
+-  10.03.15 Chains is now an array
 */
-void DoChain(PDB *pdb, char *chains, BOOL BumpChainOnHet)
+void DoChain(PDB *pdb, char **chains, BOOL BumpChainOnHet)
 {
    PDB  *p,
         *start,
@@ -300,14 +341,16 @@ void DoChain(PDB *pdb, char *chains, BOOL BumpChainOnHet)
         *CPrev     = NULL,
         *CAPrev    = NULL,
         *CA        = NULL;
-   int  ChainNum   = 0;
-   char chain,
-        *ch;
+   int  ChainNum   = 0,
+      ChainIndex = 0;
+   char chain[MAXCHAINLABEL];
    BOOL NewChain;
    
-   ch = chains;
 
-   chain = (*ch) ? *ch : 'A';
+   if(chains[ChainIndex][0])
+      strcpy(chain, chains[ChainIndex++]);
+   else
+      strcpy(chain, "A");
    
    for(start=pdb; start!=NULL; start=end)
    {
@@ -347,17 +390,17 @@ void DoChain(PDB *pdb, char *chains, BOOL BumpChainOnHet)
          /* Build string specifying faulty residues                     */
          if((CPrev == NULL || CAPrev == NULL) &&
             (N     == NULL || CA     == NULL))
-            sprintf(buffer,"residues %c%d%c and %c%d%c",
-                    LastStart->chain[0],LastStart->resnum,
+            sprintf(buffer,"residues %s.%d%c and %s.%d%c",
+                    LastStart->chain,LastStart->resnum,
                     LastStart->insert[0],
-                    start->chain[0],start->resnum,start->insert[0]);
+                    start->chain,start->resnum,start->insert[0]);
          else if(CPrev == NULL || CAPrev == NULL)
-            sprintf(buffer,"residue %c%d%c",
-                    LastStart->chain[0],LastStart->resnum,
+            sprintf(buffer,"residue %s.%d%c",
+                    LastStart->chain,LastStart->resnum,
                     LastStart->insert[0]);
          else
-            sprintf(buffer,"residue %c%d%c",
-                    start->chain[0],start->resnum,start->insert[0]);
+            sprintf(buffer,"residue %s.%d%c",
+                    start->chain,start->resnum,start->insert[0]);
 
          /* Build string specifying faulty atoms                        */
          atoms[0] = '\0';
@@ -385,24 +428,20 @@ void DoChain(PDB *pdb, char *chains, BOOL BumpChainOnHet)
       if(NewChain)
       {
          ChainNum++;
-         if(*ch) ch++;
          
-         if(*ch)
+         if(chains[ChainIndex][0])
          {
-            chain = *ch;
+            strcpy(chain,chains[ChainIndex++]);
          }
          else
          {
-            chain = (char)(65 + (ChainNum%26));
+            strcpy(chain, GetChainLabel(ChainNum));
          }
       }
 
       /* Copy the name into this residue                                */
       for(p=start; p!=end; NEXT(p))
-      {
-         p->chain[0] = chain;
-         p->chain[1] = '\0';
-      }
+         strcpy(p->chain, chain);
       
       /* Set pointers for next residue                                  */
       CAPrev    = CA;
@@ -410,3 +449,47 @@ void DoChain(PDB *pdb, char *chains, BOOL BumpChainOnHet)
       LastStart = start;
    }
 }
+
+
+/************************************************************************/
+/*>char *GetChainLabel(int ChainNum)
+   ---------------------------------
+*//**
+   \param[in]  ChainNum    Chain number
+   \return                 Chain label 
+
+   Converts a chain number (>=0) into a chain label. Chain labels run
+   from A-Z, a-z, 1-9, 0, and then 63 onwards as multi-character strings
+
+-  10.03.15 Original   By: ACRM
+*/
+char *GetChainLabel(int ChainNum)
+{
+   static char chain[MAXCHAINLABEL];
+   
+   if(ChainNum < 26)
+   {
+      chain[0] = (char)(65 + ChainNum);
+      chain[1] = '\0';
+   }
+   else if(ChainNum < 52)
+   {
+      chain[0] = (char)(97 + (ChainNum-26));
+      chain[1] = '\0';
+   }
+   else if(ChainNum < 61)
+   {
+      sprintf(chain,"%d", ChainNum-51);
+   }
+   else if(ChainNum == 61)
+   {
+      strcpy(chain,"0");
+   }
+   else
+   {
+      sprintf(chain,"%d", ChainNum);
+   }
+   
+   return(chain);
+}
+
