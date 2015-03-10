@@ -310,14 +310,10 @@ C.R. Martin\n");
    fprintf(stderr,"\nUsage: pdbgetresidues resfile [in.pdb [out.pdb]]\n");
 
    fprintf(stderr,"\nresfile is a file listing residue specifications in \
-the format \n");
-   fprintf(stderr,"[c[.]]nnn[i]\n");
-   fprintf(stderr,"where [c] is an optional chain specification which \
-may be followed by a \n");
-   fprintf(stderr,"full stop (required if the chain label is a number), \
-nnn is a residue \n");
-   fprintf(stderr,"number and [i] is an optional insert code.\n");
-   fprintf(stderr,"Input is from stdin and output is to stdout if no \
+the resspec format:\n\n");
+   blPrintResSpecHelp(stderr);
+
+   fprintf(stderr,"\nInput is from stdin and output is to stdout if no \
 files are specified. \n");
 
    fprintf(stderr,"\nTakes a list of residue specifications and extracts \

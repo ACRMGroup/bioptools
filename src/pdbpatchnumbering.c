@@ -353,15 +353,12 @@ specified.\n");
 
    fprintf(stderr,"\npdbpatchnumbering patches the numbering of a PDB \
 file from a patch file\n");
-   fprintf(stderr,"containing residue numbers in the form [c[.]]num[i] \
-(where c is an optional\n");
-   fprintf(stderr,"chain name, num is the residue number and i is an \
-optional insert code)\n");
-   fprintf(stderr,"followed by a 1-letter amino acid name. The numbering \
-of the PDB file\n");
-   fprintf(stderr,"is modified to match that in the patch file and the \
-PDB file is \n");
-   fprintf(stderr,"terminated after all specified residues.\n\n");
+   fprintf(stderr,"containing resspec residue specifiers:\n");
+   blPrintResSpecHelp(stderr);
+   fprintf(stderr,"\nThe numbering of the PDB file is modified to match \
+that in the patch\n");
+   fprintf(stderr,"file and the PDB file is terminated after all \
+specified residues.\n\n");
    fprintf(stderr,"The patch file must contain all the residues present \
 in the PDB file and\n");
    fprintf(stderr,"typically comes from a program such as abnum or \

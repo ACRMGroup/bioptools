@@ -3,11 +3,11 @@
 
    \file       pdb2pir.c
    
-   \version    V2.12
-   \date       25.11.14
+   \version    V2.13
+   \date       10.03.15
    \brief      Convert PDB to PIR sequence file
    
-   \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure and Modelling,
@@ -72,6 +72,7 @@
                   By: CTP
 -  V2.11 07.11.14 Initialized a variable  By: ACRM
 -  V2.12 25.11.14 Initialized a variable  By: ACRM
+-  V2.13 10.03.15 Improved multi-character chain support
 
 *************************************************************************/
 /* Includes
@@ -299,7 +300,12 @@ int main(int argc, char **argv)
    }
 
    /* Extract sequence from PDB linked list                             */
-   GetPDBChains(pdb, atomchains);
+   if(GetPDBChains(pdb, atomchains) < 0)
+   {
+      fprintf(stderr,"Error: Too many chains in PDB file - increase \
+MAXCHAINS (currently %d)\n", MAXCHAINS);
+      return(1);
+   }
 
    /* Convert PDB linked list to a sequence                             */
    if(SkipX)
@@ -400,10 +406,11 @@ int main(int argc, char **argv)
 -  22.07.14 V2.9 By: CTP
 -  07.11.14 V2.11 By: ACRM
 -  25.11.14 V2.12
+-  10.03.15 V2.13
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdb2pir V2.12 (c) 1994-2014 Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"\npdb2pir V2.13 (c) 1994-2015 Dr. Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"\nUsage: pdb2pir [-h] [-l label] [-t title] [-s] [-c] \
 [-u] [-p] [-q] [-x] [-f] [-n] [-i] [infile [outfile]]\n");
@@ -440,23 +447,20 @@ correct, but any\n");
    fprintf(stderr,"additional residues from the SEQRES records will be \
 added in lower case\n");
    fprintf(stderr,"(or upper case if the -u flag is given). If -i is \
-also added then SEQRES sequences\n");
-   fprintf(stderr,"with no matching chain in the ATOM records are \
-skipped.\n");
+also added then SEQRES\n");
+   fprintf(stderr,"sequences with no matching chain in the ATOM records \
+are skipped.\n");
 
    fprintf(stderr,"\nThe -n option causes the sequence to be output \
 again in records of the\n");
    fprintf(stderr,"form:\n");
-   fprintf(stderr,"># pos resnum aa\n");
-   fprintf(stderr,"where pos is the position in the sequence (starting \
-from 1), resnum\n");
-   fprintf(stderr,"is the residue number in the PDB file in the form \
-[c]nnn[i] (where\n");
-   fprintf(stderr,"c is an optional chain label, nnn is the residue \
-number and i is \n");
-   fprintf(stderr,"an optional insert code) and aa is the 1-letter \
-amino acid code.\n");
-   fprintf(stderr,"Note that when used with -s, only the amino acids \
+   fprintf(stderr,"># pos resspec aa\n");
+   fprintf(stderr,"\nwhere:\n");
+   fprintf(stderr,"pos is the position in the sequence (starting \
+from 1)\n");
+   blPrintResSpecHelp(stderr);
+   fprintf(stderr,"aa is the 1-letter amino acid code.\n");
+   fprintf(stderr,"\nNote that when used with -s, only the amino acids \
 specified in the\n");
    fprintf(stderr,"ATOM coordinate records will be listed in this \
 way.\n");
@@ -581,19 +585,25 @@ char *ReadSEQRES(WHOLEPDB *wpdb, char *chains, MODRES *modres)
    Extracts a list of chains from a PDB linked list
 
 -  22.08.97 Original   By: ACRM
+-  10.03.15 Checks number of chains
 */
 int GetPDBChains(PDB *pdb, char *chains)
 {
    PDB  *p;
-   char lastchain = '\0';
+   char lastchain[8];
    int  nchain = 0;
+   
+   lastchain[0] = '\0';
    
    for(p=pdb; p!=NULL; NEXT(p))
    {
-      if(p->chain[0] != lastchain)
+      if(!CHAINMATCH(p->chain, lastchain))
       {
+         if(nchain >= MAXCHAINS)
+            return(-1);
+         
          chains[nchain++] = p->chain[0];
-         lastchain = p->chain[0];
+         strcpy(lastchain, p->chain);
       }
    }
 
@@ -1085,38 +1095,40 @@ void WritePIR(FILE *out, char *label, char *title, char *sequence,
    \param[in]      *modres    MODRES linked list
 
    Simply works through the PDB linked list printing lines of the form
-   ># pos cnnni aa
+   ># pos c.nnni aa
    where pos is the position in the sequence (all chains numbered through
-   sequentially), cnnni is the chain/resnum/insert code and aa is the
+   sequentially), c.nnni is the chain/resnum/insert code and aa is the
    1-letter amino acid code.
 
 -  08.03.01 Original   By: ACRM
 -  07.03.07 Added modres stuff
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  10.03.15 Updated for multicharacter and numeric chain labels By: ACRM
 */
 void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres)
 {
    PDB  *p;
    int  pos = 0;
    int  lastresnum = -999999;
-   char lastchain  = ' ',
+   char lastchain[8],
         lastinsert = ' ',
         resid[16],
         one;
    
+   lastchain[0] = '\0';
    
    for(p=pdb; p!=NULL; NEXT(p))
    {
       if((p->resnum    != lastresnum) ||
          (p->insert[0] != lastinsert) ||
-         (p->chain[0]  != lastchain))
+         !CHAINMATCH(p->chain, lastchain))
       {
          pos++;
          lastresnum = p->resnum;
-         lastchain  = p->chain[0];
+         strcpy(lastchain, p->chain);
          lastinsert = p->insert[0];
          
-         sprintf(resid,"%c%d%c", p->chain[0], p->resnum, p->insert[0]);
+         sprintf(resid,"%s.%d%c", p->chain, p->resnum, p->insert[0]);
          one = blThrone(p->resnam);
 
          /* 07.03.07 Added code to check for modified amino acids    */

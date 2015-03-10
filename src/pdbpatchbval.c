@@ -427,17 +427,12 @@ column\n");
    fprintf(stderr,"       -v  Verbose: report failed patches\n");
 
    fprintf(stderr,"\npdbpatchbval takes a patch file containing \
-residue specifications and\n");
-   fprintf(stderr,"values one to a line and patches the B-value (or \
-occupancy) for that\n");
-   fprintf(stderr,"residue with the specified values. The residue \
-specification is of the\n");
-   fprintf(stderr,"form [c[.]]nnn[i], where [c] is an optional chain \
-identifier, nnn is a\n");
-   fprintf(stderr,"residue number and [i] is an optional insertion \
-code.\n\n");
-   fprintf(stderr,"Note that the residue specification is case \
-sensitive.\n\n");
+resspec residue specifications\n");
+   fprintf(stderr,"and values one to a line and patches the B-value (or \
+occupancy) for\n");
+   fprintf(stderr,"that residue with the specified values.\n");
+   blPrintResSpecHelp(stderr);
+   fprintf(stderr,"\n");
 }
 
 

@@ -370,7 +370,7 @@ void Usage(void)
    fprintf(stderr,"PDBsphere V1.9 (c) 2011-2014 UCL, Anja Baresic, \
 Andrew Martin.\n");
    fprintf(stderr,"\nUsage: \
-pdbsphere [-s] [-c] [-r radius] [-h] [-H] resID\n                 \
+pdbsphere [-s] [-c] [-r radius] [-h] [-H] resspec\n                 \
 [in.pdb [out.pdb/out.txt]]\n");
    fprintf(stderr,"-or-   \
 pdbsphere -a [-r radius] [in.pdb [out.txt]]\n");
@@ -391,12 +391,7 @@ one atom within \n");
 a summary format\n");
    fprintf(stderr,"listing the residues in range instead of providing \
 PDB output.\n");
-
-   fprintf(stderr,"\nResID is in form [c[.]]num[i]where [c] is an \
-optional chain specification\n");
-   fprintf(stderr,"with an optional '.' for numeric chain IDs, num is \
-the residue number and\n");
-   fprintf(stderr,"[i] is an optional insertion code.\n");
+   blPrintResSpecHelp(stderr);
    fprintf(stderr,"I/O is through standard input/output if files not \
 specified.\n\n");   
    

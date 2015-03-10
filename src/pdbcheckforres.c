@@ -3,11 +3,11 @@
 
    \file       pdbcheckforres.c
    
-   \version    V1.4
-   \date       06.11.14
+   \version    V1.5
+   \date       10.03.15
    \brief      Checks whether a specified residue exists in a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 2011-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 2011-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -54,6 +54,8 @@
 -  V1.3   22.07.14  Renamed deprecated functions with bl prefix.
                     Added doxygen annotation. By: CTP
 -  V1.4   06.11.14  Renamed from checkforres
+-  V1.5   10.03.15  Removed -l option as we no longer support upcasing
+                    chain labels
 
 *************************************************************************/
 /* Includes
@@ -76,8 +78,7 @@
 */
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *resid,
-                  char *infile, char *outfile, BOOL *uppercaseresspec,
-                  BOOL *readHet);
+                  char *infile, char *outfile, BOOL *readHet);
 void Usage(void);
 
 
@@ -105,12 +106,10 @@ int main(int argc, char **argv)
    int  res,
         natom;
    PDB  *pdb;
-   BOOL uppercaseresspec, 
-        readHet;
+   BOOL readHet;
    
 
-   if(ParseCmdLine(argc, argv, resid, InFile, OutFile, 
-                   &uppercaseresspec, &readHet))
+   if(ParseCmdLine(argc, argv, resid, InFile, OutFile, &readHet))
    {
       if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
@@ -127,20 +126,13 @@ int main(int argc, char **argv)
          
          if(pdb==NULL)
          {
-            fprintf(stderr,"pdbcheckforres: No atoms read from PDB file\n");
+            fprintf(stderr,"pdbcheckforres: No atoms read from PDB \
+file\n");
             return(1);
          }
          
-         if (uppercaseresspec == TRUE) 
-         {
-            ParseResSpecResult = blParseResSpec(resid, chain, 
-                                                &res, insert);
-         }
-         else 
-         {
-            ParseResSpecResult = blParseResSpecNoUpper(resid, chain, 
-                                                       &res, insert);
-         }
+         ParseResSpecResult = blParseResSpec(resid, chain, &res, insert);
+
          if(!ParseResSpecResult)
          {
             fprintf(stderr,"pdbcheckforres: Illegal residue \
@@ -167,7 +159,7 @@ specification (%s)\n", resid);
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *resid,
-                     char *infile, char *outfile, BOOL *uppercaseresspec)
+                     char *infile, char *outfile, BOOL *readHet)
    ----------------------------------------------------------------------
 *//**
 
@@ -176,8 +168,6 @@ specification (%s)\n", resid);
    \param[out]     *resid       Residue specifier
    \param[out]     *infile      Input file (or blank string)
    \param[out]     *outfile     Output file (or blank string)
-   \param[out]     *uppercaseresspec  Should residue spec be upcased?
-                                (Default: yes)
    \param[out]     *readHet     Should we read hetatoms (Default: no)
    \param[out]     Success?
 
@@ -185,17 +175,16 @@ specification (%s)\n", resid);
    
 -  12.01.11 Original    By: ACRM
 -  07.03.12 Added -H and *readHet
+-  10.03.15 Removed -l support
 */
 BOOL ParseCmdLine(int argc, char **argv, char *resid,
-                  char *infile, char *outfile, BOOL *uppercaseresspec,
-                  BOOL *readHet)
+                  char *infile, char *outfile, BOOL *readHet)
 {
    argc--;
    argv++;
 
    infile[0] = outfile[0] = '\0';
    resid[0]               = '\0';
-   *uppercaseresspec = TRUE;
    *readHet          = FALSE;
 
    if(!argc)               /* 05.11.07 Added this                       */
@@ -213,7 +202,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *resid,
             return(FALSE);
             break;
          case 'l':
-            *uppercaseresspec = FALSE;
+            fprintf(stderr, "-l option is now deprecated\n");
             break;
          case 'H':
             *readHet = TRUE;
@@ -269,26 +258,21 @@ BOOL ParseCmdLine(int argc, char **argv, char *resid,
 
 -  22.07.14 V1.3 By: CTP
 -  06.11.14 V1.4 By: ACRM
+-  10.03.15 V1.5
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbcheckforres V1.4 (c) 2011-2014, UCL, Dr. \
+   fprintf(stderr,"\npdbcheckforres V1.5 (c) 2011-2015, UCL, Dr. \
 Andrew C.R. Martin\n");
-   fprintf(stderr,"Usage: pdbcheckforres [-l][-H] resid [in.pdb \
+   fprintf(stderr,"Usage: pdbcheckforres [-H] resspec [in.pdb \
 [out.txt]]\n");
-   fprintf(stderr,"       -l  Do not uppercase residue \
-specifications.\n");
-   fprintf(stderr,"           Default behaviour is to uppercase \
-specifications.\n");
    fprintf(stderr,"       -H  Read HETATM records = i.e. allow residues \
 that are HETATMs only\n");
 
    fprintf(stderr,"\nChecks whether a specified residue exists in a PDB \
-file. The resid is in\n");
-   fprintf(stderr,"the form [c]nnn[i] where [c] is an optional chain \
-name, nnn is a residue\n");
-   fprintf(stderr,"number and [i] is an optional insert code. By default \
-the chain label is\n");
-   fprintf(stderr,"up-cased unless the -l flag is used.\n\n");
+file.\n\n");
+   blPrintResSpecHelp(stderr);
+   fprintf(stderr,"\nThe -l option is deprecated from V1.5 - chain \
+labels are never upcased\n\n");
 
 }

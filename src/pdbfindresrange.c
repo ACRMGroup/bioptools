@@ -309,19 +309,16 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 */
 void Usage(void)
 {
-   printf("\npdbfindresrange V1.4 (c) 2010-2014 UCL, Andrew C.R. \
-Martin\n");
-   printf("\nUsage: pdbfindresrange keyres width [input.pdb \
+   fprintf(stderr,"\npdbfindresrange V1.4 (c) 2010-2014 UCL, Andrew \
+C.R. Martin\n");
+   fprintf(stderr,"\nUsage: pdbfindresrange resspec width [input.pdb \
 [output.txt]]\n");
-   printf("\nTakes a PDB file as input and given:\n");
-   printf("1. a key residue (keyres) specified in the format \
-[chain]resnum[insert]\n");
-   printf("(where chain and insert are optional and chain may be \
-followed by a '.'\n");
-   printf("if it is numeric)\n");
-   printf("2. a number of residues (width)\n");
-   printf("will return the residue identifiers for the residues width \
-before and\n");
-   printf("width after the key residue.\n\n");
+   fprintf(stderr,"\nTakes a PDB file as input and:\n");
+   fprintf(stderr,"1. a key residue (resspec)\n");
+   blPrintResSpecHelp(stderr);
+   fprintf(stderr,"2. a number of residues (width)\n");
+   fprintf(stderr,"\nReturns the residue identifiers for the \
+residues width before and\n");
+   fprintf(stderr,"width after the key residue.\n\n");
 }
 

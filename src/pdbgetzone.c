@@ -283,12 +283,9 @@ UCL, 2005\n");
    fprintf(stderr,"       -l  Redundant - kept for backwards \
 compatibility\n");
    fprintf(stderr,"\n");
-   fprintf(stderr,"Start and end are residue specifications in the \
-form [c]nnn[i]\n");
-   fprintf(stderr,"where [c] is an optional chain specification, nnn is \
-a residue number\n");
-   fprintf(stderr,"and [i] is an optional insertion code.\n");
-
+   fprintf(stderr,"Start and end are resspec residue \
+specifications:\n");
+   blPrintResSpecHelp(stderr);
    fprintf(stderr,"\npdbgetzone extracts a specified zone from a PDB \
 file writing it out in\n");
    fprintf(stderr,"PDB format. I/O is through standard input/output if \
