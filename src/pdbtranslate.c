@@ -148,8 +148,8 @@ void Usage(void)
    fprintf(stderr,"\npdbtranslate V1.3  (c) 1995-2015 Andrew C.R. \
 Martin\n");
    fprintf(stderr,"Freely distributable if no profit is made\n\n");
-   fprintf(stderr,"Usage: pdbtranslate [-x <x>] [-y <y>] [-z <z>] [-h]\n");
-   fprintf(stderr,"              [<input.pdb> [<output.pdb>]]\n");
+   fprintf(stderr,"Usage: pdbtranslate [-x x] [-y y] [-z z] [-h]\n");
+   fprintf(stderr,"              [input.pdb [output.pdb]]\n");
    fprintf(stderr,"I/O is to stdin/stdout if not specified\n\n");
    fprintf(stderr,"Translates a PDB file\n\n");
 }

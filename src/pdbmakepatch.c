@@ -244,8 +244,9 @@ void Usage(void)
 Baresic, UCL 2009-2014\n");
 
    fprintf(stderr,"\nUsage: pdbmakepatch [-r radius] [-t tolerance] [-c] \
-[-m minaccess] resspec atomname \n");
-   fprintf(stderr,"                 [in.pdb [out.pdb]]\n");
+[-m minaccess]\n");
+   fprintf(stderr,"                    resspec atomname [in.pdb \
+[out.pdb]]\n");
    fprintf(stderr,"       -r  Specify radius for considering atoms \
 [%.2f]\n", (REAL)DEF_RADIUS);
    fprintf(stderr,"       -t  Specify tolerance on atom radii to \
@@ -256,7 +257,7 @@ consider them as \n");
 patch\n");
    fprintf(stderr,"       -c  Ring of contacting residues immediately \
 around the central one only\n");
-   fprintf(stderr, "       -m  Specify minimum accessibility to consider a \
+   fprintf(stderr,"       -m  Specify minimum accessibility to consider a \
 residue to be on the surface\n");
 
    fprintf(stderr,"\npdbmakepatch takes a PDB file where the B-values have \
@@ -274,6 +275,8 @@ radius that are \n");
    fprintf(stderr,"contacting that central atom and in turn contacting \
 atoms already in\n");
    fprintf(stderr,"the patch.\n\n");
+   blPrintResSpecHelp(stderr);
+   fprintf(stderr,"\n");
 }
 
 /************************************************************************/

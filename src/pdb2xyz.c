@@ -202,7 +202,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDB2XYZ V1.1 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\npdb2xyz V1.1 (c) 1994-2014, Andrew C.R. Martin, UCL\n");
    fprintf(stderr,"Usage: pdb2xyz [-t title] [<in.pdb>] [<out.pdb>]\n\n");
    fprintf(stderr,"Convert PDB format to GROMOS XYZ. N.B. Does NOT \
 correct atom order.\n\n");

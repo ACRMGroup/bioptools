@@ -342,11 +342,11 @@ Martin, UCL\n");
    fprintf(stderr,"Freely distributable if no profit is made\n\n");
    fprintf(stderr,"Usage: pdbrotate [-m 11 12 13 21 22 23 31 32 33] \
 [-h]\n");
-   fprintf(stderr,"              [-n] [<input.pdb> [<output.pdb>]]\n");
+   fprintf(stderr,"              [-n] [input.pdb [output.pdb]]\n");
    fprintf(stderr,"       --or--\n");
-   fprintf(stderr,"       pdbrotate [-x <ang>] [-y <ang>] [-z <ang>] \
+   fprintf(stderr,"       pdbrotate [-x ang] [-y ang] [-z ang] \
 [-h]\n");
-   fprintf(stderr,"              [<input.pdb> [<output.pdb>]]\n\n");
+   fprintf(stderr,"              [input.pdb [output.pdb]]\n\n");
    fprintf(stderr,"       -m           Specify rotation matrix\n");
    fprintf(stderr,"       -n           Do not move to CofG before \
 applying\

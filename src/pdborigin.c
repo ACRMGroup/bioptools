@@ -195,9 +195,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBOrigin V1.2 (c) 1999-2015, UCL, Andrew C.R. \
+   fprintf(stderr,"\npdborigin V1.2 (c) 1999-2015, UCL, Andrew C.R. \
 Martin\n\n");
-   fprintf(stderr,"Usage: pdborigin [<in.pdb> [<out.pdb>]]\n");
+   fprintf(stderr,"Usage: pdborigin [in.pdb [out.pdb]]\n");
    fprintf(stderr,"\nMoves a set of PDB coordinates such that the \
 centre of geometry\n");
    fprintf(stderr,"is at the origin.\n\n");

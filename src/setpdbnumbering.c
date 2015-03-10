@@ -182,11 +182,11 @@ void Usage(void)
    fprintf(stderr,"\nsetpdbnumbering V1.4 (c) 1996-2015 Dr. Andrew C.R. \
 Martin, UCL\n");
 
-   fprintf(stderr,"\nUsage: setpdbnumbering <alnfile>\n");
+   fprintf(stderr,"\nUsage: setpdbnumbering alnfile\n");
 
    fprintf(stderr,"\nApplies a standard numbering scheme to a set of PDB \
 files. The input \n");
-   fprintf(stderr,"<alnfile> is an alignment file in PIR format where \
+   fprintf(stderr,"'alnfile' is an alignment file in PIR format where \
 the comment line for \n");
    fprintf(stderr,"each sequence entry contains the name of the input \
 PDB file. The first\n");

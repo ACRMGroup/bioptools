@@ -361,7 +361,7 @@ void Usage(void)
 Martin, UCL\n");
    fprintf(stderr,"Usage: pdbrenum [-f][-s][-k][-c <chains>][-n][-d]\
 [-r <num>,<num>...][-a <num> ]\n                \
-[<infile>] [<outfile>]\n");
+[in.pdb [out.pdb]]\n");
    fprintf(stderr,"       -f Force printing of header or footer even \
 if numbering has changed\n");
    fprintf(stderr,"       -s Renumber sequentially throughout \

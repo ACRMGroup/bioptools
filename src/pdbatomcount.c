@@ -521,14 +521,14 @@ void Usage(void)
 Martin, UCL\n");
    fprintf(stderr,"Usage: pdbatomcount [-r <rad>] [-d|-b|-c|-n] [-w] \
 [<in.pdb> [<out.pdb>]]\n");
-   fprintf(stderr,"                 -r Specify radius (Default: %.2f or \
+   fprintf(stderr,"       -r Specify radius (Default: %.2f or \
 %.2f with -c/-n)\n", DEFRAD, DEFCRAD);
-   fprintf(stderr,"                 -d Ignore atoms in current \
+   fprintf(stderr,"       -d Ignore atoms in current \
 residue\n");
-   fprintf(stderr,"                 -b Ignore bonded atoms (<2.0A)\n");
-   fprintf(stderr,"                 -c Count residue contacts\n");
-   fprintf(stderr,"                 -n Normalized residue contacts\n");
-   fprintf(stderr,"                 -w Keep waters\n\n");
+   fprintf(stderr,"       -b Ignore bonded atoms (<2.0A)\n");
+   fprintf(stderr,"       -c Count residue contacts\n");
+   fprintf(stderr,"       -n Normalized residue contacts\n");
+   fprintf(stderr,"       -w Keep waters\n\n");
 
    fprintf(stderr,"Counts the number of atoms within the specified \
 radius of each atom in\n");

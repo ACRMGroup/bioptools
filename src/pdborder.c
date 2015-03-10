@@ -265,10 +265,10 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBOrder V1.6 (c) 1994-2015, Andrew C.R. Martin, \
+   fprintf(stderr,"\npdborder V1.6 (c) 1994-2015, Andrew C.R. Martin, \
 UCL\n\n");
-   fprintf(stderr,"Usage: pdborder [-c] [-i] [-g] [<in.pdb> \
-[<out.pdb>]]\n");
+   fprintf(stderr,"Usage: pdborder [-c] [-i] [-g] [in.pdb \
+[out.pdb]]\n");
    fprintf(stderr,"       -c = N CA s/c C O order\n");
    fprintf(stderr,"       -i = ILE has CD instead of CD1\n");
    fprintf(stderr,"       -g = -c -i (i.e. for Gromos)\n");

@@ -755,7 +755,7 @@ void Usage(void)
    fprintf(stderr,"\npdbtorsions V2.1 (c) 1994-2015 Andrew Martin, \
 UCL.\n");
    fprintf(stderr,"\nUsage: pdbtorsions [-h][-r][-c][-t][-o][-n] \
-[<in.pdb> [<out.tor>]]\n");
+[in.pdb [out.tor]]\n");
    fprintf(stderr,"       -h   This help message\n");
    fprintf(stderr,"       -r   Give results in radians\n");
    fprintf(stderr,"       -c   Generate CA-CA pseudo-torsions\n");

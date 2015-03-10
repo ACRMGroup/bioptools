@@ -225,7 +225,7 @@ void Usage(void)
 {
    fprintf(stderr,"\nnaccess2bval V1.9 (c) 1994-2014, Andrew C.R. Martin, \
 UCL\n");
-   fprintf(stderr,"Usage: naccess2bval [<in.pdb>] [<out.pdb>]\n");
+   fprintf(stderr,"Usage: naccess2bval [in.pdb [out.pdb]]\n");
    fprintf(stderr,"Rewrites the output from naccess solvent accessibility \
 as a standard PDB\n");
    fprintf(stderr,"format file with accessibility in the B-val column \
