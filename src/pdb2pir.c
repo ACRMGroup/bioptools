@@ -331,7 +331,7 @@ MAXCHAINS (currently %d)\n", MAXCHAINS);
    {
       if(gDoNucleic)
       {
-         if((sequence = PDB2SeqX(pdb))==NULL)
+         if((sequence = blPDB2SeqX(pdb))==NULL)
          {
             fprintf(stderr,"Error: No memory for sequence data\n");
             return(1);
@@ -339,7 +339,7 @@ MAXCHAINS (currently %d)\n", MAXCHAINS);
       }
       else
       {
-         if((sequence = PDBProt2SeqX(pdb))==NULL)
+         if((sequence = blPDBProt2SeqX(pdb))==NULL)
          {
             fprintf(stderr,"Error: No memory for sequence data\n");
             return(1);
@@ -347,8 +347,8 @@ MAXCHAINS (currently %d)\n", MAXCHAINS);
       }
    }
       
-   /* Append a * since PDB2Seq() doesn't do this; note that this will
-      have to change if we fix PDB2Seq() in future
+   /* Append a * since blPDB2Seq() doesn't do this; note that this 
+      will have to change if we fix blPDB2Seq() in future
    */
    len1 = strlen(sequence);
    if((sequence=(char *)realloc((void *)sequence,
