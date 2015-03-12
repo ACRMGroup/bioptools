@@ -58,7 +58,8 @@
 -  V1.5  06.11.14 Renamed from patchpdbnum By: ACRM
 -  V1.6  07.11.14 Initialized a variable
 -  V1.7  13.02.15 Added whole PDB support
--  V1.8  12.03.15 Changed to allow multi-character chain names
+-  V1.8  12.03.15 Changed to allow multi-character chain names and
+                  three-letter code in patch file
 
 *************************************************************************/
 /* Includes
@@ -259,7 +260,8 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             Also fixed for newer GetWord() which needs buffer size
 -  28.08.13 Modified for new ParseResSpec()
 -  07.11.14 Initialized p
--  12.03.15 Changed to allow multi-character chain names
+-  12.03.15 Changed to allow multi-character chain names and
+            to allow three-letter code
 */
 PATCH *ReadPatchFile(FILE *fp)
 {
@@ -318,7 +320,14 @@ PATCH *ReadPatchFile(FILE *fp)
                   strncpy(p->chain, chain, 8);
                   p->resnum = resnum;
                   strncpy(p->insert, insert, 8);
-                  p->aacode = aacode[0];
+                  if(strlen(aacode) > 1)
+                  {
+                     p->aacode = blThrone(aacode);
+                  }
+                  else
+                  {
+                     p->aacode = aacode[0];
+                  }
                }
             }
          }
@@ -357,7 +366,9 @@ specified.\n");
    fprintf(stderr,"\npdbpatchnumbering patches the numbering of a PDB \
 file from a patch file\n");
    fprintf(stderr,"containing resspec residue specifiers:\n");
+
    blPrintResSpecHelp(stderr);
+
    fprintf(stderr,"\nThe numbering of the PDB file is modified to match \
 that in the patch\n");
    fprintf(stderr,"file and the PDB file is terminated after all \
@@ -367,6 +378,10 @@ in the PDB file and\n");
    fprintf(stderr,"typically comes from a program such as abnum or \
 abynum which applies\n");
    fprintf(stderr,"standard numbering to a sequence.\n\n");
+   fprintf(stderr,"The patch file consists of records of the form:\n");
+   fprintf(stderr,"L1 ALA          L1 A\n");
+   fprintf(stderr,"L2 CYS   -or-   L2 C\n");
+   fprintf(stderr,"L3 ASP          L3 D\n\n");
 }
 
 
@@ -473,8 +488,8 @@ for patches\n",pdbchain);
             {
                fprintf(stderr,"Residue mismatch between patch file and \
 PDB file.\n");
-               fprintf(stderr,"Patch file expects residue %c. PDB record \
-is:\n",a->aacode);
+               fprintf(stderr,"Patch file expects amino acid %c. PDB \
+record is:\n",a->aacode);
                blWritePDBRecord(stderr,p);
                return(FALSE);
             }
