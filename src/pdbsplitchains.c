@@ -3,11 +3,11 @@
 
    \file       pdbsplitchains.c
    
-   \version    V1.3
-   \date       06.11.14
+   \version    V1.4
+   \date       12.03.15
    \brief      Split a PDB file into separate chains
    
-   \copyright  (c) UCL / Dr. Andrew C. R. Martin 1997-2014
+   \copyright  (c) UCL / Dr. Andrew C. R. Martin 1997-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -51,6 +51,7 @@
 -  V1.2    22.07.14  Renamed deprecated functions with bl prefix.
                      Added doxygen annotation. By: CTP
 -  V1.3    06.11.14  Renamed from splitchains By: ACRM
+-  V1.4    12.03.15  Checks blank chain as string
 
 *************************************************************************/
 /* Includes
@@ -299,10 +300,11 @@ filename\n");
 -  10.07.97 Original
 -  16.01.14 V1.1
 -  22.07.14 V1.2 By: CTP
+-  12.03.15 V1.4
 */
 void Usage(void)
 {
-   fprintf(stderr,"pdbsplitchains V1.3 (c) 1997-2014 \
+   fprintf(stderr,"pdbsplitchains V1.4 (c) 1997-2015 \
 Dr. Andrew C.R. Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: pdbsplitchains [-c][-q] [in.pdb]\n");
@@ -358,6 +360,7 @@ placed in the\n");
 
 -  10.07.97 Original
 -  16.01.14 Uses mystrncat() and chain is handled as a string
+-  12.03.15 Checks blank chain as string
 */
 BOOL BuildFileName(char *OutFile, int maxOutFileName, char *InFile, 
                    char *chain, BOOL current)
@@ -368,7 +371,7 @@ BOOL BuildFileName(char *OutFile, int maxOutFileName, char *InFile,
         *stem,
         *path;
 
-   if(chain[0] == ' ')
+   if(CHAINMATCH(chain, " "))
       strcpy(chain, "0");
 
    if(InFile[0])

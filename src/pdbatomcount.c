@@ -3,8 +3,8 @@
 
    \file       pdbatomcount.c
    
-   \version    V1.7
-   \date       12.02.15
+   \version    V1.8
+   \date       12.03.15
    \brief      Count atoms neighbouring each atom in a PDB file
                Results output in B-val column
    
@@ -57,6 +57,8 @@
                   By: CTP
 -  V1.6  06.11.14 Renamed from atomcount
 -  V1.7  12.02.15 Uses WholePDB
+-  V1.8  12.03.15 Changed to use CHAINMATCH()
+
 
 *************************************************************************/
 /* Includes
@@ -280,6 +282,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
 -  05.07.94 Original    By: ACRM
 -  29.04.08 Added TYP_CONTACT / TYP_NORMCONTACT
+-  12.03.15 Changed to use CHAINMATCH()
 */
 void CountNeighbours(PDB *pdb, REAL RadSq, int CountType)
 {
@@ -307,7 +310,7 @@ void CountNeighbours(PDB *pdb, REAL RadSq, int CountType)
             case TYP_DIFFRES:
                if(p->resnum    == q->resnum    &&
                   p->insert[0] == q->insert[0] &&
-                  p->chain[0]  == q->chain[0])
+                  CHAINMATCH(p->chain, q->chain))
                   continue;
                break;
             case TYP_NONBOND:
@@ -514,10 +517,11 @@ BOOL ResSep(PDB *pdb, PDB *pr, PDB *qr)
 -  22.07.14 V1.3 By: CTP
 -  06.11.14 V1.5 By: ACRM
 -  12.02.15 V1.7
+-  12.03.15 V1.8
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbatomcount V1.7 (c) 1994-2014, Andrew C.R. \
+   fprintf(stderr,"\npdbatomcount V1.8 (c) 1994-2015, Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"Usage: pdbatomcount [-r <rad>] [-d|-b|-c|-n] [-w] \
 [<in.pdb> [<out.pdb>]]\n");

@@ -3,12 +3,12 @@
 
    \file       pdbfindresrange.c
    
-   \version    V1.4
-   \date       07.11.14
+   \version    V1.5
+   \date       12.03.15
    \brief      Find a residue range given a key residue and a number
                of residues on either side
    
-   \copyright  (c) UCL / Dr. Andrew C. R. Martin 2010-2014
+   \copyright  (c) UCL / Dr. Andrew C. R. Martin 2010-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -53,6 +53,7 @@
                     Added doxygen annotation. By: CTP
 -  V1.3   06.11.14  Renamed from findresrange
 -  V1.4   07.11.14  Removed an unused variable
+-  V1.5   12.03.15 Changed to allow multi-character chain names
 
 *************************************************************************/
 /* Includes
@@ -164,6 +165,7 @@ int main(int argc, char **argv)
 -  02.06.10 Returns NO_KEYRES properly
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  07.11.14 Removed an unused variable
+-  12.03.15 Changed to allow multi-character chain names
 */
 int GetResidueRange(PDB *pdb, char *keyres, int width, char *startres, 
                     char *endres)
@@ -182,7 +184,7 @@ int GetResidueRange(PDB *pdb, char *keyres, int width, char *startres,
    {
       for(pdbc = pdbs->chains; pdbc!=NULL; NEXT(pdbc))
       {
-         if(pdbc->chain[0] == chain[0])
+         if(CHAINMATCH(pdbc->chain, chain))
          {
             for(pdbr = pdbc->residues; pdbr!=NULL; NEXT(pdbr))
             {
@@ -306,10 +308,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  22.07.14 V1.2 By: CTP
 -  06.11.14 V1.3 By: ACRM
 -  07.11.14 V1.4 By: ACRM
+-  12.03.15 V1.5
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbfindresrange V1.4 (c) 2010-2014 UCL, Andrew \
+   fprintf(stderr,"\npdbfindresrange V1.5 (c) 2010-2015 UCL, Andrew \
 C.R. Martin\n");
    fprintf(stderr,"\nUsage: pdbfindresrange resspec width [input.pdb \
 [output.txt]]\n");

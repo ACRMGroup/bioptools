@@ -3,12 +3,12 @@
 
    \file       pdbsphere.c
    
-   \version    V1.9
-   \date       22.07.14
+   \version    V1.10
+   \date       12.03.15
    \brief      Output all aminoacids within range from central aminoacid 
                in a PDB file
    
-   \copyright  (c) UCL/Anja Baresic/Dr. Andrew C.R. Martin-2014
+   \copyright  (c) UCL/Anja Baresic/Dr. Andrew C.R. Martin-2015
    \author     Anja Baresic/Dr. Andrew C.R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -67,8 +67,9 @@
                    ATOM
 -  V1.7  14.05.12  Added -a option
 -  V1.8  27.07.12  Fixed bug in handling (lack of) -a
--  V1.9  22.07.14 Renamed deprecated functions with bl prefix.
-                  Added doxygen annotation. By: CTP
+-  V1.9  22.07.14  Renamed deprecated functions with bl prefix.
+                   Added doxygen annotation. By: CTP
+-  V1.10 12.03.15  Changed to allow multi-character chain names
 
 **************************************************************************/
 /* Includes
@@ -297,6 +298,7 @@ void WriteAtoms(PDB *pdb, FILE *out)
 -  17.05.11 New default output format and takes colon parameter to get
             old format and uses extras rather than occ
 -  14.05.12 Added compact
+-  12.03.15 Changed to allow multi-character chain names
 */
 void WriteResidues(PDB *pdb, FILE *out, BOOL colons, BOOL compact)
 {
@@ -311,12 +313,12 @@ void WriteResidues(PDB *pdb, FILE *out, BOOL colons, BOOL compact)
          {
             if(isdigit(p->chain[0]))
             {
-               fprintf(out, " %c.%d%c", p->chain[0], p->resnum, 
+               fprintf(out, " %s.%d%c", p->chain, p->resnum, 
                        p->insert[0]);
             }
             else
             {
-               fprintf(out, " %c%d%c", p->chain[0], p->resnum, 
+               fprintf(out, " %s%d%c", p->chain, p->resnum, 
                        p->insert[0]);
             }
          }
@@ -330,12 +332,12 @@ void WriteResidues(PDB *pdb, FILE *out, BOOL colons, BOOL compact)
             {
                if(isdigit(p->chain[0]))
                {
-                  fprintf(out, "%c.%d%c\n", p->chain[0], p->resnum, 
+                  fprintf(out, "%s.%d%c\n", p->chain, p->resnum, 
                           p->insert[0]);
                }
                else
                {
-                  fprintf(out, "%c%d%c\n", p->chain[0], p->resnum, 
+                  fprintf(out, "%s%d%c\n", p->chain, p->resnum, 
                           p->insert[0]);
                }
             }
@@ -363,11 +365,12 @@ void WriteResidues(PDB *pdb, FILE *out, BOOL colons, BOOL compact)
 -  14.05.12 V1.7 By: ACRM
 -  27.07.12 V1.8 By: ACRM
 -  22.07.14 V1.9 By: CTP
+-  12.03.15 V1.10 By: ACRM
 */
 void Usage(void)
 {
    fprintf(stderr,"\n");
-   fprintf(stderr,"PDBsphere V1.9 (c) 2011-2014 UCL, Anja Baresic, \
+   fprintf(stderr,"PDBsphere V1.10 (c) 2011-2015 UCL, Anja Baresic, \
 Andrew Martin.\n");
    fprintf(stderr,"\nUsage: \
 pdbsphere [-s] [-c] [-r radius] [-h] [-H] resspec\n                 \

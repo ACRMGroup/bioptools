@@ -3,11 +3,11 @@
 
    \file       pdbcentralres.c
    
-   \version    V1.3
-   \date       07.11.14
+   \version    V1.4
+   \date       12.03.15
    \brief      Find the residue nearest the centroid of a protein
    
-   \copyright  (c) Dr. Andrew C. R. Martin 2012-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 2012-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -51,6 +51,7 @@
                   Added doxygen annotation. By: CTP
 -  V1.2  06.11.14 Renamed as pdbcentralres By: ACRM
 -  V1.3  07.11.14 Initialized a variable
+-  V1.4  12.03.15 Changed to allow multi-character chain names
 
 *************************************************************************/
 /* Includes
@@ -87,6 +88,7 @@ void Usage(void);
 -  27.07.12 Original   By: ACRM
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  07.11.14 Initialized closest
+-  12.03.15 Changed to allow multi-character chain names
 */
 int main(int argc, char **argv)
 {
@@ -121,8 +123,8 @@ int main(int argc, char **argv)
                   }
                }
             }
-            fprintf(out, "%c%d%c\n", 
-                    closest->chain[0], closest->resnum, closest->insert[0]);
+            fprintf(out, "%s%d%c\n", 
+                    closest->chain, closest->resnum, closest->insert[0]);
          }
          else
          {
@@ -207,10 +209,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 -  22.07.14 V1.1 By: CTP
 -  06.11.14 V1.2 By: ACRM
 -  07.11.14 V1.3 
+-  12.03.15 V1.4
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbcentralres V1.3 (c) 2012-2014 UCL, \
+   fprintf(stderr,"\npdbcentralres V1.4 (c) 2012-2015 UCL, \
 Dr. Andrew C.R. Martin\n");
    fprintf(stderr,"\nUsage: pdbcentralres [in.pdb [out.pdb]]\n");
 

@@ -3,8 +3,8 @@
 
    \file       setpdbnumbering.c
    
-   \version    V1.4
-   \date       05.03.15
+   \version    V1.5
+   \date       12.03.15
    \brief      Apply standard numbering to a set of PDB files
    
    \copyright  (c) Dr. Andrew C. R. Martin 1996-2015
@@ -60,6 +60,7 @@
 -  V1.3  25.11.14 Initialized a variable
 -  V1.4  05.03.15 Now calls pdbpatchnumbering rather than assuming the
                   link to patchpdbnum is available. Improved help message
+-  V1.5  12.03.15 Changed to allow multi-character chain names
 
 *************************************************************************/
 /* Includes
@@ -176,10 +177,11 @@ int main(int argc, char **argv)
 -  06.11.14 V1.2 By: ACRM
 -  25.11.14 V1.3 By: ACRM
 -  05.03.15 V1.4
+-  12.03.15 V1.5
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nsetpdbnumbering V1.4 (c) 1996-2015 Dr. Andrew C.R. \
+   fprintf(stderr,"\nsetpdbnumbering V1.5 (c) 1996-2015 Dr. Andrew C.R. \
 Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: setpdbnumbering alnfile\n");
@@ -380,6 +382,7 @@ characters.\n");
 
 -  05.02.96 Original    By: ACRM
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  12.03.15 Changed to allow multi-character chain names
 */
 BOOL GetNumbering(NAMSEQ *namseq, char **numbering)
 {
@@ -416,12 +419,12 @@ BOOL GetNumbering(NAMSEQ *namseq, char **numbering)
             */
             if(prev == NULL)
             {
-               sprintf(label, "%c0 ",p->chain[0]);
+               sprintf(label, "%s.0 ",p->chain);
             }
             else
             {
-               sprintf(label,"%c%d%c",
-                       prev->chain[0],prev->resnum,prev->insert[0]);
+               sprintf(label,"%s.%d%c",
+                       prev->chain,prev->resnum,prev->insert[0]);
             }
             
             if(p!=NULL && (p->insert[0] != ' '))
@@ -430,8 +433,8 @@ BOOL GetNumbering(NAMSEQ *namseq, char **numbering)
                   warn the user that insert code from the end of the
                   alphabet will be used
                */
-               sprintf(nextlabel,"%c%d%c",
-                       p->chain[0],p->resnum,p->insert[0]);
+               sprintf(nextlabel,"%s.%d%c",
+                       p->chain,p->resnum,p->insert[0]);
                printf("Warning: Insertion occurs before residue %s\n",
                       nextlabel);
                printf("         Will use insertion codes from the end of \
@@ -439,12 +442,12 @@ the alphabet\n");
                
                if(prev == NULL)
                {
-                  sprintf(label, "%c0%c",p->chain[0],RevLabel);
+                  sprintf(label, "%s.0%c",p->chain,RevLabel);
                }
                else
                {
-                  sprintf(label,"%c%d%c",
-                          prev->chain[0],prev->resnum,RevLabel);
+                  sprintf(label,"%s.%d%c",
+                          prev->chain,prev->resnum,RevLabel);
                }
                
                RevLabel--;
@@ -456,12 +459,12 @@ the alphabet\n");
 
                if(prev == NULL)
                {
-                  sprintf(label, "%c0%c",p->chain[0],InsertLabel);
+                  sprintf(label, "%s.0%c",p->chain,InsertLabel);
                }
                else
                {
-                  sprintf(label,"%c%d%c",
-                          prev->chain[0],prev->resnum,InsertLabel);
+                  sprintf(label,"%s.%d%c",
+                          prev->chain,prev->resnum,InsertLabel);
                }
             }
             
@@ -473,7 +476,7 @@ the alphabet\n");
             /* Sequence maps directly to PDB file                       */
 
             /* Build a label                                            */
-            sprintf(label,"%c%d%c",p->chain[0],p->resnum,p->insert[0]);
+            sprintf(label,"%s.%d%c",p->chain,p->resnum,p->insert[0]);
             
             /* Store the label                                          */
             strcpy(numbering[rescount], label);

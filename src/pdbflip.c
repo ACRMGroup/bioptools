@@ -3,8 +3,8 @@
 
    \file       pdbflip.c
    
-   \version    V1.4
-   \date       13.02.15
+   \version    V1.5
+   \date       12.03.15
    \brief      Standardise equivalent atom labelling
    
    \copyright  (c) Dr. Andrew C. R. Martin 1996-2015
@@ -52,6 +52,7 @@
 -  V1.2   19.08.14 Removed unused variable in DoFlipping() By: CTP
 -  V1.3   06.11.14 Renamed from flip
 -  V1.4   13.02.15 Added whole PDB support
+-  V1.5   12.03.15 Changed to allow multi-character chain names
 
 *************************************************************************/
 /* Includes
@@ -223,10 +224,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  08.11.96 Original   By: ACRM
 -  22.07.14 V1.1 By: CTP
 -  06.11.14 V1.2 By: ACRM
+-  12.03.15 V1.5
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbflip V1.2 (c) 2014 Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"\npdbflip V1.5 (c) 2014-2015 Dr. Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"\nUsage: pdbflip [in.pdb [out.pdb]]\n");
 
@@ -261,6 +263,7 @@ defined.\n\n");
 -  08.11.96 Original   By: ACRM
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  19.08.14 Removed unused variable. By: CTP
+-  12.03.15 Changed to allow multi-character chain names  By: ACRM
 */
 void DoFlipping(PDB *pdb, BOOL verbose, BOOL quiet)
 {
@@ -334,8 +337,8 @@ void DoFlipping(PDB *pdb, BOOL verbose, BOOL quiet)
                (atom4b==NULL))
             {
                if(!quiet)
-                  fprintf(stderr,"Warning: Missing atoms in %s %c%d%c, \
-not processed.\n",p->resnam,p->chain[0],p->resnum,p->chain[0]);
+                  fprintf(stderr,"Warning: Missing atoms in %s %s.%d%c, \
+not processed.\n",p->resnam,p->chain,p->resnum,p->insert[0]);
                continue;  /* With next residue                          */
             }
             
@@ -353,8 +356,8 @@ not processed.\n",p->resnam,p->chain[0],p->resnum,p->chain[0]);
             if(ABS(tor2) < ABS(tor1))
             {
                if(verbose)
-                  fprintf(stderr,"Flipping %s %c%d%c\n",
-                          p->resnam, p->chain[0],p->resnum,p->insert[0]);
+                  fprintf(stderr,"Flipping %s %s.%d%c\n",
+                          p->resnam, p->chain,p->resnum,p->insert[0]);
                DoAFlip(atom4,atom4b,connect4,connect4b);
             }
          }

@@ -3,12 +3,12 @@
 
    \file       pdbpatchbval.c
    
-   \version    V1.6
-   \date       13.02.15
+   \version    V1.7
+   \date       12.03.15
    \brief      Patch the b-value (or occupancy) column using values from 
                a file
    
-   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1996-2016
+   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1996-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -56,6 +56,7 @@
 -  V1.4  06.11.14 Renamed from patchbval  By: ACRM
 -  V1.5  25.11.14 Initialized a variable 
 -  V1.6  13.02.15 Added whole PDB support
+-  V1.7  12.03.15 Changed to allow multi-character chain names
 
 *************************************************************************/
 /* Includes
@@ -177,6 +178,7 @@ data\n");
             case.
 -  28.08.13 PATCH.chain and PATCH.insert are now strings
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  12.03.15 Changed to allow multi-character chain names  By: ACRM
 */
 BOOL ApplyPatches(FILE *in, FILE *out, PATCH *patch, BOOL occup,
                   BOOL verbose)
@@ -216,8 +218,8 @@ BOOL ApplyPatches(FILE *in, FILE *out, PATCH *patch, BOOL occup,
       /* Now compare this residue with items in the patch list          */
       for(pa=patch; pa!=NULL; NEXT(pa))
       {
-         if((pa->resnum == p->resnum) &&
-            (pa->chain[0]  == p->chain[0]) &&
+         if((pa->resnum == p->resnum)          &&
+            CHAINMATCH(pa->chain, p->chain) &&
             (pa->insert[0] == p->insert[0]))
          {
             break;
@@ -259,8 +261,8 @@ BOOL ApplyPatches(FILE *in, FILE *out, PATCH *patch, BOOL occup,
       fprintf(stderr,"The following patches were not applied:\n");
       for(pa=patch; pa!=NULL; NEXT(pa))
       {
-         fprintf(stderr,"%c%d%c %f\n",
-                 pa->chain[0],pa->resnum,pa->insert[0],pa->value);
+         fprintf(stderr,"%s.%d%c %f\n",
+                 pa->chain,pa->resnum,pa->insert[0],pa->value);
       }
    }
    
@@ -414,10 +416,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *datafile, char *infile,
 -  06.11.14 V1.4 By: ACRM
 -  25.11.14 V1.5
 -  13.02.15 V1.6
+-  13.03.15 V1.7
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbpatchbval V1.6 (c) 1996-2015, Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbpatchbval V1.7 (c) 1996-2015, Dr. Andrew C.R. \
 Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: pdbpatchbval [-o] [-v] patchfile [in.pdb \

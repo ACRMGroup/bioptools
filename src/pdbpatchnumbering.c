@@ -3,8 +3,8 @@
 
    \file       pdbpatchnumbering.c
    
-   \version    V1.7
-   \date       13.02.15
+   \version    V1.8
+   \date       12.03.15
    \brief      Patch the numbering of a PDB file from a file of numbers
                and sequence (as created by KabatSeq, etc)
    
@@ -58,6 +58,7 @@
 -  V1.5  06.11.14 Renamed from patchpdbnum By: ACRM
 -  V1.6  07.11.14 Initialized a variable
 -  V1.7  13.02.15 Added whole PDB support
+-  V1.8  12.03.15 Changed to allow multi-character chain names
 
 *************************************************************************/
 /* Includes
@@ -82,8 +83,8 @@ typedef struct _patch
 {
    struct _patch *next;
    int           resnum;
-   char          chain,
-                 insert,
+   char          chain[8],
+                 insert[8],
                  aacode;
 }  PATCH;
 
@@ -258,6 +259,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             Also fixed for newer GetWord() which needs buffer size
 -  28.08.13 Modified for new ParseResSpec()
 -  07.11.14 Initialized p
+-  12.03.15 Changed to allow multi-character chain names
 */
 PATCH *ReadPatchFile(FILE *fp)
 {
@@ -313,9 +315,9 @@ PATCH *ReadPatchFile(FILE *fp)
                   }
                   
                   /* Copy the data into the linked list entry           */
-                  p->chain  = chain[0];
+                  strncpy(p->chain, chain, 8);
                   p->resnum = resnum;
-                  p->insert = insert[0];
+                  strncpy(p->insert, insert, 8);
                   p->aacode = aacode[0];
                }
             }
@@ -340,10 +342,11 @@ PATCH *ReadPatchFile(FILE *fp)
 -  22.07.14 V1.4 By: CTP
 -  07.11.14 V1.6 By: ACRM
 -  13.02.15 V1.7 By: ACRM
+-  12.03.15 V1.8
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbpatchnumbering V1.7 (c) 1995-2015, Dr. Andrew \
+   fprintf(stderr,"\npdbpatchnumbering V1.8 (c) 1995-2015, Dr. Andrew \
 C.R. Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: pdbpatchnumbering patchfile [in.pdb \
@@ -384,6 +387,7 @@ abynum which applies\n");
 -  09.08.95 Original    By: ACRM
 -  12.02.97 Fixed NULL pointer reference on first entry round loop
             (prevchain was set from r which was not initialised)
+-  12.03.15 Changed to allow multi-character chain names
 */
 BOOL ApplyPatches(PDB *pdb, PATCH *patches)
 {
@@ -393,20 +397,22 @@ BOOL ApplyPatches(PDB *pdb, PATCH *patches)
          *pp,                     /* Previous record to r               */
          *prev = NULL;            /* Previous record to p               */
    PATCH *a;                      /* Step through patches               */
-   char  patchchain,              /* Current patch chain                */
-         pdbchain,                /* Current pdb chain                  */
-         prevchain;               /* PDB chain before renaming          */
+   char  patchchain[8],           /* Current patch chain                */
+         pdbchain[8],             /* Current pdb chain                  */
+         prevchain[8];            /* PDB chain before renaming          */
    BOOL  NewPatchChain = FALSE;   /* Indicates new chain in patch list  */
    int   resnum;                  /* Current patch residue number       */
 
    if((patches != NULL) && (pdb != NULL))
    {
       /* Record the chains we are starting in                           */
-      patchchain = patches->chain;
+      strncpy(patchchain, patches->chain, 8);
+      strncpy(pdbchain,   pdb->chain,     8);
       resnum     = patches->resnum;
-      pdbchain   = pdb->chain[0];
-      prevchain  = pdbchain;      /* 12.02.97 Initialised this - shouldn't
-                                     be needed, but just in case...     */
+      strncpy(prevchain, pdbchain, 8); /* 12.02.97 Initialised this - 
+                                          shouldn't be needed, but just
+                                          in case...     
+                                       */
 
       /* Initialise p to start of PDB linked list                       */
       p = pdb;
@@ -419,7 +425,7 @@ BOOL ApplyPatches(PDB *pdb, PATCH *patches)
          {
             /* See if the chain has just changed in the patch file      */
             NewPatchChain = FALSE;
-            if((a->chain != patchchain) ||(a->resnum < resnum))
+            if(!CHAINMATCH(a->chain, patchchain) || (a->resnum < resnum))
             {
                /* Chain has ended in patch file, so unlink up to start of
                   next chain from PDB file
@@ -431,7 +437,8 @@ BOOL ApplyPatches(PDB *pdb, PATCH *patches)
                      junking
                   */
                   pp=NULL;
-                  for(r=p; r->chain[0]==prevchain; NEXT(r)) pp = r;
+                  for(r=p; CHAINMATCH(r->chain, prevchain); NEXT(r))
+                     pp = r;
 
                   /* If we skipped over anything, unlink and free       */
                   if(pp!=NULL)
@@ -444,8 +451,8 @@ BOOL ApplyPatches(PDB *pdb, PATCH *patches)
                }
                
                NewPatchChain = TRUE;
-               patchchain    = a->chain;
-               pdbchain      = p->chain[0];
+               strncpy(patchchain, a->chain, 8);
+               strncpy(pdbchain,   p->chain, 8);
             }
 
             /* If the patch list hasn't changed chain, see if the PDB
@@ -453,9 +460,9 @@ BOOL ApplyPatches(PDB *pdb, PATCH *patches)
             */
             if(!NewPatchChain)
             {
-               if(p->chain[0] != pdbchain)
+               if(!CHAINMATCH(p->chain, pdbchain))
                {
-                  fprintf(stderr,"pdbpatchnumbering: Chain %c too short \
+                  fprintf(stderr,"pdbpatchnumbering: Chain %s too short \
 for patches\n",pdbchain);
                   return(FALSE);
                }
@@ -477,12 +484,12 @@ is:\n",a->aacode);
 
             /* Apply the new residue numbering to the current residue   */
             if(r!=NULL)                  /* 12.02.97 Added NULL check   */
-               prevchain = r->chain[0];
+               strncpy(prevchain, r->chain, 8);
             for(r=p; r!=q; NEXT(r))
             {
-               r->chain[0]  = a->chain;
-               r->resnum    = a->resnum;
-               r->insert[0] = a->insert;
+               strcpy(r->chain,  a->chain);
+               strcpy(r->insert, a->insert);
+               r->resnum = a->resnum;
             }
 
             /* Update record of previous item in linked list so we can

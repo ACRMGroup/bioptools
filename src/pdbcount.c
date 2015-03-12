@@ -3,11 +3,11 @@
 
    \file       pdbcount.c
    
-   \version    V1.4
-   \date       06.11.14
+   \version    V1.5
+   \date       12.03.15
    \brief      Count residues and atoms in a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -52,6 +52,7 @@
 -  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
                   Added doxygen annotation. By: CTP
 -  V1.4  06.11.14 Renamed from countpdb  By: ACRM
+-  V1.5  12.03.15 Changed to allow multi-character chain names
 
 *************************************************************************/
 /* Includes
@@ -204,10 +205,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 -  16.08.94 Original    By: ACRM
 -  22.07.14 V1.3 By: CTP
 -  06.11.14 V1.4 By: ACRM
+-  12.03.15 V1.5
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbcount V1.4 (c) 1994-2014 Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbcount V1.5 (c) 1994-2015 Dr. Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"\nUsage: pdbcount [in.pdb [out.txt]]\n\n");
    fprintf(stderr,"If files are not specified, stdin and stdout are \
@@ -224,16 +226,17 @@ used.\n");
    Does the actual work of counting 
 
 -  16.08.94 Original    By: ACRM
+-  12.03.15 Changed to allow multi-character chain names
 */
 void DoCount(PDB *pdb, int *nchain, int *nres, int *natom, int *nhyd,
              int *nhet)
 {
    PDB *p;
-   char LastChain,
+   char LastChain[9],
         LastIns;
    int  LastRes;
 
-   LastChain = '-';
+   strcpy(LastChain, "-");
    LastIns   = '-';
    LastRes   = -999;
 
@@ -253,7 +256,7 @@ void DoCount(PDB *pdb, int *nchain, int *nres, int *natom, int *nhyd,
       if(p->atnam[0] == 'H') 
          (*nhyd)++;
       
-      if(p->chain[0] != LastChain)
+      if(!CHAINMATCH(p->chain, LastChain))
       {
          /* Chain has changed & so, by definition has the residue       */
          if(!strncmp(p->record_type,"ATOM  ",6))
@@ -262,7 +265,7 @@ void DoCount(PDB *pdb, int *nchain, int *nres, int *natom, int *nhyd,
             (*nres)++;
          }
 
-         LastChain = p->chain[0];
+         strncpy(LastChain, p->chain, 8);
          LastRes   = p->resnum;
          LastIns   = p->insert[0];
       }

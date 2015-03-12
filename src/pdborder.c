@@ -3,8 +3,8 @@
 
    \file       pdborder.c
    
-   \version    V1.6
-   \date       05.03.15
+   \version    V1.7
+   \date       12.03.15
    \brief      Correct the atom order in a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2015
@@ -54,6 +54,7 @@
 -  V1.4  07.11.14 Initialized variables
 -  V1.5  13.02.15 Added whole PDB support and fixed some core dumps
 -  V1.6  05.03.15 Replaced blFindEndPDB() with blFindNextResidue()
+-  V1.7  12.03.15 Changed to allow multi-character chain names
 
 *************************************************************************/
 /* Includes
@@ -262,10 +263,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  07.11.14 V1.4 By: ACRM
 -  13.02.15 V1.5 
 -  05.03.15 V1.6
+-  12.03.15 V1.7
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdborder V1.6 (c) 1994-2015, Andrew C.R. Martin, \
+   fprintf(stderr,"\npdborder V1.7 (c) 1994-2015, Andrew C.R. Martin, \
 UCL\n\n");
    fprintf(stderr,"Usage: pdborder [-c] [-i] [-g] [in.pdb \
 [out.pdb]]\n");
@@ -293,6 +295,7 @@ N,CA,C,O,s/c atom\n");
             Only tries to re-order ATOM records.
 -  07.11.14 Initialized variables
 -  05.03.15 Replaced blFindEndPDB() with blFindNextResidue()
+-  12.03.15 Changed to allow multi-character chain names
 */
 PDB *CorrectOrder(PDB *pdb, BOOL COLast)
 {
@@ -301,10 +304,11 @@ PDB *CorrectOrder(PDB *pdb, BOOL COLast)
         *ret   = NULL,
         *end   = NULL,
         *p;
-   char chain = '-';
+   char chain[8];
    int  terminus;
    BOOL GotNTER = FALSE;
    
+   strcpy(chain, "-");
    start = pdb;
    ret   = NULL;
    
@@ -318,13 +322,13 @@ PDB *CorrectOrder(PDB *pdb, BOOL COLast)
          /* Find out where we are in the chain                          */
          terminus = TERM_MIDCHAIN;
 
-         if(start->chain[0] != chain)
+         if(!CHAINMATCH(start->chain, chain))
          {
             terminus = TERM_NTER;
-            chain = start->chain[0];
+            strncpy(chain, start->chain, 8);
          }
-         else if(end==NULL              || 
-                 end->chain[0] != chain || 
+         else if(end==NULL                      || 
+                 !CHAINMATCH(end->chain, chain) || 
                  !strncmp(end->resnam, "CTER",4))
          {
             terminus = TERM_CTER;
@@ -392,6 +396,7 @@ PDB *CorrectOrder(PDB *pdb, BOOL COLast)
 
 -  23.08.94 Original    By: ACRM
 -  24.08.94 Added terminus handling code
+-  12.03.15 Changed to allow multi-character chain names
 */
 PDB *CorrectResidue(PDB *start, PDB *end, BOOL COLast, int terminus)
 {
@@ -455,18 +460,18 @@ unchanged.\n",p->resnam);
                      if(start != NULL)
                      {
                         fprintf(stderr,"Warning: Missing atom `%s' in \
-residue %s %c%d%c\n",           gAtomLists[offset][i],
+residue %s %s.%d%c\n",          gAtomLists[offset][i],
                                 start->resnam,
-                                start->chain[0],
+                                start->chain,
                                 start->resnum,
                                 start->insert[0]);
                      }
                      else if(ret != NULL)
                      {
                         fprintf(stderr,"Warning: Missing atom `%s' in \
-residue %s %c%d%c\n",           gAtomLists[offset][i],
+residue %s %s.%d%c\n",          gAtomLists[offset][i],
                                 ret->resnam,
-                                ret->chain[0],
+                                ret->chain,
                                 ret->resnum,
                                 ret->insert[0]);
                      }
@@ -514,18 +519,18 @@ residue %s %c%d%c\n",           gAtomLists[offset][i],
                if(start != NULL)
                {
                   fprintf(stderr,"Warning: Missing atom `%s' in residue \
-%s %c%d%c\n",             atom,
+%s %s.%d%c\n",            atom,
                           start->resnam,
-                          start->chain[0],
+                          start->chain,
                           start->resnum,
                           start->insert[0]);
                }
                else if(ret != NULL)
                {
                   fprintf(stderr,"Warning: Missing atom `%s' in residue \
-%s %c%d%c\n",             atom,
+%s %s.%d%c\n",            atom,
                           ret->resnam,
-                          ret->chain[0],
+                          ret->chain,
                           ret->resnum,
                           ret->insert[0]);
                }
@@ -547,10 +552,10 @@ residue %s %c%d%c\n",           gAtomLists[offset][i],
    /* Check to see if any records haven't been moved                    */
    for(p=start; p!=NULL; NEXT(p))
    {
-      fprintf(stderr,"Warning: Extra atom `%s' in residue %s %c%d%c\n",
+      fprintf(stderr,"Warning: Extra atom `%s' in residue %s %s.%d%c\n",
               p->atnam,
               p->resnam,
-              p->chain[0],
+              p->chain,
               p->resnum,
               p->insert[0]);
    }

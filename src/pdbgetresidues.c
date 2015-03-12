@@ -3,11 +3,11 @@
 
    \file       pdbgetresidues.c
    
-   \version    V1.3
-   \date       25.11.14
+   \version    V1.4
+   \date       12.03.15
    \brief      Extract a set of residues from a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 2010-2014
+   \copyright  (c) Dr. Andrew C. R. Martin 2010-2015
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -51,7 +51,7 @@
                   Added doxygen annotation. By: CTP
 -  V1.2  06.11.14 Renamed from getresidues  By: ACRM
 -  V1.3  25.11.14 Initialized a variable
-
+-  V1.4  12.03.15 Changed to allow multi-character chain names
 
 *************************************************************************/
 /* Includes
@@ -70,8 +70,8 @@
 typedef struct _reslist
 {
    char resid[MAXRESID],
-        chain,
-        insert;
+        chain[8],
+        insert[8];
    int  resnum;
    struct _reslist *next;
 }  RESLIST;
@@ -150,6 +150,9 @@ residues from list\n");
 
 
 /************************************************************************/
+/*
+-  12.03.15 Changed to allow multi-character chain names
+*/
 void PrintResidues(FILE *out, PDB *pdb, RESLIST *reslist)
 {
    PDB *p;
@@ -160,8 +163,8 @@ void PrintResidues(FILE *out, PDB *pdb, RESLIST *reslist)
       for(r=reslist; r!=NULL; NEXT(r))
       {
          if((p->resnum == r->resnum) &&
-            (p->chain[0] == r->chain) &&
-            (p->insert[0] == r->insert))
+            CHAINMATCH(p->chain, r->chain) &&
+            !strcmp(p->insert, r->insert))
          {
             blWritePDBRecord(out, p);
          }
@@ -200,8 +203,8 @@ RESLIST *ReadResidueList(FILE *fp)
          }
          
          strncpy(r->resid, buffer, MAXRESID);
-         r->chain = chain[0];
-         r->insert = insert[0];
+         strncpy(r->chain, chain, 8);
+         strncpy(r->insert, insert, 8);
          r->resnum = resnum;
       }
    }
@@ -302,10 +305,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *resfile,
 -  22.07.14 V1.1 By: CTP
 -  06.11.14 V1.2 By: ACRM
 -  25.11.14 V1.3 By: ACRM
+-  12.03.15 V1.4
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbgetresidues V1.3 (c) 2010-2014, UCL, Dr. Andrew \
+   fprintf(stderr,"\npdbgetresidues V1.4 (c) 2010-2015, UCL, Dr. Andrew \
 C.R. Martin\n");
    fprintf(stderr,"\nUsage: pdbgetresidues resfile [in.pdb [out.pdb]]\n");
 
