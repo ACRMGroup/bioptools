@@ -65,6 +65,7 @@
                   and to associate the omega angle with the correct
                   residue. Still makes the old format available
 -  V2.1  04.03.15 Improved checking for old name
+                  Now done by blCheckProgName()
 
 *************************************************************************/
 /* Includes
@@ -162,7 +163,7 @@ int main(int argc, char **argv)
    /* Set the default output style based on whether the program is called
       pdbtorsions or torsions
    */
-   oldStyle = SetOldStyle(argv[0]);
+   oldStyle = blCheckProgName(argv[0], "torsions");
 
    if(ParseCmdLine(argc, argv, inFile, outFile, 
                    &CATorsions, &terse, &Radians, &oldStyle))
@@ -196,46 +197,6 @@ output file\n");
    }
    
    return(0);
-}
-
-
-/************************************************************************/
-/*>BOOL SetOldStyle(char *progname)
-   --------------------------------
-*//**
-   \param[in]     *progname    Program name (argv[0])
-   \return                     Is the program name 'torsions'?
-
-   Tests if the program name 'torsions' rather than 'pdbtorsions' - this
-   then sets the oldStyle flag to TRUE by default
-
-- 27.11.14 Original   By: ACRM
-- 04.03.15 Improved checking for old name
-*/
-BOOL SetOldStyle(char *progname)
-{
-   char *chp;
-   
-   /* If it's called as 'torsions' enable oldStyle                      */
-   if(!strcmp(progname, "torsions"))
-      return(TRUE);
-   
-   /* If it's called as '...path.../torsions' enable oldStyle 
-      First check if it contains at the end '/torsions' 
-      Then check if it is just if it is just 'torsions'
-   */
-   if((chp = strstr(progname, "/torsions")) != NULL)
-   {
-      /* Then check this was the end of the string                      */
-      if(*(chp+9) == '\0')
-         return(TRUE);
-   }
-   if(!strcmp(progname, "torsions"))
-   {
-      return(TRUE);
-   }
-
-   return(FALSE);
 }
 
 

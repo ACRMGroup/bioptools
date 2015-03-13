@@ -221,7 +221,10 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    int  ChainCount;
    char *chp,
         *chq;
+   BOOL oldStyle;
 
+
+   oldStyle = blCheckProgName(argv[0], "renumpdb");
    *chains = NULL;
 
    for(ChainCount = 0; ChainCount < MAXCHAIN; ChainCount++)
@@ -251,13 +254,27 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                exit(1);
             }
             argv++;
-            if((*chains = blSplitStringOnCommas(argv[0], MAXCHAINLABEL))
-               ==NULL)
+            if(oldStyle)
             {
-               fprintf(stderr,"No memory for storing chain labels: %s\n",
-                       argv[0]);
-               exit(1);
+               if((*chains = blSplitStringOnChars(argv[0]))
+                  ==NULL)
+               {
+                  fprintf(stderr,"No memory for storing chain labels: %s\n",
+                          argv[0]);
+                  exit(1);
+               }
             }
+            else
+            {
+               if((*chains = blSplitStringOnCommas(argv[0], MAXCHAINLABEL))
+                  ==NULL)
+               {
+                  fprintf(stderr,"No memory for storing chain labels: %s\n",
+                          argv[0]);
+                  exit(1);
+               }
+            }
+            
             break;
          case 'k':
             *KeepChain = TRUE;

@@ -103,7 +103,6 @@ char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 PDB *FindEndOfChain(PDB *chain);
 void SelectPDBChains(WHOLEPDB *wpdb, char **chains, BOOL numeric);
 BOOL ValidChain(PDB *pdb, char **chains, BOOL numeric);
-BOOL CheckProgName(char *progname);
 
 
 
@@ -319,7 +318,7 @@ and H, would be\n");
 -  06.04.09 Added -l lowercase option
 -  22.05.09 Added -k option
 -  29.06.09 Added -a option
-Removed lowercase
+-  04.03.15 Removed -l option
 */
 char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                     BOOL *numeric, BOOL *atomsOnly)
@@ -328,7 +327,7 @@ char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    char **chains = NULL;
    BOOL oldStyle = FALSE;
    
-   oldStyle = CheckProgName(argv[0]);
+   oldStyle = blCheckProgName(argv[0], "getchain");
 
    argc--;
    argv++;
@@ -416,20 +415,5 @@ char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    
    return(chains);
    
-}
-
-BOOL CheckProgName(char *progname)
-{
-   char *chp;
-   
-   if((chp = strstr(progname, "/getchain"))!=NULL)
-   {
-      if(*(chp+9) == '\0')
-         return(TRUE);
-   }
-   if(!strcmp(progname, "getchain"))
-      return(TRUE);
-   
-   return(FALSE);
 }
 
