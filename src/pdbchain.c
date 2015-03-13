@@ -3,8 +3,8 @@
 
    \file       pdbchain.c
    
-   \version    V2.0
-   \date       10.03.15
+   \version    V2.1
+   \date       13.03.15
    \brief      Insert chain labels into a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
@@ -67,6 +67,8 @@
                   specfied with -c expects a comma-separated list of
                   chain labels instead of a simple string. i.e chains
                   L and H are now specified as L,H instead of LH
+-  V2.1  13.03.15 Now supports old chain specification method if
+                  called as chainpdb
 
 *************************************************************************/
 /* Includes
@@ -101,13 +103,11 @@
 /* Prototypes
 */
 int  main(int argc, char **argv);
-char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                   BOOL *BumpChainOnHet);
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
+                  char ***chains, BOOL *BumpChainOnHet);
 void Usage(void);
 void DoChain(PDB *pdb, char **chains, BOOL BumpChainOnHet);
 char *GetChainLabel(int ChainNum);
-
-char **blSplitStringOnCommas(char *string, int minItemLen);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -134,8 +134,7 @@ int main(int argc, char **argv)
                                         residue                         */
 
 
-   if((chains = ParseCmdLine(argc, argv, infile, outfile,
-                             &BumpChainOnHet))!=NULL)
+   if(ParseCmdLine(argc, argv, infile, outfile, &chains, &BumpChainOnHet))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
@@ -167,8 +166,8 @@ int main(int argc, char **argv)
 
 
 /************************************************************************/
-/*>char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                       BOOL *BumpChainOnHet)
+/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
+                     char ***chains, BOOL *BumpChainOnHet)
    ----------------------------------------------------------------------
 *//**
 
@@ -177,20 +176,25 @@ int main(int argc, char **argv)
    \param[out]     *infile          Input filename (or blank string)
    \param[out]     *outfile         Output filename (or blank string)
    \param[out]     *BumpChainOnHet  Bump chain label on ATOMs after HETs
-   \return                          Array of chain labels (if specified)
-                                    NULL on failure
+   \param[out]     ***chains        Array of chain labels (if specified)
+                                    NULL if no chains allocated
+   \return                          Success
 
    Parse the command line
 
 -  12.07.94 Original    By: ACRM
 -  16.10.95 Sets BumpChainOnHet
 -  10.03.15 Changed chains to strings. Now returns that array
+-  13.03.15 Gone back to returning BOOL
 */
-char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                   BOOL *BumpChainOnHet)
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
+                  char ***chains, BOOL *BumpChainOnHet)
 {
-   char **chains = NULL;
-   
+   BOOL oldStyle;
+
+   oldStyle = blCheckProgName(argv[0], "chainpdb");
+   *chains = NULL;
+  
    argc--;
    argv++;
    
@@ -207,19 +211,32 @@ char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             argc--;
             argv++;
 
-            if((chains = blSplitStringOnCommas(argv[0], MAXCHAINLABEL))
-               ==NULL)
+            if(oldStyle)
             {
-               fprintf(stderr,"No memory for storing chain labels: %s\n",
-                       argv[0]);
-               exit(1);
+               if((*chains = blSplitStringOnChars(argv[0]))
+                  ==NULL)
+               {
+                  fprintf(stderr,"No memory for storing chain labels: %s\n",
+                          argv[0]);
+                  exit(1);
+               }
+            }
+            else
+            {
+               if((*chains = blSplitStringOnCommas(argv[0], MAXCHAINLABEL))
+                  ==NULL)
+               {
+                  fprintf(stderr,"No memory for storing chain labels: %s\n",
+                          argv[0]);
+                  exit(1);
+               }
             }
             break;
          case 'b':
             *BumpChainOnHet = TRUE;
             break;
          default:
-            return(NULL);
+            return(FALSE);
             break;
          }
       }
@@ -227,7 +244,7 @@ char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
       {
          /* Check that there are only 1 or 2 arguments left             */
          if(argc > 2)
-            return(NULL);
+            return(FALSE);
          
          /* Copy the first to infile                                    */
          strcpy(infile, argv[0]);
@@ -237,34 +254,14 @@ char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
          argv++;
          if(argc)
             strcpy(outfile, argv[0]);
-         if(chains == NULL)
-         {
-            if((chains = blSplitStringOnCommas("", MAXCHAINLABEL))
-               ==NULL)
-            {
-               fprintf(stderr,"No memory for storing chain labels: %s\n",
-                       argv[0]);
-               exit(1);
-            }
-         }
          
-         return(chains);
+         return(TRUE);
       }
       argc--;
       argv++;
    }
    
-   if(chains == NULL)
-   {
-      if((chains = blSplitStringOnCommas("", MAXCHAINLABEL))
-         ==NULL)
-      {
-         fprintf(stderr,"No memory for storing chain labels: %s\n",
-                 argv[0]);
-         exit(1);
-      }
-   }
-   return(chains);
+   return(TRUE);
 }
 
 
@@ -286,10 +283,11 @@ char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  06.11.14 V1.8 By: ACRM
 -  05.03.15 V1.10
 -  10.03.15 V2.0
+-  13.03.15 V2.1
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbchain V2.0 (c) 1994-2015 Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbchain V2.1 (c) 1994-2015 Dr. Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"\nUsage: pdbchain [-c chain[,chain[...]]] [in.pdb \
 [out.pdb]]\n");
@@ -306,6 +304,10 @@ instead of the label or\nnumber.\n\n");
 not be updated as this is\n");
    fprintf(stderr,"designed to be used with models and partial PDB \
 files.\n");
+   fprintf(stderr,"If called using the old name, 'chainpdb', the chain \
+labels are\n");
+   fprintf(stderr,"supplied without commas (e.g. chains L and H as LH \
+instead of L,H)\n\n");
 }
 
 
@@ -342,12 +344,12 @@ void DoChain(PDB *pdb, char **chains, BOOL BumpChainOnHet)
         *CAPrev    = NULL,
         *CA        = NULL;
    int  ChainNum   = 0,
-      ChainIndex = 0;
+        ChainIndex = 0;
    char chain[MAXCHAINLABEL];
    BOOL NewChain;
    
 
-   if(chains[ChainIndex][0])
+   if((chains!=NULL) && chains[ChainIndex][0])
       strcpy(chain, chains[ChainIndex++]);
    else
       strcpy(chain, "A");
@@ -429,7 +431,7 @@ void DoChain(PDB *pdb, char **chains, BOOL BumpChainOnHet)
       {
          ChainNum++;
          
-         if(chains[ChainIndex][0])
+         if((chains!=NULL) && chains[ChainIndex][0])
          {
             strcpy(chain,chains[ChainIndex++]);
          }

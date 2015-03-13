@@ -405,7 +405,8 @@ void Usage(void)
 Martin, UCL\n");
    fprintf(stderr,"Usage: pdbrenum [-s][-k][-c chain[,chain[...]]]\
 [-n][-d]\n");
-   fprintf(stderr,"                [-r num[,num][...]]][-a num][in.pdb [out.pdb]]\n");
+   fprintf(stderr,"                [-r num[,num][...]]][-a num]\
+[in.pdb [out.pdb]]\n");
    fprintf(stderr,"       -s Renumber sequentially throughout \
 structure\n");
    fprintf(stderr,"       -k Keep chain names when using -s\n");
@@ -414,10 +415,24 @@ structure\n");
    fprintf(stderr,"       -d Do not renumber residues\n");
    fprintf(stderr,"       -r Specify resnum for start of each chain\n");
    fprintf(stderr,"       -a Specify first atom number\n\n");
+
+   fprintf(stderr,"\nRenumbers the residues and atoms of a PDB file \
+allowing start residues\n");
+   fprintf(stderr,"and chain labels to be specified and sequential \
+numbering throughout\n");
+   fprintf(stderr,"multiple chains.\n");
+
    fprintf(stderr,"If files are not specified, stdin and stdout are \
 used.\n");
    fprintf(stderr,"If a chain is to be skipped with -c or -r, use a - \
 instead of the label or\nnumber.\n\n");
+
+   fprintf(stderr,"If called as 'renumpdb' instead of 'pdbrenum', the \
+old behaviour with\n");
+   fprintf(stderr,"-c is used of only allowing 1-letter chain labels \
+with no separating\n");
+   fprintf(stderr,"comma. e.g. Chains L and H would be specified as LH \
+instead of L,H\n");
 }
    
 

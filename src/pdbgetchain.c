@@ -3,8 +3,8 @@
 
    \file       pdbgetchain.c
    
-   \version    V2.0
-   \date       04.03.15
+   \version    V2.1
+   \date       13.03.15
    \brief      Extract chains from a PDB file
    
    \copyright  (c) UCL / Dr. Andrew C. R. Martin 1997-2015
@@ -65,6 +65,7 @@
                   be comma separated. If called as getchain, only the old
                   single character chain labels (not comma-separated) are
                   supported.
+-  V2.1  13.03.15 Modified to use bioplib routines for list parsing
 
 *************************************************************************/
 /* Includes
@@ -264,10 +265,11 @@ PDB *FindEndOfChain(PDB *chain)
 -  06.11.14 V1.7 By: ACRM
 -  13.02.15 V1.8
 -  04.03.15 V2.0
+-  13.03.15 V2.1
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbgetchain V2.0 (c) 1997-2015 Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbgetchain V2.1 (c) 1997-2015 Dr. Andrew C.R. \
 Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: pdbgetchain [-n] [-a] \
@@ -319,11 +321,11 @@ and H, would be\n");
 -  22.05.09 Added -k option
 -  29.06.09 Added -a option
 -  04.03.15 Removed -l option
+-  13.03.15 Switched to new bioplib list parsing routines
 */
 char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                     BOOL *numeric, BOOL *atomsOnly)
 {
-   int i, nchains;
    char **chains = NULL;
    BOOL oldStyle = FALSE;
    
@@ -367,20 +369,15 @@ char **ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             return(NULL);
          
          /* Parse the chains out of the first argument                  */
-         nchains = strlen(argv[0]);
          if(oldStyle)
          {
-            /* Allocate space for chains                                */
-            chains = (char **)blArray2D(sizeof(char), nchains+1, 
-                                        MAXCHAINLABEL);
-         
-            /* And copy in the data                                     */
-            for(i=0; i<nchains; i++)
+            if((chains = blSplitStringOnChars(argv[0]))
+               ==NULL)
             {
-               chains[i][0] = argv[0][i];
-               chains[i][1] = '\0';
+               fprintf(stderr,"No memory for storing chain labels: %s\n",
+                       argv[0]);
+               exit(1);
             }
-            chains[nchains][0] = '\0';
          }
          else
          {
