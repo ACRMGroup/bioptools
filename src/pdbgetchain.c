@@ -157,7 +157,7 @@ int main(int argc, char **argv)
          else
          {
             SelectPDBChains(wpdb, chains, numeric);
-            WriteWholePDB(out, wpdb);
+            blWriteWholePDB(out, wpdb);
          }
       }
    }
