@@ -145,6 +145,11 @@ pdbrotate
 ---------
 Rotates a PDB file
 
+pdbselect
+---------
+Allows the extraction of different occupancies and different models
+from a PDB file
+
 pdbsolv
 -------
 Performs solvent accessibility calculations according to the method of
