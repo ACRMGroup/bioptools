@@ -110,7 +110,7 @@ int main(int argc, char **argv)
                if(gPDBMultiNMR)
                {
                   printed=TRUE;
-                  fprintf(stderr,"PDB file contains multiple models\n");
+                  fprintf(stderr,"PDB file contains %d models\n", gPDBMultiNMR);
                }
                
                if(gPDBPartialOcc)
@@ -167,8 +167,8 @@ void Usage(void)
    fprintf(stderr,"\npdbselect V1.0  (c) 2015 UCL, Andrew C.R. \
 Martin\n");
    fprintf(stderr,"Usage: pdbselect [-i] [-o occupancy] [-m model] \
-[<input.pdb> [<output.pdb>]]\n");
-   fprintf(stderr,"       -i Get information on partial occupancy \
+[<in.pdb> [<out.pdb>]]\n");
+   fprintf(stderr,"       -i Print information on partial occupancy \
 and models\n");
    fprintf(stderr,"       -o Specify the occupancy rank [Default: 1]\n");
    fprintf(stderr,"       -m Specify the model number [Default: 1]\n");
