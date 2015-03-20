@@ -82,7 +82,7 @@
 */
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  char *pgpfile, BOOL *AllH, BOOL *Charmm);
+                  char *pgpfile, BOOL *AllH, BOOL *Charmm, BOOL *verbose);
 void FixNTerNames(PDB *pdb);
 void Usage(void);
 
@@ -98,6 +98,7 @@ void Usage(void);
 -  13.02.15 Added whole PDB support
 -  17.02.15 Updated wpdb->pdb after adding Nterminal hydrogens
 -  23.02.15 Modified for new blRenumAtomsPDB()
+-  20.03.15 Reports errors here instead of in subroutines
 */
 int main(int argc, char **argv)
 {
@@ -109,11 +110,14 @@ int main(int argc, char **argv)
             pgpfile[MAXBUFF];
    WHOLEPDB *wpdb;
    PDB      *pdb;
-   int      nhyd;
-   BOOL     AllH   = FALSE,
-            Charmm = FALSE;
+   int      nhyd = 0,
+            nh;
+   BOOL     AllH    = FALSE,
+            Charmm  = FALSE,
+            verbose = FALSE;
    
-   if(ParseCmdLine(argc, argv, infile, outfile, pgpfile, &AllH, &Charmm))
+   if(ParseCmdLine(argc, argv, infile, outfile, pgpfile, &AllH, &Charmm,
+                   &verbose))
    {
       if((pgp = blOpenPGPFile(pgpfile, AllH)) != NULL)
       {
@@ -124,8 +128,22 @@ int main(int argc, char **argv)
                pdb = wpdb->pdb;
                FixNTerNames(pdb);
                
-               nhyd = blHAddPDB(pgp, pdb);
-               nhyd += blAddNTerHs(&pdb, Charmm);
+               if((nh = blHAddPDB(pgp, pdb)) < 0)
+               {
+                  fprintf(stderr,"Adding hydrogens failed\n");
+                  return(1);
+               }
+               nhyd += nh;
+
+               if((nh = blAddNTerHs(&pdb, Charmm)) <= 0)
+               {
+                  if(verbose)
+                  {
+                     fprintf(stderr,"Atom N,CA or C missing from \
+N-terminus\n");
+                  }
+               }
+               nhyd += nh;
                wpdb->pdb = pdb;
                
                fprintf(stderr,"%d hydrogens were added.\n",nhyd);
@@ -157,7 +175,8 @@ parameter file.\n");
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                     char *pgpfile, BOOL *AllH, BOOL *Charmm)
+                     char *pgpfile, BOOL *AllH, BOOL *Charmm,
+                     BOOL *verbose)
    ---------------------------------------------------------------------
 *//**
 
@@ -168,14 +187,16 @@ parameter file.\n");
    \param[out]     *pgpfile     PGP filename
    \param[out]     *AllH        Add all hydrogens
    \param[out]     *Charmm      Do Charmm style N-terminii
-   \return                     Success?
+   \param[out]     *verbose     Report missing atoms
+   \return                      Success?
 
    Parse the command line
    
 -  23.08.94 Original    By: ACRM
+-  20.03.15 Added -v = verbose
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  char *pgpfile, BOOL *AllH, BOOL *Charmm)
+                  char *pgpfile, BOOL *AllH, BOOL *Charmm, BOOL *verbose)
 {
    argc--;
    argv++;
@@ -200,6 +221,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             break;
          case 'c':
             *Charmm = TRUE;
+            break;
+         case 'v':
+            *verbose = TRUE;
             break;
          default:
             return(FALSE);
@@ -264,17 +288,20 @@ void FixNTerNames(PDB *pdb)
 -  13.02.15 V1.3 By: ACRM
 -  17.02.15 V1.4
 -  23.02.15 V1.5
+-  20.03.15 V1.6
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBHAdd V1.5 (c) 1994-2015, Andrew C.R. Martin, \
+   fprintf(stderr,"\nPDBHAdd V1.6 (c) 1994-2015, Andrew C.R. Martin, \
 UCL\n\n");
-   fprintf(stderr,"Usage: pdbhadd [-p pgpfile] [-a] [-c] [<in.pdb> \
-[<out.pdb>]]\n");
+   fprintf(stderr,"Usage: pdbhadd [-p pgpfile] [-a] [-c] [-v] \
+[<in.pdb> [<out.pdb>]]\n");
    fprintf(stderr,"               -p Specify proton generation \
 parameter file\n");
    fprintf(stderr,"               -a Add ALL hydrogens.\n");
    fprintf(stderr,"               -c Do Charmm style N-terminii.\n");
+   fprintf(stderr,"               -v Verbose - reports missing \
+atoms\n");
    fprintf(stderr,"\nAdd hydrogens to a PDP file.\n");
    fprintf(stderr,"Note that you should first strip any existing \
 hydrogens with hstrip.\n\n");
