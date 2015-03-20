@@ -3,8 +3,8 @@
 
    \file       pdbhadd.c
    
-   \version    V1.5
-   \date       23.02.15
+   \version    V1.6
+   \date       20.03.15
    \brief      Add hydrogens to a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
@@ -54,6 +54,7 @@
 -  V1.4  17.02.15 Fixed bug in whole PDB not updating to support Nter
                   hydrogens
 -  V1.5  23.02.15 Modified for new blRenumAtomsPDB()
+-  V1.6  20.03.15 Takes -v option and -n option
 
 *************************************************************************/
 /* Includes
@@ -82,7 +83,8 @@
 */
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  char *pgpfile, BOOL *AllH, BOOL *Charmm, BOOL *verbose);
+                  char *pgpfile, BOOL *AllH, BOOL *Charmm, BOOL *verbose,
+                  BOOL *noStrip);
 void FixNTerNames(PDB *pdb);
 void Usage(void);
 
@@ -114,10 +116,11 @@ int main(int argc, char **argv)
             nh;
    BOOL     AllH    = FALSE,
             Charmm  = FALSE,
+            noStrip = FALSE,
             verbose = FALSE;
    
    if(ParseCmdLine(argc, argv, infile, outfile, pgpfile, &AllH, &Charmm,
-                   &verbose))
+                   &verbose, &noStrip))
    {
       if((pgp = blOpenPGPFile(pgpfile, AllH)) != NULL)
       {
@@ -127,6 +130,19 @@ int main(int argc, char **argv)
             {
                pdb = wpdb->pdb;
                FixNTerNames(pdb);
+
+               if(!noStrip)
+               {
+                  int natoms;
+                  PDB *pdbcopy;
+                  if((pdbcopy = blStripHPDBAsCopy(pdb, &natoms))==NULL)
+                  {
+                     fprintf(stderr,"Unable to strip hydrogens. \
+Continuing.\n");
+                  }
+                  FREELIST(pdb, PDB);
+                  pdb = pdbcopy;
+               }
                
                if((nh = blHAddPDB(pgp, pdb)) < 0)
                {
@@ -176,7 +192,7 @@ parameter file.\n");
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                      char *pgpfile, BOOL *AllH, BOOL *Charmm,
-                     BOOL *verbose)
+                     BOOL *verbose, BOOL *noStrip)
    ---------------------------------------------------------------------
 *//**
 
@@ -188,15 +204,17 @@ parameter file.\n");
    \param[out]     *AllH        Add all hydrogens
    \param[out]     *Charmm      Do Charmm style N-terminii
    \param[out]     *verbose     Report missing atoms
+   \param[out]     *noStrip     Do not strip hydrogens
    \return                      Success?
 
    Parse the command line
    
 -  23.08.94 Original    By: ACRM
--  20.03.15 Added -v = verbose
+-  20.03.15 Added -v = verbose and -n nostrip
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  char *pgpfile, BOOL *AllH, BOOL *Charmm, BOOL *verbose)
+                  char *pgpfile, BOOL *AllH, BOOL *Charmm, BOOL *verbose,
+                  BOOL *noStrip)
 {
    argc--;
    argv++;
@@ -224,6 +242,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             break;
          case 'v':
             *verbose = TRUE;
+            break;
+         case 'n':
+            *noStrip = TRUE;
             break;
          default:
             return(FALSE);
@@ -294,15 +315,15 @@ void Usage(void)
 {
    fprintf(stderr,"\nPDBHAdd V1.6 (c) 1994-2015, Andrew C.R. Martin, \
 UCL\n\n");
-   fprintf(stderr,"Usage: pdbhadd [-p pgpfile] [-a] [-c] [-v] \
+   fprintf(stderr,"Usage: pdbhadd [-p pgpfile] [-a] [-c] [-n] [-v] \
 [<in.pdb> [<out.pdb>]]\n");
    fprintf(stderr,"               -p Specify proton generation \
 parameter file\n");
    fprintf(stderr,"               -a Add ALL hydrogens.\n");
    fprintf(stderr,"               -c Do Charmm style N-terminii.\n");
+   fprintf(stderr,"               -n Do not strip existing hydrogens \
+first\n");
    fprintf(stderr,"               -v Verbose - reports missing \
 atoms\n");
-   fprintf(stderr,"\nAdd hydrogens to a PDP file.\n");
-   fprintf(stderr,"Note that you should first strip any existing \
-hydrogens with hstrip.\n\n");
+   fprintf(stderr,"\nAdd hydrogens to a PDB file.\n\n");
 }
