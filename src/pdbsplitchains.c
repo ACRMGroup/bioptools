@@ -3,8 +3,8 @@
 
    \file       pdbsplitchains.c
    
-   \version    V1.4
-   \date       12.03.15
+   \version    V2.0
+   \date       26.03.15
    \brief      Split a PDB file into separate chains
    
    \copyright  (c) UCL / Dr. Andrew C. R. Martin 1997-2015
@@ -52,6 +52,7 @@
                      Added doxygen annotation. By: CTP
 -  V1.3    06.11.14  Renamed from splitchains By: ACRM
 -  V1.4    12.03.15  Checks blank chain as string
+-  V2.0    26.03.15  Major rewrite to handled whole PDB
 
 *************************************************************************/
 /* Includes
@@ -84,11 +85,6 @@ BOOL WriteEachPDBChain(char *InFile, WHOLEPDB *wpdb, BOOL current);
 void Usage(void);
 BOOL BuildFileName(char *OutFile, int maxFileName, char *InFile, 
                    char *chain, BOOL current);
-char *blStringCat(char *out, const char *in, size_t len);
-
-STRINGLIST *blBuildPDBChainList(PDB *pdb);
-PDB *blGetPDBChainAsCopy(PDB *pdbin, char *chain);
-
 
 
 /************************************************************************/
@@ -212,10 +208,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, BOOL *current)
 -  16.01.14 V1.1
 -  22.07.14 V1.2 By: CTP
 -  12.03.15 V1.4
+-  26.03.15 V2.0
 */
 void Usage(void)
 {
-   fprintf(stderr,"pdbsplitchains V1.4 (c) 1997-2015 \
+   fprintf(stderr,"pdbsplitchains V2.0 (c) 1997-2015 \
 Dr. Andrew C.R. Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: pdbsplitchains [-c][-q] [in.pdb]\n");
@@ -270,7 +267,7 @@ placed in the\n");
    Constructs a filename from a current filename plus a chain name
 
 -  10.07.97 Original
--  16.01.14 Uses blStringCat() and chain is handled as a string
+-  16.01.14 Uses blStrncat() and chain is handled as a string
 -  12.03.15 Checks blank chain as string
 */
 BOOL BuildFileName(char *OutFile, int maxOutFileName, char *InFile, 
@@ -326,12 +323,12 @@ BOOL BuildFileName(char *OutFile, int maxOutFileName, char *InFile,
       OutFile[0] = '\0';
       if(!current && path!=NULL)         /* The path                    */
       {
-         blStringCat(OutFile, path, maxOutFileName);
-         blStringCat(OutFile, "/",  maxOutFileName);
+         blStrncat(OutFile, path, maxOutFileName);
+         blStrncat(OutFile, "/",  maxOutFileName);
       }
-      blStringCat(OutFile, stem, maxOutFileName);  /* The filestem        */
-      blStringCat(OutFile, chain, maxOutFileName); /* The chain name      */
-      blStringCat(OutFile,".pdb", maxOutFileName); /* The extension       */
+      blStrncat(OutFile, stem,  maxOutFileName); /* The filestem        */
+      blStrncat(OutFile, chain, maxOutFileName); /* The chain name      */
+      blStrncat(OutFile,".pdb", maxOutFileName); /* The extension       */
       
       /* Free allocated memory                                          */
       free(WorkFile);
@@ -339,38 +336,10 @@ BOOL BuildFileName(char *OutFile, int maxOutFileName, char *InFile,
    else
    {
       strcpy(OutFile, chain);
-      blStringCat(OutFile,".pdb", maxOutFileName);
+      blStrncat(OutFile,".pdb", maxOutFileName);
    }
 
    return(TRUE);
-}
-
-
-/************************************************************************/
-/*>char *blStringCat(char *out, const char *in, size_t len)
-   ------------------------------------------------------
-*//**
-
-   \param[in]      *in     Input string to be appended
-   \param[in]      len     Length of output string
-   \param[in,out]  *out    String that we are appending to
-
-   A simpler version of strncat. strncat takes the max number of chars
-   to be appended whereas this takes the max number of chars that 'out'
-   can hold.
-
--  16.01.14  Original   By: ACRM
-*/
-char *blStringCat(char *out, const char *in, size_t len)
-{
-   int lenOut, lenIn, cpLen;
-   
-   lenOut = strlen(out);
-   lenIn  = strlen(in);
-   cpLen  = len - lenOut - lenIn;
-   
-   strncat(out, in, cpLen);
-   return(out);
 }
 
 
@@ -398,21 +367,24 @@ BOOL WriteEachPDBChain(char *InFile, WHOLEPDB *wpdb, BOOL currentDir)
 {
    PDB        *pdb,
               *chain;
-   STRINGLIST *chainlist = NULL,
-              *ch;
    FILE       *fp;
+   char       **chainLabels = NULL;
+   int        nChains, chainNum;
 
    pdb  = wpdb->pdb;
 
    /* Build a list of chain labels that are used                        */
-   if((chainlist = blBuildPDBChainList(pdb))==NULL)
+   if((chainLabels = blGetPDBChainLabels(pdb, &nChains))==NULL)
       return(FALSE);
 
    /* Step through the list of chain labels                             */
-   for(ch=chainlist; ch!=NULL; NEXT(ch))
+   for(chainNum=0; chainNum<nChains; chainNum++)
    {
+      if(!gQuiet)
+         fprintf(stderr,"Writing chain '%s'\n", chainLabels[chainNum]);
+      
       /* Make a copy of this chain                                      */
-      if((chain=blGetPDBChainAsCopy(pdb, ch->string))!=NULL)
+      if((chain=blGetPDBChainAsCopy(pdb, chainLabels[chainNum]))!=NULL)
       {
          char OutFile[MAXBUFF];
 
@@ -420,7 +392,8 @@ BOOL WriteEachPDBChain(char *InFile, WHOLEPDB *wpdb, BOOL currentDir)
             and write the chain
          */
          wpdb->pdb = chain;
-         if(BuildFileName(OutFile, MAXBUFF, InFile, ch->string, currentDir))
+         if(BuildFileName(OutFile, MAXBUFF, InFile, 
+                          chainLabels[chainNum], currentDir))
          {
             if((fp=fopen(OutFile, "w"))!=NULL)
             {
@@ -454,100 +427,3 @@ filename\n");
 }
 
 
-/************************************************************************/
-/*>PDB *blGetPDBChainAsCopy(PDB *pdbin, char *chain)
-   -------------------------------------------------
-*//**
-   \param[in]    *pdbin     PDB linked list
-   \param[in]    *chain     Chain label
-   \return                  PDB linked list for requested chain
-
-   Extracts a specified chain from a PDB linked list allocating a new
-   list containing only that chain. The original list is unchanged.
-
--  26.03.15  Original   By: ACRM
-*/
-PDB *blGetPDBChainAsCopy(PDB *pdbin, char *chain)
-{
-   PDB *pdbout  = NULL,
-       *p,
-       *q;
-    
-   /* Step through the input PDB linked list                            */
-   for(p=pdbin; p!=NULL; NEXT(p))
-   {
-      if(CHAINMATCH(p->chain, chain))
-      {
-         /* Allocate a new entry                                        */
-         if(pdbout==NULL)
-         {
-            INIT(pdbout, PDB);
-            q = pdbout;
-         }
-         else
-         {
-            ALLOCNEXT(q, PDB);
-         }
-         
-         /* If failed, free anything allocated and return               */
-         if(q==NULL)
-         {
-            FREELIST(pdbout,PDB);
-            return(NULL);
-         }
-        
-         /* Copy the record to the output list (sets ->next to NULL)    */
-         blCopyPDB(q, p);
-      }
-   }
-
-   /* Return pointer to start of output list                            */
-   return(pdbout);
-}
-
-
-/************************************************************************/
-/*>STRINGLIST *blBuildPDBChainList(PDB *pdb) 
-   -----------------------------------------
-*//**
-   \param[in]   *pdb    PDB linked list
-   \return              Linked list of chain labels
-
--  26.03.15 Original   By: ACRM
-*/
-STRINGLIST *blBuildPDBChainList(PDB *pdb)
-{
-   PDB        *p;
-   STRINGLIST *slist = NULL,
-              *s = NULL;
-   char       lastChain[8];
-
-   lastChain[0] = '\0';
-   for(p=pdb; p!=NULL; NEXT(p))
-   {
-      /* If chain has changed                                           */
-      if(!CHAINMATCH(p->chain, lastChain))
-      {
-         BOOL found = FALSE;
-         strncpy(lastChain, p->chain, 8);
-
-         /* If chain isn't already in our list then add it              */
-         for(s=slist; s!=NULL; NEXT(s))
-         {
-            if(CHAINMATCH(s->string, p->chain))
-            {
-               found = TRUE;
-               break;
-            }
-         }
-
-         if(!found)
-         {
-            if((slist = blStoreString(slist, p->chain))==NULL)
-               return(NULL);
-         }
-      }
-   }
-
-   return(slist);
-}
