@@ -166,7 +166,7 @@ PDB file, %s\n",
    /* Free the original linked list of atoms and patch in the new one   */
    FREELIST(wpdb->pdb, PDB);
    wpdb->pdb = pdb;
-         
+
    /* Open the radius file                                              */
    if((fpRad=blOpenFile(radfile, DATA_ENV, "r", &noenv))==NULL)
    {
@@ -179,10 +179,10 @@ not set\n", DATA_ENV);
       }
       return(1);
    }
-   
+
    /* Set the atom radii in the linked list                             */
    resrad = blSetAtomRadii(pdb, fpRad);
-         
+
    /* Do the actual accessibility calculations                          */
    if(!blCalcAccess(pdb, natoms, 
                     integrationAccuracy, probeRadius,
@@ -192,7 +192,7 @@ not set\n", DATA_ENV);
 arrays\n");
       return(1);
    }
-            
+
    /* And populate the B-values with the accessibility and write the
       new PDB file
    */
