@@ -3,8 +3,8 @@
 
    \file       pdbheader.c
    
-   \version    V1.0
-   \date       28.04.15
+   \version    V1.1
+   \date       29.04.15
    \brief      Get header info from a PDB file
    
    \copyright  (c) UCL / Dr. Andrew C.R. Martin, 2015
@@ -49,6 +49,7 @@
    Revision History:
    =================
 -  V1.0  28.04.15 Original
+-  V1.1  29.04.15 Added -p and fixed bug in -m
 
 *************************************************************************/
 /* Includes
@@ -76,12 +77,13 @@
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *chain, BOOL *doAll, BOOL *doSpecies,
-                  BOOL *doMolecule, BOOL *noChains);
+                  BOOL *doMolecule, BOOL *noChains, BOOL *showPDB);
 void Usage(void);
 void PrintValue(FILE *fp, char *label, int width, int type, 
                      char *string, int intval);
 void ProcessChain(FILE *out, WHOLEPDB *wpdb, char *chain, 
-                  BOOL doAll, BOOL doSpecies, BOOL doMolecule);
+                  BOOL doAll, BOOL doSpecies, BOOL doMolecule, 
+                  BOOL showPDB);
 
 /************************************************************************/
 int main(int argc, char **argv)
@@ -102,10 +104,11 @@ int main(int argc, char **argv)
    BOOL      doAll      = TRUE,
              doSpecies  = FALSE,
              doMolecule = FALSE,
-             noChains   = FALSE;
+             noChains   = FALSE,
+             showPDB    = FALSE;
    
    if(!ParseCmdLine(argc, argv, infile, outfile, chain, &doAll,
-                    &doSpecies, &doMolecule, &noChains))
+                    &doSpecies, &doMolecule, &noChains, &showPDB))
    {
       Usage();
       return(0);
@@ -118,9 +121,9 @@ file.\n");
       return(1);
    }
    
-   if((wpdb = ReadWholePDB(in))!=NULL)
+   if((wpdb = blReadWholePDB(in))!=NULL)
    {
-      if(!doSpecies)
+      if(doAll)
       {
          if(blGetHeaderWholePDB(wpdb, 
                                 header, MAXBUFF,
@@ -143,7 +146,8 @@ file.\n");
       {
          if(chain[0])
          {
-            ProcessChain(out, wpdb, chain, doAll, doSpecies, doMolecule);
+            ProcessChain(out, wpdb, chain, doAll, doSpecies, doMolecule,
+                         showPDB);
          }
          else
          {
@@ -151,7 +155,7 @@ file.\n");
             for(i=0; i<nChains; i++)
             {
                ProcessChain(out, wpdb, chainLabels[i], 
-                            doAll, doSpecies, doMolecule);
+                            doAll, doSpecies, doMolecule, showPDB);
                free(chainLabels[i]);
             }
             free(chainLabels);
@@ -166,14 +170,28 @@ file.\n");
 
 /************************************************************************/
 void ProcessChain(FILE *out, WHOLEPDB *wpdb, char *chain, 
-                  BOOL doAll, BOOL doSpecies, BOOL doMolecule)
+                  BOOL doAll, BOOL doSpecies, BOOL doMolecule,
+                  BOOL showPDB)
 {
    COMPND    compound;
    PDBSOURCE species;
+   char      pdbcode[SMALLBUFF];
 
+   pdbcode[0] = '\0';
+   
    if(doAll)
    {
       PrintValue(out, "\n>Chain:",   18, TYPE_STRING, chain, 0);
+   }
+
+   if(showPDB)
+   {
+      char header[MAXBUFF],
+           date[SMALLBUFF];
+      
+      blGetHeaderWholePDB(wpdb, header, MAXBUFF,
+                          date, SMALLBUFF,
+                          pdbcode, SMALLBUFF);
    }
    
    if(doAll || doMolecule)
@@ -182,10 +200,13 @@ void ProcessChain(FILE *out, WHOLEPDB *wpdb, char *chain,
       {
          if(doMolecule)
          {
+            if(showPDB)
+               fprintf(out,"%s : ", pdbcode);
+            
             fprintf(out, "MOLECULE : %s : %s\n", 
                     chain, compound.molecule);
          }
-         else
+         else if(doAll)
          {
             PrintValue(out,"MolID:",      17,  TYPE_INT,    
                        NULL,                compound.molid);
@@ -213,6 +234,8 @@ void ProcessChain(FILE *out, WHOLEPDB *wpdb, char *chain,
       {
          if(doSpecies)
          {
+            if(showPDB)
+               fprintf(out,"%s : ", pdbcode);
             fprintf(out, "SPECIES  : %s : %s\n", 
                     chain, species.scientificName);
          }
@@ -257,7 +280,7 @@ void PrintValue(FILE *fp, char *label, int width, int type,
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                      char *chain, BOOL *doAll, BOOL *doSpecies,
-                     BOOL *doMolecule, BOOL *noChains)
+                     BOOL *doMolecule, BOOL *noChains, BOOL *showPDB)
    ----------------------------------------------------------------------
 *//**
    \param[in]   int    argc              Argument count
@@ -270,15 +293,17 @@ void PrintValue(FILE *fp, char *label, int width, int type,
    \param[out]  BOOL   *doSpecies        Print the species concisely
    \param[out]  BOOL   *doMolecule       Print the molecule concisely
    \param[out]  BOOL   *noChains         Do not print chain info
+   \param[out]  BOOL   *showPDB          Show PDB code with -m or -s
    \return      BOOL                     Success
 
    Parse the command line
 
    28.04.15 Original    By: ACRM
+   29.04.15 Added -s and showPDB parameter
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *chain, BOOL *doAll, BOOL *doSpecies,
-                  BOOL *doMolecule, BOOL *noChains)
+                  BOOL *doMolecule, BOOL *noChains, BOOL *showPDB)
 {
    argc--;
    argv++;
@@ -288,6 +313,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    *doMolecule = FALSE;
    *noChains   = FALSE;
    *doAll      = TRUE;
+   *showPDB    = FALSE;
    
    while(argc)
    {
@@ -311,6 +337,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             break;
          case 'n':
             *noChains   = TRUE;
+            break;
+         case 'p':
+            *showPDB    = TRUE;
             break;
          default:
             return(FALSE);
@@ -350,17 +379,19 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    Prints a usage message
 
 -   28.04.15 Original   By: ACRM
+-   29.04.15 Added -p
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbheader V1.0 (c) 2015 UCL, Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbheader V1.1 (c) 2015 UCL, Dr. Andrew C.R. \
 Martin\n");
-   fprintf(stderr,"Usage: pdbheader [-s] [-m] [-c chain] [-n] [in.pdb \
-[out.pdb]]\n");
+   fprintf(stderr,"Usage: pdbheader [-s] [-m] [-p] [-c chain] [-n] \
+[in.pdb [out.pdb]]\n");
    fprintf(stderr,"       -s Show species information rather than \
 everything\n");
    fprintf(stderr,"       -m Show molecule information rather than \
 everything\n");
+   fprintf(stderr,"       -p Show PDB code with -m or -s\n");
    fprintf(stderr,"       -c Only do the specified chain\n");
    fprintf(stderr,"       -n Do not show chain information - just the \
 main header\n");
