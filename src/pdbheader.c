@@ -3,8 +3,8 @@
 
    \file       pdbheader.c
    
-   \version    V1.1
-   \date       29.04.15
+   \version    V1.2
+   \date       04.06.15
    \brief      Get header info from a PDB file
    
    \copyright  (c) UCL / Dr. Andrew C.R. Martin, 2015
@@ -50,6 +50,7 @@
    =================
 -  V1.0  28.04.15 Original
 -  V1.1  29.04.15 Added -p and fixed bug in -m
+-  V1.2  04.06.15 Fixed bug in -c
 
 *************************************************************************/
 /* Includes
@@ -169,6 +170,26 @@ file.\n");
 
 
 /************************************************************************/
+/*>void ProcessChain(FILE *out, WHOLEPDB *wpdb, char *chain, 
+                     BOOL doAll, BOOL doSpecies, BOOL doMolecule,
+                     BOOL showPDB)
+   --------------------------------------------------------------
+*//**
+
+   \param[in]   *out        File pointer
+   \param[in]   *wpdb       Whole PDB structure
+   \param[in]   *chain      Chain of interest
+   \param[in]   doAll       Show all information for the chain
+   \param[in]   doSpecies   Show the species information
+   \param[in]   doMolecule  Show the molecule information
+   \param[in]   showPDB     Show the PDB information
+
+   Displays the information for a specified chain
+
+-  28.04.15  Original   By: ACRM
+-  04.06.15  If neither doSpecies nor doMolecule is specified then 
+             set doAll
+*/
 void ProcessChain(FILE *out, WHOLEPDB *wpdb, char *chain, 
                   BOOL doAll, BOOL doSpecies, BOOL doMolecule,
                   BOOL showPDB)
@@ -261,6 +282,21 @@ void ProcessChain(FILE *out, WHOLEPDB *wpdb, char *chain,
 
 
 /************************************************************************/
+/*>void PrintValue(FILE *fp, char *label, int width, int type, 
+                   char *string, int intval)
+   -----------------------------------------------------------
+*//**
+   \param[in]  *fp       File pointer
+   \param[in]  *label    Label for printed output
+   \param[in]  width     Width for output
+   \param[in]  type      Type (TYPE_INT or TYPE_STRING)
+   \param[in]  *string   String to print
+   \param[in]  intval    Int to print
+
+   Prints a value with a label before it 
+
+-  28.04.15  Original   By: ACRM
+*/
 void PrintValue(FILE *fp, char *label, int width, int type, 
                 char *string, int intval)
 {
@@ -388,7 +424,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbheader V1.1 (c) 2015 UCL, Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbheader V1.2 (c) 2015 UCL, Dr. Andrew C.R. \
 Martin\n");
    fprintf(stderr,"Usage: pdbheader [-s] [-m] [-p] [-c chain] [-n] \
 [in.pdb [out.pdb]]\n");
