@@ -184,6 +184,11 @@ void ProcessChain(FILE *out, WHOLEPDB *wpdb, char *chain,
       PrintValue(out, "\n>Chain:",   18, TYPE_STRING, chain, 0);
    }
 
+   if(!doSpecies && !doMolecule)
+   {
+      doAll = TRUE;
+   }
+   
    if(showPDB)
    {
       char header[MAXBUFF],
