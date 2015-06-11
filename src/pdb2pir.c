@@ -73,6 +73,7 @@
 -  V2.11 07.11.14 Initialized a variable  By: ACRM
 -  V2.12 25.11.14 Initialized a variable  By: ACRM
 -  V2.13 10.03.15 Improved multi-character chain support
+-  V2.14 11.06.15 Moved generally useful code into Bioplib
 
 *************************************************************************/
 /* Includes
@@ -85,57 +86,44 @@
 #include "bioplib/SysDefs.h"
 #include "bioplib/pdb.h"
 #include "bioplib/seq.h"
-#include "bioplib/fsscanf.h"
 #include "bioplib/macros.h"
 #include "bioplib/general.h"
+#include "bioplib/array.h"
+
 
 /************************************************************************/
 /* Defines
 */
-#define MAXLAB     64
 #define MAXTITLE  160
-#define ALLOCSIZE  80
 #define MAXBUFF   160
 #define GAPPEN     2   /* 12.03.08 Gap penalty was 10!!!                */
-#define MAXCHAINS  80
+#define MAXCHAINS 160
 
 #define safetoupper(x) ((islower(x))?toupper(x):(x))
 #define safetolower(x) ((isupper(x))?tolower(x):(x))
-
-typedef struct mres
-{
-   struct mres *next;
-   char modres[8];
-   char origres[8];
-}  MODRES;
 
 /************************************************************************/
 /* Globals
 */
 BOOL gQuiet     = FALSE,
      gUpper     = FALSE,
-     gDoNucleic = TRUE,
      gFASTA     = FALSE;
 
-char gLabel[MAXLAB];
+char gLabel[blMAXPIRLABEL];
 
 /************************************************************************/
 /* Prototypes
 */
 int  main(int argc, char **argv);
-void WritePIR(FILE *out, char *label, char *title, char *sequence,
-              char *chains, BOOL ByChain);
 void Usage(void);
-char *ReadSEQRES(WHOLEPDB *wpdb, char *chains, MODRES *modres);
-MODRES *ReadMODRES(WHOLEPDB *wpdb);
 char *FixSequence(char *seqres,    char *sequence, 
-                  char *seqchains, char *atomchains,
-                  char *outchains, BOOL IgnoreSEQRES);
+                  char **seqchains, char **atomchains,
+                  char **outchains, BOOL IgnoreSEQRES,
+                  int nAtomChains);
 char *CombineSequence(char *align1, char *align2, int align_len);
 int GetPDBChains(PDB *pdb, char *chains);
 void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres);
 char *strdup(const char *s);
-void LookupModres(char *orig, char *new, MODRES *modres);
 
 
 /************************************************************************/
@@ -156,19 +144,21 @@ void LookupModres(char *orig, char *new, MODRES *modres);
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  26.08.14 Use renamed macros blPDB2SeqXNoX() and blPDB2SeqX(). By: CTP
 -  25.11.14 Initialized seqres  By: ACRM
+-  11.06.15 Changed to blGetModresWholePDB() and blGetSeqresWholePDB()  By: ACRM
 */
 int main(int argc, char **argv)
 {
    int  filecount = 0,
-        len1;
+      len1,
+      nAtomChains;
    FILE *in       = stdin,
         *out      = stdout;
    char *sequence,
         *fixedsequence,
         *seqres = NULL,
-        seqchains[MAXCHAINS],
-        atomchains[MAXCHAINS],
-        outchains[MAXCHAINS],
+        **seqchains,
+        **atomchains,
+        **outchains,
         title[MAXTITLE];
    PDB  *pdb;
    WHOLEPDB *wpdb;
@@ -176,11 +166,22 @@ int main(int argc, char **argv)
         UseSEQRES    = FALSE,
         SkipX        = FALSE,
         IgnoreSEQRES = FALSE,
+        doNucleic    = TRUE,
         DoNumbering  = FALSE;
    MODRES *modres = NULL;
    
-
-   gLabel[0] = gLabel[MAXLAB-1]  = '\0';
+   if((outchains = (char **)blArray2D(sizeof(char), MAXCHAINS, blMAXCHAINLABEL))==NULL)
+   {
+      fprintf(stderr,"Error: No memory for outchains array\n");
+      return(1);
+   }
+   if((seqchains = (char **)blArray2D(sizeof(char), MAXCHAINS, blMAXCHAINLABEL))==NULL)
+   {
+      fprintf(stderr,"Error: No memory for seqchains array\n");
+      return(1);
+   }
+   
+   gLabel[0] = gLabel[blMAXPIRLABEL-1]  = '\0';
    title[0]  = title[MAXTITLE-1] = '\0';
    
    argv++;
@@ -203,7 +204,7 @@ int main(int argc, char **argv)
          case 'L':
             argc--;
             argv++;
-            strncpy(gLabel,argv[0],MAXLAB-1);
+            strncpy(gLabel,argv[0],blMAXPIRLABEL-1);
             break;
          case 't':
          case 'T':
@@ -237,7 +238,7 @@ int main(int argc, char **argv)
             break;
          case 'p':
          case 'P':
-            gDoNucleic = FALSE;
+            doNucleic = FALSE;
             break;
          case 'f':
          case 'F':
@@ -283,7 +284,7 @@ int main(int argc, char **argv)
    }
 
    /* Read PDB file                                                     */
-   if((wpdb = blReadWholePDBAtoms(in)) == NULL)
+   if(((wpdb = blReadWholePDBAtoms(in)) == NULL)||(wpdb->pdb==NULL))
    {
       fprintf(stderr,"Error: Unable to read atoms from input file%s%s\n",
               ((gLabel[0])?" Label: ":""),
@@ -295,22 +296,22 @@ int main(int argc, char **argv)
    if(UseSEQRES)
    {
       /* Read MODRES and SEQRES records                                 */
-      modres = ReadMODRES(wpdb);
-      seqres = ReadSEQRES(wpdb, seqchains, modres);
+      modres = blGetModresWholePDB(wpdb);
+      seqres = blGetSeqresAsStringWholePDB(wpdb, seqchains, modres, 
+                                           doNucleic);
    }
 
    /* Extract sequence from PDB linked list                             */
-   if(GetPDBChains(pdb, atomchains) < 0)
+   if((atomchains = blGetPDBChainLabels(pdb, &nAtomChains)) == NULL)
    {
-      fprintf(stderr,"Error: Too many chains in PDB file - increase \
-MAXCHAINS (currently %d)\n", MAXCHAINS);
+      fprintf(stderr,"Error: No memory for atom chain labels\n");
       return(1);
    }
 
    /* Convert PDB linked list to a sequence                             */
    if(SkipX)
    {
-      if(gDoNucleic)
+      if(doNucleic)
       {
          if((sequence = blPDB2SeqXNoX(pdb))==NULL)
          {
@@ -329,7 +330,7 @@ MAXCHAINS (currently %d)\n", MAXCHAINS);
    }
    else
    {
-      if(gDoNucleic)
+      if(doNucleic)
       {
          if((sequence = blPDB2SeqX(pdb))==NULL)
          {
@@ -365,16 +366,19 @@ MAXCHAINS (currently %d)\n", MAXCHAINS);
          records
       */
       if((fixedsequence = FixSequence(seqres,sequence,seqchains,
-                                      atomchains,outchains,IgnoreSEQRES))
+                                      atomchains,outchains,IgnoreSEQRES,
+                                      nAtomChains))
          ==NULL)
          return(1);
 
       /* Write out the PIR file                                         */
-      WritePIR(out,gLabel,title,fixedsequence,outchains,ByChain);
+      blWriteOneStringPIR(out,gLabel,title,fixedsequence,outchains,
+                          ByChain,gFASTA);
    }
    else
    {
-      WritePIR(out,gLabel,title,sequence,atomchains,ByChain);
+      blWriteOneStringPIR(out,gLabel,title,sequence,atomchains,
+                          ByChain,gFASTA);
    }
 
    if(DoNumbering)
@@ -407,13 +411,15 @@ MAXCHAINS (currently %d)\n", MAXCHAINS);
 -  07.11.14 V2.11 By: ACRM
 -  25.11.14 V2.12
 -  10.03.15 V2.13
+-  11.06.15 V2.14
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdb2pir V2.13 (c) 1994-2015 Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"\npdb2pir V2.14 (c) 1994-2015 Dr. Andrew C.R. Martin, \
 UCL\n");
-   fprintf(stderr,"\nUsage: pdb2pir [-h] [-l label] [-t title] [-s] [-c] \
-[-u] [-p] [-q] [-x] [-f] [-n] [-i] [infile [outfile]]\n");
+   fprintf(stderr,"\nUsage: pdb2pir [-h][-l label][-t title][-s][-c][-x]\
+[-u][-p][-q]\n");
+   fprintf(stderr,"               [-f][-n][-i] [infile [outfile]]\n");
    fprintf(stderr,"       -h      This help message\n");
    fprintf(stderr,"       -q      Quiet - no warning messages\n");
    fprintf(stderr,"       -x      Do not include X characters for unknown \
@@ -472,115 +478,6 @@ way.\n");
 
 
 /************************************************************************/
-/*>char *ReadSEQRES(WHOLEPDB *wpdb, char *chains, MODRES *modres)
-   --------------------------------------------------------------
-*//**
-
-   Reads sequence from SEQRES records into a character string in 1-letter
-   code. Chains are terminated by * characters.
-
--  21.08.97 Original   by: ACRM
--  22.08.97 Added chains parameter
--  26.08.97 No longer reads DNA/RNA
--  07.03.07 Added code to check for modified amino acids
-            Now reads from wpdb rather than from the file
--  07.11.14 Initialize lastchain
-*/
-char *ReadSEQRES(WHOLEPDB *wpdb, char *chains, MODRES *modres)
-{
-   static char *sequence = NULL;
-   char        buffer[MAXBUFF],
-               chain,
-               lastchain = '\0',
-               seq3[13][4];
-   int         i,
-               nchain    = 0,
-               nres      = 0,
-               ArraySize = ALLOCSIZE;
-   BOOL        AddStar   = FALSE;
-   STRINGLIST  *s;
-   
-
-   if((sequence=(char *)malloc(ArraySize * sizeof(char)))==NULL)
-   {
-      return(NULL);
-   }
-   sequence[0] = '\0';
-   
-   for(s=wpdb->header; s!=NULL; NEXT(s))
-   {
-      strncpy(buffer, s->string, MAXBUFF);
-      TERMINATE(buffer);
-      if(!strncmp(buffer,"SEQRES",6))
-      {
-         fsscanf(buffer, 
-                 "%11x%c%7x%3s%1x%3s%1x%3s%1x%3s%1x%3s%1x%3s%1x%3s%1x\
-%3s%1x%3s%1x%3s%1x%3s%1x%3s%1x%3s",
-                 &chain,
-                 seq3[0],  seq3[1],  seq3[2],  seq3[3],  seq3[4], 
-                 seq3[5],  seq3[6],  seq3[7],  seq3[8],  seq3[9],
-                 seq3[10], seq3[11], seq3[12]);
-
-         if((nres == 0) && !AddStar)
-         {
-            /* This is the first line so we set the lastchain           */
-            lastchain = chain;
-            if(chains!=NULL)
-               chains[nchain++] = chain;
-         }
-         else if(nres+15 >= ArraySize)
-         {
-            /* Allocate more space if needed                            */
-            ArraySize += ALLOCSIZE;
-            if((sequence=(char *)realloc((void *)sequence, 
-                                         ArraySize*sizeof(char)))
-               == NULL)
-            {
-               return(NULL);
-            }
-         }
-
-         if(chain != lastchain)
-         {
-            sequence[nres++] = '*';
-            lastchain = chain;
-            if(chains!=NULL)
-               chains[nchain++] = chain;
-         }
-
-         for(i=0; i<13; i++)
-         {
-            AddStar = TRUE;
-            if(!strncmp(seq3[i],"   ",3))
-               break;
-            sequence[nres] = blThronex(seq3[i]);
-
-            /* 07.03.07 Added code to check for modified amino acids    */
-            if(sequence[nres] == 'X')
-            {
-               char tmpthree[8];
-               LookupModres(seq3[i], tmpthree, modres);
-               sequence[nres] = blThronex(tmpthree);
-            }
-               
-            if(!gBioplibSeqNucleicAcid || gDoNucleic)
-               nres++;
-         }
-      }
-   }
-
-   if(AddStar)
-   {
-      sequence[nres++] = '*';
-   }
-   sequence[nres++] = '\0';
-   if(chains!=NULL)
-      chains[nchain] = '\0';
-
-   return(sequence);
-}
-
-/************************************************************************/
 /*>int GetPDBChains(PDB *pdb, char *chains)
    ----------------------------------------
 *//**
@@ -617,9 +514,10 @@ int GetPDBChains(PDB *pdb, char *chains)
 
 
 /************************************************************************/
-/*>char *FixSequence(char *seqres, char *sequence, char *seqchains, 
-                     char *atomchains, char *outchains, BOOL IgnoreSEQRES)
-   -----------------------------------------------------------------------
+/*>char *FixSequence(char *seqres, char *sequence, char **seqchains, 
+                     char **atomchains, char **outchains, 
+                     BOOL IgnoreSEQRES, int nAtomChains)
+   -----------------------------------------------------------------
 *//**
 
    Create a final output sequence by combining the information from the
@@ -633,8 +531,9 @@ int GetPDBChains(PDB *pdb, char *chains)
             not in ATOM records
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 */
-char *FixSequence(char *seqres, char *sequence, char *seqchains, 
-                  char *atomchains, char *outchains, BOOL IgnoreSEQRES)
+char *FixSequence(char *seqres, char *sequence, char **seqchains, 
+                  char **atomchains, char **outchains, BOOL IgnoreSEQRES,
+                  int nAtomChains)
 {
    int  i, j, len, len1, len2,
         nchain[2],
@@ -662,9 +561,12 @@ char *FixSequence(char *seqres, char *sequence, char *seqchains,
    /* If the sequences and chains are identical just copy one of them
       and return
    */
-   if(!strcmp(seqres,sequence) && !strcmp(seqchains,atomchains))
+   if(!strcmp(seqres,sequence) && !strcmp(seqchains[0],atomchains[0])) /* FIXME! */
    {
-      strcpy(outchains, seqchains);
+      for(i=0; i<nAtomChains; i++)
+      {
+         strcpy(outchains[i], seqchains[i]);
+      }
       return(strdup(sequence));
    }
 
@@ -716,11 +618,11 @@ char *FixSequence(char *seqres, char *sequence, char *seqchains,
    {
       for(j=0; j<nchain[1]; j++)
       {
-         if(seqchains[i] == atomchains[j])
+         if(CHAINMATCH(seqchains[i], atomchains[j]))
          {
             DoneSEQRES[i] = TRUE;
             DoneATOM[j]   = TRUE;
-            outchains[NOutChain++] = seqchains[i];
+            strcpy(outchains[NOutChain++], seqchains[i]);
             
             if(!strcmp(seqs[0][i], seqs[1][j]))
             {
@@ -791,7 +693,6 @@ char *FixSequence(char *seqres, char *sequence, char *seqchains,
             }
             break;
          }
-         
       }
    }
 
@@ -823,7 +724,7 @@ char *FixSequence(char *seqres, char *sequence, char *seqchains,
          
          strcat(outseq,seqs[1][i]);
          strcat(outseq,"*");
-         outchains[NOutChain++] = atomchains[i];
+         strcpy(outchains[NOutChain++], atomchains[i]);
       }
    }
 
@@ -865,11 +766,11 @@ char *FixSequence(char *seqres, char *sequence, char *seqchains,
             
             strcat(outseq,seqs[0][i]);
             strcat(outseq,"*");
-            outchains[NOutChain++] = seqchains[i];
+            strcpy(outchains[NOutChain++], seqchains[i]);
             
             if(!gQuiet)
             {
-               fprintf(stderr,"Warning: Chain %c from SEQRES records \
+               fprintf(stderr,"Warning: Chain %s from SEQRES records \
 not found in ATOM records%s%s\n",
                        seqchains[i],
                        ((gLabel[0])?" Label: ":""),
@@ -879,6 +780,8 @@ not found in ATOM records%s%s\n",
       }
    }
 
+   /*** NEEDS TO FREE seqs[][] too                                    ***/
+   free(buffer);         /*  11.06.15                                   */
    return(outseq);
 }
 
@@ -931,164 +834,6 @@ char *CombineSequence(char *align1, char *align2, int align_len)
 
 
 /************************************************************************/
-/*>void WritePIR(FILE *out, char *label, char *title, char *sequence,
-                 char *chains, BOOL ByChain)
-   ------------------------------------------------------------------
-*//**
-
-   \param[in]      *out        File pointer
-   \param[in]      *sequence   1-letter amino acid code
-
-   Writes a PIR sequence file from a 1-letter code array.
-   Adds a terminating * if required.
-
--  10.05.94 Original    By: ACRM
--  22.08.97 Can now handle chains separately
--  26.08.97 If chains are handled seprately, don't bother writing out
-            an empty chain
--  10.08.98 Basically a total rewrite to fix a bug which caused the 
-            header not to be printed with -c -p for a chain after one
-            which was non-protein. Much simplified the code by printing
-            the header at the beginning of a chain rather than end
-            of previous chain.
--  18.10.00 Added code to write FASTA as well
-*/
-void WritePIR(FILE *out, char *label, char *title, char *sequence,
-              char *chains, BOOL ByChain)
-{
-   int  i, 
-        count,
-        chaincount = 0;
-   BOOL GotStar = FALSE,
-        DoneHeader = FALSE,
-        Printed;
-   char chn[8],
-        outlabel[MAXLAB];
-
-   strcpy(outlabel,label);
-
-   /* If we are not going by chain create a label                       */
-   if(!ByChain)
-   {
-      strcpy(outlabel, "PDBPIR");
-      if(label[0])
-         strcpy(outlabel, label);
-   }
-
-   /* If we are not doing it by-chain, then simple display the label
-      and header now otherwise set flag to say we haven't done header
-   */
-   if(ByChain)
-   {
-      DoneHeader = FALSE;
-   }
-   else
-   {
-      if(gFASTA)
-      {
-         fprintf(out,">%s\n",outlabel);
-      }
-      else
-      {
-         fprintf(out,">P1;%s\n",outlabel);
-         fprintf(out,"Sequence extracted from PDB file - %s\n",
-                 (title[0]?title:"By pdb2pir"));
-      }
-      DoneHeader = TRUE;
-   }
-
-   /* Start by setting flag to say nothing has been printed             */
-   Printed = FALSE;
-   
-   /* Loop through the sequence with i. Use count to count number of
-      residues printed on a line
-   */
-   for(i=0,count=1; sequence[i]; i++)
-   {
-      if(ByChain)
-      {
-         /* If we don't have a header, then print one                   */
-         if((sequence[i] != '*') && (!DoneHeader))
-         {
-            if(label[0])
-            {
-               strcpy(outlabel,label);
-               chn[0] = chains[chaincount];
-               chn[1] = '\0';
-               strcat(outlabel,chn);
-            }
-            else
-            {
-               sprintf(outlabel,"Chain%c",chains[chaincount]);
-            }
-            if(gFASTA)
-            {
-               fprintf(out,">%s\n",outlabel);
-            }
-            else
-            {
-               fprintf(out,">P1;%s\n",outlabel);
-               fprintf(out,"Sequence extracted from PDB file - %s\n",
-                       (title[0]?title:"By pdb2pir"));
-            }
-            
-            DoneHeader = TRUE;
-            count = 0;
-         }
-      }
-      
-      if(count==30)
-      {
-         fputc('\n',out);
-         count = 0;
-      }
-
-      if(sequence[i] == '*')
-      {
-         chaincount++;
-         if(Printed)
-         {
-            if(gFASTA)
-            {
-               fprintf(out,"\n");
-            }
-            else
-            {
-               fprintf(out,"*\n");
-            }
-            
-            GotStar = TRUE;
-         }
-         
-         DoneHeader = FALSE;
-         Printed    = FALSE;
-      }
-      else
-      {
-         fputc(sequence[i],out);
-         GotStar = FALSE;
-         Printed = TRUE;
-      }
-
-      if(Printed)
-         count++;
-   }
-
-   if(!GotStar)
-   {
-      if(gFASTA)
-      {
-         fprintf(out,"\n");
-      }
-      else
-      {
-         fprintf(out,"*\n");
-      }
-   }
-}
-
-
-/************************************************************************/
 /*>void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres)
    --------------------------------------------------------
 *//**
@@ -1107,6 +852,7 @@ void WritePIR(FILE *out, char *label, char *title, char *sequence,
 -  07.03.07 Added modres stuff
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  10.03.15 Updated for multicharacter and numeric chain labels By: ACRM
+-  11.06.15 Changed to blFindOriginalResType()
 */
 void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres)
 {
@@ -1138,7 +884,7 @@ void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres)
          if(one == 'X')
          {
             char tmpthree[8];
-            LookupModres(p->resnam, tmpthree, modres);
+            blFindOriginalResType(p->resnam, tmpthree, modres);
             one = blThrone(tmpthree);
          }
                
@@ -1146,62 +892,4 @@ void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres)
       }
    }
 }
-
-void LookupModres(char *orig, char *new, MODRES *modres)
-{
-   MODRES *m;
-   for(m=modres; m!=NULL; NEXT(m))
-   {
-      if(!strncmp(orig, m->modres, 3))
-      {
-         strncpy(new, m->origres, 3);
-         PADCHARMINTERM(new, ' ', 4);
-         return;
-      }
-   }
-}
-
-MODRES *ReadMODRES(WHOLEPDB *wpdb)
-{
-   STRINGLIST *s;
-   char *ch;
-   MODRES *modres = NULL,
-          *m = NULL;
-   
-   
-   for(s=wpdb->header; s!=NULL; NEXT(s))
-   {
-      if(!strncmp(s->string, "MODRES", 6))
-      {
-         if(m==NULL)
-         {
-            INIT(modres, MODRES);
-            m = modres;
-         }
-         else
-         {
-            ALLOCNEXT(m, MODRES);
-         }
-         if(m==NULL)
-         {
-            fprintf(stderr,"pdb2pir: Error! No memory for modres\n");
-            exit(1);
-         }
-         
-         ch = s->string+12;
-         strncpy(m->modres, ch, 3);
-         PADCHARMINTERM(m->modres, ' ', 4);
-         
-         ch = s->string+24;
-         strncpy(m->origres, ch, 3);
-         PADCHARMINTERM(m->origres, ' ', 4);
-         if(m->origres[0] == ' ')
-         {
-            strncpy(m->origres, "XXX ", 4);
-         }
-      }
-   }
-   return(modres);
-}
-
 
