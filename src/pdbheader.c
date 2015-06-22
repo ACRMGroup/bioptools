@@ -3,8 +3,8 @@
 
    \file       pdbheader.c
    
-   \version    V1.2
-   \date       04.06.15
+   \version    V1.3
+   \date       22.06.15
    \brief      Get header info from a PDB file
    
    \copyright  (c) UCL / Dr. Andrew C.R. Martin, 2015
@@ -51,6 +51,7 @@
 -  V1.0  28.04.15 Original
 -  V1.1  29.04.15 Added -p and fixed bug in -m
 -  V1.2  04.06.15 Fixed bug in -c
+-  V1.3  22.06.15 Added resolution info to header. With -r gives only this
 
 *************************************************************************/
 /* Includes
@@ -67,6 +68,7 @@
 #define SMALLBUFF   16
 #define TYPE_INT    0
 #define TYPE_STRING 1
+#define TYPE_REAL   2
 
 /************************************************************************/
 /* Globals
@@ -78,10 +80,11 @@
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *chain, BOOL *doAll, BOOL *doSpecies,
-                  BOOL *doMolecule, BOOL *noChains, BOOL *showPDB);
+                  BOOL *doMolecule, BOOL *noChains, BOOL *showPDB,
+                  BOOL *resolOnly);
 void Usage(void);
 void PrintValue(FILE *fp, char *label, int width, int type, 
-                     char *string, int intval);
+                char *string, int intval, REAL realval);
 void ProcessChain(FILE *out, WHOLEPDB *wpdb, char *chain, 
                   BOOL doAll, BOOL doSpecies, BOOL doMolecule, 
                   BOOL showPDB);
@@ -101,15 +104,21 @@ int main(int argc, char **argv)
              *title,
              **chainLabels;
    int       nChains,
+             StrucType,
              i;
    BOOL      doAll      = TRUE,
              doSpecies  = FALSE,
              doMolecule = FALSE,
              noChains   = FALSE,
-             showPDB    = FALSE;
-   
+             showPDB    = FALSE,
+             resolOnly  = FALSE;
+   REAL      resolution,
+             RFactor,
+             FreeR;
+
    if(!ParseCmdLine(argc, argv, infile, outfile, chain, &doAll,
-                    &doSpecies, &doMolecule, &noChains, &showPDB))
+                    &doSpecies, &doMolecule, &noChains, &showPDB,
+                    &resolOnly))
    {
       Usage();
       return(0);
@@ -126,20 +135,46 @@ file.\n");
    {
       if(doAll)
       {
-         if(blGetHeaderWholePDB(wpdb, 
-                                header, MAXBUFF,
-                                date,   SMALLBUFF,
-                                pdbcode, SMALLBUFF))
+         if(!resolOnly)
          {
-            PrintValue(out, "PDB code:", 17, TYPE_STRING, pdbcode, 0);
-            PrintValue(out, "Header:",   17, TYPE_STRING, header,  0);
-            PrintValue(out, "Date:",     17, TYPE_STRING, date,    0);
+            if(blGetHeaderWholePDB(wpdb, 
+                                   header, MAXBUFF,
+                                   date,   SMALLBUFF,
+                                   pdbcode, SMALLBUFF))
+            {
+               PrintValue(out, "PDB code:", 17, TYPE_STRING, pdbcode, 
+                          0, 0.0);
+               PrintValue(out, "Header:",   17, TYPE_STRING, header,  
+                          0, 0.0);
+               PrintValue(out, "Date:",     17, TYPE_STRING, date,    
+                          0, 0.0);
+            }
+            
+            if((title = blGetTitleWholePDB(wpdb))!=NULL)
+            {
+               PrintValue(out, "Title:",    17, TYPE_STRING, title,   
+                          0, 0.0);
+               free(title);
+            }
          }
-      
-         if((title = blGetTitleWholePDB(wpdb))!=NULL)
+
+      }
+
+      if(doAll || resolOnly)
+      {
+         if(blGetExptlWholePDB(wpdb, &resolution, &RFactor, &FreeR, 
+                               &StrucType))
          {
-            PrintValue(out, "Title:",    17, TYPE_STRING, title,   0);
-            free(title);
+            char *sTypeStr = blReportStructureType(StrucType);
+            
+            PrintValue(out, "Type:",       17, TYPE_STRING, sTypeStr, 
+                       0, 0.0);
+            PrintValue(out, "Resolution:", 17, TYPE_REAL, NULL,
+                       0, resolution);
+            PrintValue(out, "R-Factor:",   17, TYPE_REAL, NULL,
+                       0, RFactor);
+            PrintValue(out, "R-Free:",     17, TYPE_REAL, NULL,    
+                       0, FreeR);
          }
       }
 
@@ -202,7 +237,7 @@ void ProcessChain(FILE *out, WHOLEPDB *wpdb, char *chain,
    
    if(doAll)
    {
-      PrintValue(out, "\n>Chain:",   18, TYPE_STRING, chain, 0);
+      PrintValue(out, "\n>Chain:",   18, TYPE_STRING, chain, 0, 0.0);
    }
 
    if(!doSpecies && !doMolecule)
@@ -235,21 +270,21 @@ void ProcessChain(FILE *out, WHOLEPDB *wpdb, char *chain,
          else if(doAll)
          {
             PrintValue(out,"MolID:",      17,  TYPE_INT,    
-                       NULL,                compound.molid);
+                       NULL,                compound.molid, 0.0);
             PrintValue(out,"Molecule:",   17,  TYPE_STRING, 
-                       compound.molecule,   0);
+                       compound.molecule,   0, 0.0);
             PrintValue(out,"Fragment:",   17,  TYPE_STRING, 
-                       compound.fragment,   0);
+                       compound.fragment,   0, 0.0);
             PrintValue(out,"Synonym:",    17, TYPE_STRING, 
-                       compound.synonym,    0);
+                       compound.synonym,    0, 0.0);
             PrintValue(out,"EC:",         17, TYPE_STRING, 
-                       compound.ec,         0);
+                       compound.ec,         0, 0.0);
             PrintValue(out,"Engineered:", 17, TYPE_STRING, 
-                       compound.engineered, 0);
+                       compound.engineered, 0, 0.0);
             PrintValue(out,"Mutation:",   17, TYPE_STRING, 
-                       compound.mutation,   0);
+                       compound.mutation,   0, 0.0);
             PrintValue(out,"Other:",      17, TYPE_STRING, 
-                       compound.other,      0);
+                       compound.other,      0, 0.0);
          }
       }
    }
@@ -268,13 +303,13 @@ void ProcessChain(FILE *out, WHOLEPDB *wpdb, char *chain,
          else
          {
             PrintValue(out,"Scientific name:", 17, TYPE_STRING, 
-                       species.scientificName, 0);
+                       species.scientificName, 0, 0.0);
             PrintValue(out,"Common name:",     17, TYPE_STRING, 
-                       species.commonName,     0);
+                       species.commonName,     0, 0.0);
             PrintValue(out,"Strain:",          17, TYPE_STRING, 
-                       species.strain,         0);
+                       species.strain,         0, 0.0);
             PrintValue(out,"Tax ID:",          17, TYPE_INT,    
-                       NULL,                   species.taxid);
+                       NULL,                   species.taxid, 0.0);
          }
       }
    }
@@ -283,22 +318,24 @@ void ProcessChain(FILE *out, WHOLEPDB *wpdb, char *chain,
 
 /************************************************************************/
 /*>void PrintValue(FILE *fp, char *label, int width, int type, 
-                   char *string, int intval)
+                   char *string, int intval, REAL realval)
    -----------------------------------------------------------
 *//**
    \param[in]  *fp       File pointer
    \param[in]  *label    Label for printed output
    \param[in]  width     Width for output
-   \param[in]  type      Type (TYPE_INT or TYPE_STRING)
+   \param[in]  type      Type (TYPE_INT, TYPE_STRING, or TYPE_REAL)
    \param[in]  *string   String to print
    \param[in]  intval    Int to print
+   \param[in]  realval   Real to print
 
    Prints a value with a label before it 
 
 -  28.04.15  Original   By: ACRM
+-  22.06.15  Added realval
 */
 void PrintValue(FILE *fp, char *label, int width, int type, 
-                char *string, int intval)
+                char *string, int intval, REAL realval)
 {
    char format[MAXBUFF];
    switch(type)
@@ -314,6 +351,10 @@ void PrintValue(FILE *fp, char *label, int width, int type,
          fprintf(fp, format, label, string);
       }
       break;
+   case TYPE_REAL:
+      sprintf(format, "%%-%ds%%.3f\n",width);
+      fprintf(fp, format, label, realval);
+      break;
    }
 }
 
@@ -321,7 +362,8 @@ void PrintValue(FILE *fp, char *label, int width, int type,
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                      char *chain, BOOL *doAll, BOOL *doSpecies,
-                     BOOL *doMolecule, BOOL *noChains, BOOL *showPDB)
+                     BOOL *doMolecule, BOOL *noChains, BOOL *showPDB,
+                     BOOL *resolOnly)
    ----------------------------------------------------------------------
 *//**
    \param[in]   int    argc              Argument count
@@ -335,16 +377,19 @@ void PrintValue(FILE *fp, char *label, int width, int type,
    \param[out]  BOOL   *doMolecule       Print the molecule concisely
    \param[out]  BOOL   *noChains         Do not print chain info
    \param[out]  BOOL   *showPDB          Show PDB code with -m or -s
+   \param[out]  BOOL   *resolOnly        Show only resolution info
    \return      BOOL                     Success
 
    Parse the command line
 
    28.04.15 Original    By: ACRM
    29.04.15 Added -s and showPDB parameter
+   22.06.15 Added -r and resolOnly parameter
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *chain, BOOL *doAll, BOOL *doSpecies,
-                  BOOL *doMolecule, BOOL *noChains, BOOL *showPDB)
+                  BOOL *doMolecule, BOOL *noChains, BOOL *showPDB,
+                  BOOL *resolOnly)
 {
    argc--;
    argv++;
@@ -381,6 +426,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             break;
          case 'p':
             *showPDB    = TRUE;
+            break;
+         case 'r':
+            *resolOnly  = TRUE;
             break;
          default:
             return(FALSE);
@@ -424,9 +472,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbheader V1.2 (c) 2015 UCL, Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbheader V1.3 (c) 2015 UCL, Dr. Andrew C.R. \
 Martin\n");
-   fprintf(stderr,"Usage: pdbheader [-s] [-m] [-p] [-c chain] [-n] \
+   fprintf(stderr,"Usage: pdbheader [-s][-m][-p][-c chain][-n][-r] \
 [in.pdb [out.pdb]]\n");
    fprintf(stderr,"       -s Show species information rather than \
 everything\n");
@@ -436,6 +484,7 @@ everything\n");
    fprintf(stderr,"       -c Only do the specified chain\n");
    fprintf(stderr,"       -n Do not show chain information - just the \
 main header\n");
+   fprintf(stderr,"       -r Only show resolution information\n");
 
    fprintf(stderr,"\nParses and displays the header information from a \
 PDB file. The default\n");
