@@ -3,8 +3,8 @@
 
    \file       pdbhadd.c
    
-   \version    V1.6
-   \date       20.03.15
+   \version    V1.7
+   \date       23.06.15
    \brief      Add hydrogens to a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
@@ -55,6 +55,7 @@
                   hydrogens
 -  V1.5  23.02.15 Modified for new blRenumAtomsPDB()
 -  V1.6  20.03.15 Takes -v option and -n option
+-  V1.7  23.06.15 Fixed bug if unable to strip hydrogens
 
 *************************************************************************/
 /* Includes
@@ -101,6 +102,7 @@ void Usage(void);
 -  17.02.15 Updated wpdb->pdb after adding Nterminal hydrogens
 -  23.02.15 Modified for new blRenumAtomsPDB()
 -  20.03.15 Reports errors here instead of in subroutines
+-  23.06.15 Fixed bug if unable to strip hydrogens
 */
 int main(int argc, char **argv)
 {
@@ -140,8 +142,11 @@ int main(int argc, char **argv)
                      fprintf(stderr,"Unable to strip hydrogens. \
 Continuing.\n");
                   }
-                  FREELIST(pdb, PDB);
-                  pdb = pdbcopy;
+                  else
+                  {
+                     FREELIST(pdb, PDB);
+                     pdb = pdbcopy;
+                  }
                }
                
                if((nh = blHAddPDB(pgp, pdb)) < 0)
@@ -310,10 +315,11 @@ void FixNTerNames(PDB *pdb)
 -  17.02.15 V1.4
 -  23.02.15 V1.5
 -  20.03.15 V1.6
+-  23.06.15 V1.7
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nPDBHAdd V1.6 (c) 1994-2015, Andrew C.R. Martin, \
+   fprintf(stderr,"\nPDBHAdd V1.7 (c) 1994-2015, Andrew C.R. Martin, \
 UCL\n\n");
    fprintf(stderr,"Usage: pdbhadd [-p pgpfile] [-a] [-c] [-n] [-v] \
 [<in.pdb> [<out.pdb>]]\n");
