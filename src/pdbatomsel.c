@@ -238,7 +238,7 @@ void Usage(void)
 Martin, UCL\n");
    fprintf(stderr,"Usage: pdbatomsel [-atom] [-atom...] [<in.pdb> \
 [<out.pdb>]]\n\n");
-   fprintf(stderr,"Selects specfied atom types from a PDB file. \
+   fprintf(stderr,"Selects specified atom types from a PDB file. \
 Assumes C-alpha if no atoms\n");
    fprintf(stderr,"are specified. I/O is through stdin/stdout if files \
 are not specified.\n\n");

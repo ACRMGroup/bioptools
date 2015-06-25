@@ -17,6 +17,10 @@ pdb2pdbml
 ---------
 Converts a PDB file to PDBML format
 
+pdbml2pdb
+---------
+Converts a PDBML file to PDB format
+
 pdb2pir
 -------
 Extracts a PIR sequence file from a PDB file.

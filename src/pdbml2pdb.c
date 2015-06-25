@@ -1,11 +1,11 @@
 /************************************************************************/
 /**
 
-   \file       pdb2pdbml.c
+   \file       pdbml2pdb.c
    
    \version    V1.0
-   \date       26.02.15
-   \brief      Convert PDB format to PDBML
+   \date       25.06.15
+   \brief      Convert PDBML format to PDB
    
    \copyright  (c) Dr. Andrew C. R. Martin 2015
    \author     Dr. Andrew C. R. Martin
@@ -46,7 +46,7 @@
 
    Revision History:
    =================
--  V1.0  26.02.15 Original
+-  V1.0  25.06.15 Original
 
 *************************************************************************/
 /* Includes
@@ -79,7 +79,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile);
 
    Main program
 
--  26.02.15 Original    By: ACRM
+-  25.06.15 Original    By: ACRM
 */
 int main(int argc, char **argv)
 {
@@ -95,7 +95,7 @@ int main(int argc, char **argv)
       {
          if((wpdb=blReadWholePDB(in))!=NULL)
          {
-            FORCEXML;
+            FORCEPDB;
             blWriteWholePDB(out, wpdb);
          }
          else
@@ -124,12 +124,14 @@ int main(int argc, char **argv)
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdb2pdbml V1.0  (c) 2015 UCL, Andrew C.R. \
+   fprintf(stderr,"\npdbml2pdb V1.0  (c) 2015 UCL, Andrew C.R. \
 Martin\n");
-   fprintf(stderr,"Usage: pdb2pdbml [<input.pdb> [<output.pdb>]]\n");
+   fprintf(stderr,"Usage: pdbml2pdb [<input.pdb> [<output.pdb>]]\n");
    fprintf(stderr,"I/O is to stdin/stdout if not specified\n\n");
-   fprintf(stderr,"Converts a PDB file to PDBML format\n\n");
-   fprintf(stderr,"Note that only key header information is retained \
+   fprintf(stderr,"Converts a PDBML file to PDB format.\n");
+   fprintf(stderr,"The file will only be converted if it is suitable \
+for PDB format\n");
+   fprintf(stderr,"\nNote that only key header information is retained \
 at present\n\n");
 }
 
@@ -147,7 +149,7 @@ at present\n\n");
 
    Parse the command line
    
--  26.02.15 Original    By: ACRM
+-  25.06.15 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 {
