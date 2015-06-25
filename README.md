@@ -3,6 +3,11 @@ bioptools
 
 Tools making use of BiopLib
 
+
+See INSTALL.md for installation instructions!
+
+
+
 naccess2bval
 ------------
 Rewrites the output from naccess solvent accessibility as a standard PDB
