@@ -118,6 +118,7 @@ int main(int argc, char **argv)
 /*>void Usage(void)
    ----------------
 *//**
+   Prints a usage message
 
 -  26.02.15 Original    By: ACRM
 */
@@ -128,6 +129,8 @@ Martin\n");
    fprintf(stderr,"Usage: pdb2pdbml [<input.pdb> [<output.pdb>]]\n");
    fprintf(stderr,"I/O is to stdin/stdout if not specified\n\n");
    fprintf(stderr,"Converts a PDB file to PDBML format\n\n");
+   fprintf(stderr,"Note that only key header information is retained \
+at present\n\n");
 }
 
 

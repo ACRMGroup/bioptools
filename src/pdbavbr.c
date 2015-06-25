@@ -3,8 +3,8 @@
 
    \file       pdbavbr.c
    
-   \version    V1.3
-   \date       12.02.15
+   \version    V1.4
+   \date       25.06.15
    \brief      Calc means and SDs of BValues by residue type
    
    \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
@@ -51,6 +51,7 @@
                   Added doxygen annotation. By: CTP
 -  V1.2  06.11.14 Renamed from avbr  By: ACRM
 -  V1.3  12.02.15 Some minor fixes and more usage info
+-  V1.4  25.06.15 Only prints bars for observed residues
 
 *************************************************************************/
 /* Includes
@@ -167,10 +168,11 @@ int main(int argc, char **argv)
 -  22.07.14 V1.1 By: CTP
 -  06.11.14 V1.2 By: ACRM
 -  12.02.15 V1.3 By: ACRM
+-  25.06.15 V1.4 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbavbr V1.3 (c) 1994-2015, Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbavbr V1.4 (c) 1994-2015, Dr. Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"Usage: pdbavbr [-n] [-m maxval] [-b nbin] [in.pdb \
 [output.txt]]\n");
@@ -406,15 +408,18 @@ BOOL DoBarsForRes(FILE *out, PDB *pdb, char *resnam, BOOL FindMax,
    }
 
    /* Print the bins                                                    */
-   fprintf(out,"%4s %6.3f ",resnam, MaxVal);
-   for(i=0; i<NBin; i++)
+   if(MaxVal > (REAL)(-999999.0))
    {
-      if(Normalise)
-         fprintf(out,"%5.4f ",(REAL)bins[i]/(REAL)nvalues);
-      else
-         fprintf(out,"%5d ",bins[i]);
+      fprintf(out,"%4s %6.3f ",resnam, MaxVal);
+      for(i=0; i<NBin; i++)
+      {
+         if(Normalise)
+            fprintf(out,"%5.4f ",(REAL)bins[i]/(REAL)nvalues);
+         else
+            fprintf(out,"%5d ",bins[i]);
+      }
+      fprintf(out,"\n");
    }
-   fprintf(out,"\n");
 
    return(TRUE);
 }
