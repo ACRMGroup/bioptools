@@ -115,6 +115,11 @@ pdbhadd
 -------
 Add hydrogens to a PDB file.
 
+pdbheader
+---------
+Prints the key header information from a PDB (title; molecule and
+species for each chain, etc.)
+
 pdbhetstrip
 -----------
 Removes het atoms from a PDB file.
