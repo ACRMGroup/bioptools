@@ -128,9 +128,13 @@ pdbhstrip
 ---------
 Removes hydrogens from a PDB file.
 
+pdblistss
+---------
+Calculates and lists the disulphides in a PDB file.
+
 pdbmakepatch
 ------------
-Generates a patch around a specified residue
+Generates a patch around a specified residue.
 
 pdborder
 --------
