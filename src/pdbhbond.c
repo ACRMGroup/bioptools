@@ -721,12 +721,11 @@ void PrintHBList(FILE *out, HBLIST *hblist, char *type, BOOL relaxed)
          if(relaxed)
          {
             /* 12.05.00 ACRM - print the relaxed field if required      */
-            fprintf(out," %d", h->relaxed);
+            fprintf(out," %s", (h->relaxed?"RELAXED":""));
          }
 
          fprintf(out,"\n");
       }
-      fprintf(out, "</DATA>\n");
    }
 }
 
