@@ -7,7 +7,7 @@ Handle PGP file in data directory
 
    \file       pdbhbond.c
    
-   \version    V1.0
+   \version    V2.0
    \date       20.07.15
    \brief      List hydrogen bonds
    
@@ -47,6 +47,17 @@ Handle PGP file in data directory
    ================================
    Within the protein we apply the rules exactly as defined by Baker and
    Hubbard.
+
+   If the location of H is known:
+      D-H-A and H-A-P are between 90 and 180 degrees
+      H-A < 2.5A
+
+   If the location of H is not known:
+      D-A-P is between 90 and 180 degrees
+      D-A < 3.5A
+
+   Note that the code now uses 3.35A instead of 3.5A - this can be set 
+   on the command line.
 
    For protein ligand interactions, we apply the following rules:
 
@@ -90,6 +101,22 @@ Handle PGP file in data directory
 
 **************************************************************************
 
+   Notes and issues:
+   =================
+
+   In some structures extra HBonds are being formed
+   Asp95.OD1 - Sam400.O2*
+   Asp95.OD2 - Sam400.O3*
+   Asp95.OD1 - Sam400.O3*
+
+   If you look at the structure the Sam400.O3* could actually
+   be making an HBond with either OD1 or OD2 of Asp95. Clearly
+   OD2 is a better bet (especially since OD1 is binding to O2*)
+   but the code is not designed to look ahead for things like
+   this. Seems that the extra one is using ASP as a Donor
+
+**************************************************************************
+
    Usage:
    ======
 
@@ -110,7 +137,7 @@ Handle PGP file in data directory
 -   V2.0  20.07.15 Now a standalone program that uses PDB files
                    rather than based on XMAS. Now uses internal PDB 
                    CONECT information rather than keeping its own version
-                   of teh CONECT data
+                   of the CONECT data
 
 *************************************************************************/
 /* Includes
@@ -126,12 +153,20 @@ Handle PGP file in data directory
 #include "bioplib/hbond.h"
 #include "bioplib/hash.h"
 #include "bioplib/angle.h"
+#include "bioplib/general.h"
 
 /************************************************************************/
 /* Defines and macros
 */
-#define MAXBUFF 160
 
+/*** OPTIONS                                                          ***/
+#define NO_WATERS_IN_MOL_LIST  /* Don't treat waters as separate mols   */
+#undef  USE_METAL_IN_POLYHET   /* Metals can be treated as part of a
+                                  polymer of HETATMs                    */
+/*** END-OPTIONS                                                      ***/
+
+
+#define MAXBUFF          160
 #define MAX_TYPE_STRING   24
 #define MAX_NAME_STRING  180
 #define MAX_CHAIN_STRING   8
@@ -149,10 +184,7 @@ Handle PGP file in data directory
                                                to be trigonal planar if
                                                larger than this         */
 
-#define RESIDMATCH(p, q) (((p)->resnum == (q)->resnum) &&                \
-                          (!strcmp((p)->chain,  (q)->chain)) &&          \
-                          (!strcmp((p)->insert, (q)->insert)))
-   
+/* Used to store HBonding information for each element type             */
 typedef struct
 {
    char *element;
@@ -160,13 +192,13 @@ typedef struct
         acceptor;
 }  HBONDING;
 
+/* PDB.extras structure used for original atom numbers (before adding
+   hydrogens) and molecule IDs                                          */
 typedef struct _pdbextras
 {
    int origAtnum;
    int molid;
 }  PDBEXTRAS;
-
-#define PDBEXTRASPTR(p, type) ((type *)((p)->extras))
 
 
 
@@ -253,24 +285,15 @@ HBLIST *FindLigandLigandHBonds(PDB *pdb,
 void PrintHBList(FILE *out, HBLIST *hblist, char *type, BOOL relaxed);
 HBLIST *TestForHBond(PDB *pdb, PDB *p, PDB *q, PDB **pdbarray,
                      BOOL pseudo, REAL maxHBDistSq);
-int IsDonor(PDB *p, BOOL *pseudo, BOOL allowPseudo);
-int IsAcceptor(PDB *p, BOOL *pseudo, BOOL allowPseudo);
-PDB *FindAntecedent(PDB *acceptor, PDB **pdbarray, 
-                    int *count, int nth);
-BOOL LeftJustifyAndPad(char *string, int padlen);
-BOOL IsConnected(PDB *p, PDB *q);
+int IsDonor(PDB *p, BOOL allowPseudo, BOOL *pseudo);
+int IsAcceptor(PDB *p, BOOL allowPseudo, BOOL *pseudo);
+PDB *FindAntecedent(PDB *atom, PDB **pdbarray, int *count, int nth);
 PDB *FindBondedHydrogen(PDB *pdb, PDB *donor, PDB *acceptor);
 HBLIST *doTestForHBond(PDB *pdb, PDB *donor, PDB *acceptor, 
                        PDB **pdbarray, int donMax, REAL maxHBDistSq);
 HBLIST *FindNonBonds(PDB *pdb, PDB **pdbarray,
                      HBLIST *hbonds, REAL minNBDistSq, REAL maxNBDistSq);
 BOOL IsListedAsHBonded(PDB *p, PDB *q, HBLIST *hbonds);
-void SetPDBAtomTypes(PDB *pdb);
-BOOL SetPDBAtomTypesNSResidues(PDB *pdb);
-void SetPDBAtomTypesModifiers(PDB *pdb);
-void SetPDBAtomTypesWaterAndNucleotides(PDB *pdb);
-void SetPDBAtomTypesMetals(PDB *pdb);
-void InitializePDBAtomTypes(PDB *pdb);
 BOOL isAPeptide(PDB *pdb, PDB *atm);
 void SetAtomNumExtras(PDB *pdb);
 BOOL UpdatePDBExtras(PDB *pdb);
@@ -279,41 +302,42 @@ void MarkLinkedResidues(PDB *chainStart, PDB *resStart,
                         PDB *nextChain, int id);
 void DeleteMetalConects(PDB *pdb);
 
-
-
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
-   Main program for calculating HBonds and non-bonds from XMAS files
+*//**
+   Main program for calculating HBonds and non-bonds from PDB files
 
-   07.06.99 Original   By: ACRM
-   08.06.99 Added molecule reading
+-  07.06.99 Original   By: ACRM
+-  08.06.99 Added molecule reading
             Added ligand-ligand HBonds
-   09.06.99 Fixed joining of HBond lists where first list is NULL
-   16.06.99 Added min and max NB/HB distances as variables
+-  09.06.99 Fixed joining of HBond lists where first list is NULL
+-  16.06.99 Added min and max NB/HB distances as variables
+-  22.07.15 Modified to use PDB files and standard BiopLib structures
+            and functions
 */
 int main(int argc, char **argv)
 {
-   FILE     *in = stdin, 
-            *out = stdout,
-            *pgp;
-   PDB      *pdb,
-            **pdbarray;
-   int      nhyd,
-            indexSize;
-   char     infile[MAXBUFF],
-            outfile[MAXBUFF];
-   HBLIST   *ppHBonds = NULL,
-            *plHBonds = NULL,
-            *llHBonds = NULL,
-            *pplHBonds = NULL,
-            *nbContacts = NULL,
-            *hb;
-   WHOLEPDB *wpdb = NULL;
-   REAL     minNBDistSq = MINNBDISTSQ,
-            maxNBDistSq = MAXNBDISTSQ,
-            maxHBDistSq = MAXHBONDDISTSQ;
-   
+   FILE       *in = stdin, 
+              *out = stdout,
+              *pgp;
+   PDB        *pdb,
+              **pdbarray;
+   int        nhyd,
+              indexSize;
+   char       infile[MAXBUFF],
+              outfile[MAXBUFF];
+   HBLIST     *ppHBonds = NULL,
+              *plHBonds = NULL,
+              *llHBonds = NULL,
+              *pplHBonds = NULL,
+              *nbContacts = NULL,
+              *hb;
+   WHOLEPDB   *wpdb = NULL;
+   REAL       minNBDistSq = MINNBDISTSQ,
+              maxNBDistSq = MAXNBDISTSQ,
+              maxHBDistSq = MAXHBONDDISTSQ;
+   STRINGLIST *warnings = NULL;
    
    if(ParseCmdLine(argc, argv, infile, outfile, &minNBDistSq, 
                    &maxNBDistSq, &maxHBDistSq))
@@ -365,7 +389,15 @@ data\n");
             return(1);
          }
 
-         SetPDBAtomTypes(pdb);
+         if((warnings = blSetPDBAtomTypes(pdb))!=NULL)
+         {
+            STRINGLIST *s;
+            for(s=warnings; s!=NULL; NEXT(s))
+            {
+               fprintf(stderr,"%s\n", s->string);
+            }
+         }
+         
          SetMolecules(pdb);
 
          if((pdbarray=blIndexAtomNumbersPDB(pdb, &indexSize))==NULL)
@@ -442,18 +474,20 @@ data\n");
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
    Prints a usage message
 
-   07.06.99 Original   By: ACRM
-   09.06.99 Added -q
-   16.06.99 Added -n, -x, -b
+-  07.06.99 Original   By: ACRM
+-  09.06.99 Added -q
+-  16.06.99 Added -n, -x, -b
+-  22.07.15 V2.0
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nhb V1.0 (c) 1999, Inpharmatica Ltd.\n");
-   fprintf(stderr,"Usage: hb [-q][-n dist][-x dist][-b dist] \
+   fprintf(stderr,"\npdbhbond V2.0 (c) 2015, Dr. Andrew C.R. Martin, \
+UCL\n");
+   fprintf(stderr,"Usage: pdbhbond [-n dist][-x dist][-b dist] \
 [infile [outfile]]\n");
-   fprintf(stderr,"       -q  Quiet mode\n");
    fprintf(stderr,"       -n  Minimum NBond distance (Default: %.2f)\n",
            sqrt(MINNBDISTSQ));
    fprintf(stderr,"       -x  Maximum NBond distance (Default: %.2f)\n",
@@ -464,12 +498,8 @@ void Usage(void)
    fprintf(stderr,"\nIdentifies hydrogen bonds using simple Baker and \
 Hubbard rules for\n");
    fprintf(stderr,"the definition of a hydrogen bond.\n");
-   fprintf(stderr,"\nThe file Explicit.pgp must be in either the current \
-directory or in\n");
-   fprintf(stderr,"/usr/local/lib\n");
-   fprintf(stderr,"Input and output are in XMAS format. I/O is to \
-standard input/output\n");
-   fprintf(stderr,"if filenames are not specified.\n\n");
+   fprintf(stderr,"I/O is to standard input/output if filenames are not \
+specified.\n\n");
 }
 
 /************************************************************************/
@@ -477,20 +507,22 @@ standard input/output\n");
                      REAL *minNBDistSq, REAL *maxNBDistSq,
                      REAL *maxHBDistSq)
    ---------------------------------------------------------------------
-   Input:   int    argc          Argument count
-            char   **argv        Argument array
-   Output:  char   *infile       Input filename (or blank string)
-            char   *outfile      Output filename (or blank string)
-            REAL   *minNBDistSq  Min non-bond distance
-            REAL   *maxNBDistSq  Max non-bond distance
-            REAL   *maxHBDistSq  Max HBond distance
-   Returns: BOOL                 Success
+*//**
+   \param[in]    argc          Argument count
+   \param[in]    **argv        Argument array
+   \param[out]   *infile       Input filename (or blank string)
+   \param[out]   *outfile      Output filename (or blank string)
+   \param[out]   *minNBDistSq  Min non-bond distance
+   \param[out]   *maxNBDistSq  Max non-bond distance
+   \param[out]   *maxHBDistSq  Max HBond distance
+   \return                     Success
 
    Parse the command line
 
-   07.06.99 Original    By: ACRM
-   09.06.99 Added -q
-   16.06.99 Added -n, -x, -b and associated parameters
+-  07.06.99 Original    By: ACRM
+-  09.06.99 Added -q
+-  16.06.99 Added -n, -x, -b and associated parameters
+-  21.07.15 Removed -q
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   REAL *minNBDistSq, REAL *maxNBDistSq,
@@ -570,12 +602,15 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>HBLIST *FindProtProtHBonds(PDB *pdb)
    ------------------------------------
-   Input:   PDB     *pdb    PDB linked list
-   Returns: HBLIST  *       Linked list of protein-protein HBonds
+*//**
+   \param[in]   *pdb    PDB linked list
+   \return              Linked list of protein-protein HBonds
 
    Create a list of HBonds within the protein
 
-   07.06.99 Original   By: ACRM
+-  07.06.99 Original   By: ACRM
+-  22.07.15 Modified to use PDB files and standard BiopLib structures
+            and functions
 */
 HBLIST *FindProtProtHBonds(PDB *pdb)
 {
@@ -628,18 +663,21 @@ HBLIST *FindProtProtHBonds(PDB *pdb)
 /************************************************************************/
 /*>void PrintHBList(FILE *out, HBLIST *hblist, char *type, BOOL relaxed)
    ---------------------------------------------------------------------
-   Input:   FILE   *out    Output file pointer
-            HBLIST *hblist Linked list of atom pairs to be printed
-            char   *type   Type for XMAS output
-            BOOL   relaxed Include the 'relaxed' field from the HBLIST
-                           structure
+*//**
+   \param[in]  *out    Output file pointer
+   \param[in]  *hblist Linked list of atom pairs to be printed
+   \param[in]  *type   Type for XMAS output
+   \param[in]  relaxed Include the 'relaxed' field from the HBLIST
+                       structure
 
    Prints a list of HBonds (or non-bonds)
 
-   07.06.99 Original   By: ACRM
-   24.08.99 Calls WrapPrint() on output of atom names to escape any
+-  07.06.99 Original   By: ACRM
+-  24.08.99 Calls WrapPrint() on output of atom names to escape any
             double inverted commas
-   12.05.99 Added 'relaxed' handling
+-  12.05.99 Added 'relaxed' handling
+-  22.07.15 Modified to use PDB files and standard BiopLib structures
+            and functions
 
 TODO REWRITE!
 */
@@ -681,53 +719,22 @@ void PrintHBList(FILE *out, HBLIST *hblist, char *type, BOOL relaxed)
 }
 
 
-
 /************************************************************************/
-/*>BOOL LeftJustifyAndPad(char *string, int padlen)
-   ------------------------------------------------
-   I/O:     char    *string     A character string
-   Input:   int     padlen      Length to pad to
-   Returns: BOOL                success?
-
-   Left justifies a string and then pads with spaces to the required
-   length.
-
-   Returns success of internal memory allocation
-
-   07.06.99 Original   By: ACRM
-*/
-BOOL LeftJustifyAndPad(char *string, int padlen)
-{
-   char *stringCopy = NULL,
-        *chp;
-   
-   if((stringCopy=(char *)malloc((1+strlen(string))*sizeof(char)))==NULL)
-      return(FALSE);
-
-   KILLLEADSPACES(chp, string);
-   strcpy(stringCopy, chp);
-   PADCHARMINTERM(stringCopy, ' ', padlen);
-   
-   strcpy(string, stringCopy);
-   free(stringCopy);
-   
-   return(TRUE);
-}
-
-
-/************************************************************************/
-/*>int IsDonor(PDB *p, BOOL *pseudo, BOOL allowPseudo)
+/*>int IsDonor(PDB *p, BOOL allowPseudo, BOOL *pseudo)
    ---------------------------------------------------
-   Input:   PDB  *p            PDB pointer
-            BOOL allowPseudo   Allow pseudo HBonds?
-   Output:  BOOL *pseudo       Is it a pseudo donor?
-   Returns: int                Number of donor positions
+*//**
+   \param[in]   *p            PDB pointer
+   \param[in]   allowPseudo   Allow pseudo HBonds?
+   \param[out]  *pseudo       Is it a pseudo donor?
+   \return                    Number of donor positions
 
    Tests whether an atom is a HBond (pseudo-)donor
 
-   07.06.99 Original   By: ACRM
+-  07.06.99 Original   By: ACRM
+-  22.07.15 Modified to use PDB files and standard BiopLib structures
+            and functions
 */
-int IsDonor(PDB *p, BOOL *pseudo, BOOL allowPseudo)
+int IsDonor(PDB *p, BOOL allowPseudo, BOOL *pseudo)
 {
    int i;
 
@@ -762,18 +769,21 @@ int IsDonor(PDB *p, BOOL *pseudo, BOOL allowPseudo)
 }
 
 /************************************************************************/
-/*>int IsAcceptor(PDB *p, BOOL *pseudo, BOOL allowPseudo)
+/*>int IsAcceptor(PDB *p, BOOL allowPseudo, BOOL *pseudo)
    ------------------------------------------------------
-   Input:   PDB  *p            PDB pointer
-            BOOL allowPseudo   Allow pseudo HBonds?
-   Output:  BOOL *pseudo       Is it a pseudo acceptor?
-   Returns: int                Number of acceptor positions
+*//**
+   \param[in]   *p            PDB pointer
+   \param[in]   allowPseudo   Allow pseudo HBonds?
+   \param[out]  *pseudo       Is it a pseudo acceptor?
+   \return                    Number of acceptor positions
 
    Tests whether an atom is a HBond (pseudo-)acceptor
 
-   07.06.99 Original   By: ACRM
+-  07.06.99 Original   By: ACRM
+-  22.07.15 Modified to use PDB files and standard BiopLib structures
+            and functions
 */
-int IsAcceptor(PDB *p, BOOL *pseudo, BOOL allowPseudo)
+int IsAcceptor(PDB *p, BOOL allowPseudo, BOOL *pseudo)
 {
    int i;
 
@@ -807,117 +817,113 @@ int IsAcceptor(PDB *p, BOOL *pseudo, BOOL allowPseudo)
 }
 
 
-PDB  *FindAntecedent(PDB *acceptor, PDB **pdbarray, 
-                     int *count, int nth)
-{
-   int atomnum;
-   
+/************************************************************************/
+/*>PDB *FindAntecedent(PDB *atom, PDB **pdbarray, int *count, int nth)
+   -------------------------------------------------------------------
+*//**
+   \param[in]   *atom       The atom of interest
+   \param[in]   **pdbarray  Array of PDB pointers indexed by atom number
+   \param[in]   nth         The Nth antecedent is requested
+   \param[out]  *count      The Nth antecedent found
+   \return                  Pointer to Nth antecedent
 
-   int i;
-   PDB *antecedent = NULL, *p;
+   Finds the nth antecedent atom (nth==0 is the same as nth==1).
+   In other words finds the nth atom that is bound to the atom. 
+   count contains the actual antecedent number as there may not be 
+   enough atoms bound.
+
+   A complete rewrite of the old XMAS version
+
+-  21.07.15  Original   By: ACRM
+*/
+PDB *FindAntecedent(PDB *atom, PDB **pdbarray, int *count, int nth)
+{
+   int i,
+       atomnum;
+   PDB *antecedent = NULL, 
+       *best       = NULL,
+       *p; 
+
+   if(nth==0) nth=1;
 
    *count = 0;
-   if(nth==0) nth=1;
-   if(acceptor != NULL)
+   if(atom != NULL)
    {
-      if((acceptor->atomtype & ATOMTYPE_NONRESIDUE) || 
-         (acceptor->atomtype == ATOMTYPE_MODPROT) ||
-         (acceptor->atomtype == ATOMTYPE_MODNUC))
+      /* If it's a HETATM with CONECT information                       */
+      if((atom->atomtype & ATOMTYPE_NONRESIDUE) || 
+         (atom->atomtype == ATOMTYPE_MODPROT)   ||
+         (atom->atomtype == ATOMTYPE_MODNUC))
       {
-         if(acceptor->nConect == 0)
+         if(atom->nConect == 0)
             return(NULL);
 
-         if(nth > acceptor->nConect)
-            nth = acceptor->nConect;
+         if(nth > atom->nConect)
+            nth = atom->nConect;
 
-         antecedent = acceptor->conect[nth-1];
+         antecedent = atom->conect[nth-1];
          *count = nth;
          return(antecedent);
       }
-      else /* It's a normal residue */
+      else /* It's a normal residue                                     */
       {
-         /* Work backwards a maximum of 30 atoms */
-         atomnum = acceptor->atnum - 1;
+         /* Work backwards a maximum of 30 atoms                        */
+         atomnum = atom->atnum - 1;
          for(i=atomnum; i>=0 && i>atomnum-30; i--)
          {
             if(pdbarray[i] != NULL)
             {
-               if(blIsBonded(acceptor, pdbarray[i], BOND_TOL))
+               if(blIsBonded(atom, pdbarray[i], BOND_TOL))
                {
+                  best = pdbarray[i];
                   if(++(*count) >= nth)
                      return(pdbarray[i]);
                }
             }
-            
          }
 
-         /* Work forwards a maximum of 30 atoms */
-         for(p=acceptor->next; p!=NULL; NEXT(p))
+         /* Work forwards a maximum of 30 atoms                         */
+         for(p=atom->next, i=0; p!=NULL && i<30; NEXT(p))
          {
-            if(blIsBonded(acceptor, p, BOND_TOL))
+            if(blIsBonded(atom, p, BOND_TOL))
             {
+               best = p;
                if(++(*count) >= nth)
                   return(p);
             }
+            i++;
          }
       }
    }
 
-   return(NULL);
-}
-
-
-/************************************************************************/
-/*>BOOL IsConnected(PDB *p, PDB *q)
-   --------------------------------
-   Input:   PDB      *p           First atom
-            PDB      *q           Second atom
-   Returns: BOOL                  Connected?
-
-   Tests whether there is a link between the specified atoms in the
-   connect list
-
-   07.06.99 Original   By: ACRM
-*/
-BOOL IsConnected(PDB *p, PDB *q)
-{  int i;
-   for(i=0; i<p->nConect; i++)
-   {
-      if(p->conect[i] == q)
-         return(TRUE);
-   }
-
-   for(i=0; i<q->nConect; i++)
-   {
-      if(q->conect[i] == p)
-         return(TRUE);
-   }
-   
-   return(FALSE);
+   return(best);
 }
 
 
 /************************************************************************/
 /*>PDB *FindBondedHydrogen(PDB *pdb, PDB *donor, PDB *acceptor)
-   --------------------------------------------------
-   Input:   PDB    *donor    Donor atom
-            PDB    *acceptor Acceptor atom
-   Returns: PDB    *         Hydrogen bonded to the donor
+   ------------------------------------------------------------
+*//**
+   \param[in]     *pdb      Start of PDB linked list
+   \param[in]     *donor    Donor atom
+   \param[in]     *acceptor Acceptor atom
+   \return                  Hydrogen bonded to the donor
 
    Finds a hydrogen bonded to the donor. Selects the hydrogen which is
    closest to acceptor.
 
-   07.06.99 Original   By: ACRM
-   16.06.99 Initialise bestDistSq to 0
+-  07.06.99 Original   By: ACRM
+-  16.06.99 Initialise bestDistSq to 0
+-  22.07.15 Modified to use PDB files and standard BiopLib structures
+            and functions - added pdb parameter
 */
 PDB *FindBondedHydrogen(PDB *pdb, PDB *donor, PDB *acceptor)
 {
    PDB  *hydrogen = NULL,
-      *p;
-   PDB *start, *stop;
+        *p;
+   PDB  *start, 
+        *stop;
    REAL bestDistSq = (REAL)0.0,
-      distSq;
-   
+        distSq;
    
    if(donor != NULL)
    {
@@ -998,27 +1004,31 @@ PDB *FindBondedHydrogen(PDB *pdb, PDB *donor, PDB *acceptor)
    }
    
    return(NULL);
-
 }
+
 
 /************************************************************************/
 /*>HBLIST *TestForHBond(PDB *pdb, PDB *p, PDB *q, PDB **pdbarray,
                         BOOL pseudo, REAL maxHBDistSq)
    -----------------------------------------------------------------------
-   Input:   PDB       *p            Ligand atom
-            PDB       *q            Protein atom
-            PDB       **pdbarray    Array of PDB pointers indexed by atom
-                                    number
-            BOOL      pseudo        Is this to be a pseudo HBond rather 
-                                    than a real one?
-            REAL      maxHBDistSq   Max allowed D-A HBond distance
-   Returns: HBLIST    *             Allocated hbond structure or NULL
+*//**
+   \param[in]       *pdb          Start of PDB linked list
+   \param[in]       *p            Ligand atom
+   \param[in]       *q            Protein atom
+   \param[in]       **pdbarray    Array of PDB pointers indexed by atom
+                                  number
+   \param[in]       pseudo        Is this to be a pseudo HBond rather 
+                                  than a real one?
+   \param[in]       maxHBDistSq   Max allowed D-A HBond distance
+   \return                        Allocated hbond structure or NULL
 
    Tests whether the 2 atoms are linked by a HBond. If found, returns
    a malloc'd HBLIST structure (maybe a list).
 
-   07.06.99 Original   By: ACRM
-   16.06.99 Added maxHBDistSq parameter
+-  07.06.99 Original   By: ACRM
+-  16.06.99 Added maxHBDistSq parameter
+-  22.07.15 Modified to use PDB files and standard BiopLib structures
+            and functions - added pdb parameter
 */
 HBLIST *TestForHBond(PDB *pdb, PDB *p, PDB *q, PDB **pdbarray,
                      BOOL pseudo, REAL maxHBDistSq)
@@ -1036,8 +1046,8 @@ HBLIST *TestForHBond(PDB *pdb, PDB *p, PDB *q, PDB **pdbarray,
       We only allow pseudo Hbonds where the donor is the ligand and the
       acceptor is the protein.
    */
-   if(((donMax=IsDonor(p, &pseudoD, pseudo))!=0) && 
-      ((accMax=IsAcceptor(q, &pseudoA, pseudo))!=0))
+   if(((donMax=IsDonor(p, pseudo, &pseudoD))!=0) && 
+      ((accMax=IsAcceptor(q, pseudo, &pseudoA))!=0))
    {
       donor    = p;
       acceptor = q;
@@ -1053,8 +1063,8 @@ HBLIST *TestForHBond(PDB *pdb, PDB *p, PDB *q, PDB **pdbarray,
 
    if(!pseudo)
    {
-      if(((donMax=IsDonor(q, &pseudoD, FALSE))!=0) && 
-         ((accMax=IsAcceptor(p, &pseudoA, FALSE))!=0))
+      if(((donMax=IsDonor(q, FALSE, &pseudoD))!=0) && 
+         ((accMax=IsAcceptor(p, FALSE, &pseudoA))!=0))
       {
          donor    = q;
          acceptor = p;
@@ -1096,23 +1106,28 @@ HBLIST *TestForHBond(PDB *pdb, PDB *p, PDB *q, PDB **pdbarray,
 /*>HBLIST *doTestForHBond(PDB *pdb, PDB *donor, PDB *acceptor, 
                           PDB **pdbarray, int donMax, REAL maxHBDistSq)
    --------------------------------------------------------------------
-   Input:   PDB      *donor      Donor PDB pointer
-            PDB      *acceptor   Acceptor PDB pointer
-            PDB      **pdbarray  Array of PDB pointers indexed by atom
-                                 number
-            int      donMax      Max number of donor connections
-            REAL     maxHBDistSq Max allowed D-A distance for HBond
-   Returns: HBLIST   *           Malloc'd HBond structure
+*//**
+   \param[in]     *pdb        Start of PDB linked list
+   \param[in]     *donor      Donor PDB pointer
+   \param[in]     *acceptor   Acceptor PDB pointer
+   \param[in]     **pdbarray  Array of PDB pointers indexed by atom
+                              number
+   \param[in]     donMax      Max number of donor connections
+   \param[in]     maxHBDistSq Max allowed D-A distance for HBond
+   \return                    Malloc'd HBond structure
 
    Does the actual work of testing for an HBond between a donor and
    acceptor and allocating a structure for it.
 
-   07.06.99 Original   By: ACRM
-   16.06.99 Added maxHBDistSq parameter
-   04.11.99 Modified the test for planarity to test two antecedent
+-  07.06.99 Original   By: ACRM
+-  16.06.99 Added maxHBDistSq parameter
+-  04.11.99 Modified the test for planarity to test two antecedent
             atoms rather than just one
-   12.05.00 Now if the planarity test fails, we just set relaxed to TRUE 
+-  12.05.00 Now if the planarity test fails, we just set relaxed to TRUE 
             in the HBLIST structure
+-  21.07.15 Modified to use PDB files and standard BiopLib structures
+            and functions - added pdb parameter. 
+-  22.07.15 Added check that antecendent isn't the donor
 */
 HBLIST *doTestForHBond(PDB *pdb, PDB *donor, PDB *acceptor, 
                        PDB **pdbarray, int donMax, REAL maxHBDistSq)
@@ -1147,6 +1162,12 @@ HBLIST *doTestForHBond(PDB *pdb, PDB *donor, PDB *acceptor,
       {
          /* Find first pre-antecendent                                  */
          donAnt2 = FindAntecedent(donAnt,pdbarray,&accCount,1);
+         /* Added 22.07.15                                              */
+         if(donAnt2 == donor)
+         {
+            donAnt2 = FindAntecedent(donAnt,pdbarray,&accCount,2);
+         }
+            
          if(donAnt2!=NULL)
          {
             REAL sang1;
@@ -1262,34 +1283,37 @@ HBLIST *doTestForHBond(PDB *pdb, PDB *donor, PDB *acceptor,
 
 
 /************************************************************************/
-/*>HBLIST *FindNonBonds(PDB *pdb, PDB **pdbarray,
-                     HBLIST *hbonds, REAL minNBDistSq, REAL maxNBDistSq)
-   ---------------------------------------------------------------------
-   Input:   PDB      *pdb         The PDB linked list
-            PDB      **pdbarray   Array of PDB structure indexed by atom
-                                  number
-            HBLIST   *hbonds      Linked list of HBonds
-            REAL     minNBDistSq
-            REAL     maxNBDistSq
-   Returns: HBLIST   *            Linked list of non-bonds
+/*>HBLIST *FindNonBonds(PDB *pdb, PDB **pdbarray, HBLIST *hbonds,
+                        REAL minNBDistSq, REAL maxNBDistSq)
+   --------------------------------------------------------------
+*//**
+   \param[in]    *pdb         The PDB linked list
+   \param[in]    **pdbarray   Array of PDB structure indexed by atom
+                              number
+   \param[in]    *hbonds      Linked list of HBonds
+   \param[in]    minNBDistSq  Minimum distance for non-bond contact
+   \param[in]    maxNBDistSq  Maximum distance for non-bond contact
+   \return                    Linked list of non-bonds
 
    Finds non-bonded contacts between ligand and protein/nucleotide or
    between nucleotide and protein.
 
-   1. For atom pairs within a distance cutoff: 2.7 - 3.35A (centre-centre)
-   2. a) Not covalently bonded
+-  1. For atom pairs within a distance cutoff: 2.7 - 3.35A (centre-centre)
+-  2. a) Not covalently bonded
       b) Not H-bonded
       c) Not in the same residue
 
-   07.06.99 Original   By: ACRM
-   16.06.99 Does NBond interactions for peptides
+-  07.06.99 Original   By: ACRM
+-  16.06.99 Does NBond interactions for peptides
             Initialise nb to NULL
             Skips interactions of peptide with itself
             Skips interactions involving hydrogen
             min and max distances now variables (and parameters)
+-  21.07.15 Modified to use PDB files and standard BiopLib structures
+            and functions - added pdb parameter. 
 */
-HBLIST *FindNonBonds(PDB *pdb, PDB **pdbarray,
-                     HBLIST *hbonds, REAL minNBDistSq, REAL maxNBDistSq)
+HBLIST *FindNonBonds(PDB *pdb, PDB **pdbarray, HBLIST *hbonds, 
+                     REAL minNBDistSq, REAL maxNBDistSq)
 {
    PDB    *p, 
           *q;
@@ -1337,7 +1361,7 @@ HBLIST *FindNonBonds(PDB *pdb, PDB **pdbarray,
                if(distSq >= minNBDistSq && distSq <= maxNBDistSq)
                {
                   if(!RESIDMATCH(p, q)  &&
-                     !IsConnected(p, q) &&
+                     !blIsConected(p, q) &&
                      !IsListedAsHBonded(p, q, hbonds))
                   {
                      if(nblist==NULL)
@@ -1382,7 +1406,7 @@ Non-bond list\n");
                if(distSq >= minNBDistSq && distSq <= maxNBDistSq)
                {
                   if(!RESIDMATCH(p, q) &&
-                     !IsConnected(p, q) &&
+                     !blIsConected(p, q) &&
                      !IsListedAsHBonded(p, q, hbonds))
                   {
                      if(nblist==NULL)
@@ -1416,14 +1440,18 @@ Non-bond list\n");
 /************************************************************************/
 /*>BOOL IsListedAsHBonded(PDB *p, PDB *q, HBLIST *hbonds)
    ------------------------------------------------------
-   Input:   PDB    *p      PDB pointer
-            PDB    *q      PDB pointer
-   Returns: BOOL           Listed?
+*//**
+   \param[in]     *p      PDB pointer
+   \param[in]     *q      PDB pointer
+   \param[in]     *hbonds List of HBonds iedntified thus far
+   \return                Listed?
 
    Tests whether the two specified atoms are already listed as being
    hydrogen bonded
 
-   07.06.99 Original   By: ACRM
+-  07.06.99 Original   By: ACRM
+-  21.07.15 Modified to use PDB files and standard BiopLib structures
+            and functions - added pdb parameter. 
 */
 BOOL IsListedAsHBonded(PDB *p, PDB *q, HBLIST *hbonds)
 {
@@ -1443,26 +1471,27 @@ BOOL IsListedAsHBonded(PDB *p, PDB *q, HBLIST *hbonds)
 
 
 /************************************************************************/
-/*>HBLIST *FindLigandLigandHBonds(PDB *pdb, 
-                                  PDB **pdbarray, BOOL pseudo,
+/*>HBLIST *FindLigandLigandHBonds(PDB *pdb, PDB **pdbarray, BOOL pseudo,
                                   REAL maxHBDistSq)
-   -----------------------------------------------------------
-   Input:   PDB       *pdb        PDB linked list
-            PDB       **pdbarray  Array of PDB pointers indexed by atom
-                                  number
-            BOOL      pseudo      Pseudo hbonds? (or true HBonds)
-            REAL      maxHBDistSq Max D-A Hbond distance
-   Returns: HBLIST    *           Linked list of hbonds
+   ---------------------------------------------------------------------
+*//**
+   \param[in]      *pdb        PDB linked list
+   \param[in]      **pdbarray  Array of PDB pointers indexed by atom
+                               number
+   \param[in]      pseudo      Pseudo hbonds? (or true HBonds)
+   \param[in]      maxHBDistSq Max D-A Hbond distance
+   \return                     Linked list of hbonds
 
    Finds HBonds between ligands. If pseudo is true then it finds 
    pseudo-HBonds rather than real ones. Basically a copy of the first
    part of FindProtLigandHBonds()
 
-   08.06.99 Original   By: ACRM
-   16.06.99 Added maxHBDistSq parameter
+-  08.06.99 Original   By: ACRM
+-  16.06.99 Added maxHBDistSq parameter
+-  21.07.15 Modified to use PDB files and standard BiopLib structures
+            and functions - added pdb parameter. 
 */
-HBLIST *FindLigandLigandHBonds(PDB *pdb, 
-                               PDB **pdbarray, BOOL pseudo,
+HBLIST *FindLigandLigandHBonds(PDB *pdb, PDB **pdbarray, BOOL pseudo,
                                REAL maxHBDistSq)
 {
    PDB           *p, *q;
@@ -1500,7 +1529,7 @@ HBLIST *FindLigandLigandHBonds(PDB *pdb,
                /* If they are not already covalently bonded or in the
                   current HBond list
                */
-               if(!IsConnected(p, q) &&
+               if(!blIsConected(p, q) &&
                   !IsListedAsHBonded(p, q, hblist))
                {
                   if((hb=TestForHBond(pdb, p, q,pdbarray,pseudo,
@@ -1529,31 +1558,33 @@ HBLIST *FindLigandLigandHBonds(PDB *pdb,
 
 
 /************************************************************************/
-/*>HBLIST *FindProtLigandHBonds(PDB *pdb, 
-                                PDB **pdbarray, BOOL pseudo,
-                                REAL maxHBDistSq))
-   ---------------------------------------------------------
-   Input:   PDB       *pdb        PDB linked list
-            PDB       **pdbarray  Array of PDB pointers indexed by atom
-                                  number
-            BOOL      pseudo      Pseudo hbonds? (or true HBonds)
-            REAL      maxHBDistSq Max D-A HBond distance
-   Returns: HBLIST    *           Linked list of hbonds
+/*>HBLIST *FindProtLigandHBonds(PDB *pdb, PDB **pdbarray, BOOL pseudo,
+                                REAL maxHBDistSq)
+   -------------------------------------------------------------------
+*//**
+   \param[in]     *pdb        PDB linked list
+   \param[in]     **pdbarray  Array of PDB pointers indexed by atom
+                              number
+   \param[in]     pseudo      Pseudo hbonds? (or true HBonds)
+   \param[in]     maxHBDistSq Max D-A HBond distance
+   \return                    Linked list of hbonds
 
    Finds HBonds between protein and ligand. If pseudo is true then it
    finds pseudo-HBonds rather than real ones.
 
-   07.06.99 Original   By: ACRM
-   08.06.99 Modified to treat peptides as ligands and not to repeat
+-  07.06.99 Original   By: ACRM
+-  08.06.99 Modified to treat peptides as ligands and not to repeat
             HBonds already in the current list. Note that peptide/
             protein HBonds will also appear in the main protein/protein
             HBonds list
-   16.06.99 Added maxHBDistSq parameter
-   03.11.99 Added check that the lignad and protein are different
+-  16.06.99 Added maxHBDistSq parameter
+-  03.11.99 Added check that the lignad and protein are different
             molecules!
+-  21.07.15 Modified to use PDB files and standard BiopLib structures
+            and functions - added pdb parameter. 
 */
-HBLIST *FindProtLigandHBonds(PDB *pdb, PDB **pdbarray,
-                             BOOL pseudo, REAL maxHBDistSq)
+HBLIST *FindProtLigandHBonds(PDB *pdb, PDB **pdbarray, BOOL pseudo,
+                             REAL maxHBDistSq)
 {
    PDB           *p, *q;
    static HBLIST *hblist = NULL,
@@ -1594,7 +1625,7 @@ HBLIST *FindProtLigandHBonds(PDB *pdb, PDB **pdbarray,
                /* If they are not already covalently bonded or in the
                   current HBond list
                */
-               if(!IsConnected(p, q) &&
+               if(!blIsConected(p, q) &&
                   !IsListedAsHBonded(p, q, hblist))
                {
                   if((hb=TestForHBond(pdb, p,q,pdbarray,pseudo,
@@ -1641,7 +1672,7 @@ HBLIST *FindProtLigandHBonds(PDB *pdb, PDB **pdbarray,
                   /* If they are not already covalently bonded or in the
                      current HBond list
                   */
-                  if(!IsConnected(p, q) &&
+                  if(!blIsConected(p, q) &&
                      !IsListedAsHBonded(p, q, hblist))
                   {
                      if((hb=TestForHBond(pdb,p,q,pdbarray,pseudo,
@@ -1671,401 +1702,35 @@ HBLIST *FindProtLigandHBonds(PDB *pdb, PDB **pdbarray,
 }
 
 
-void InitializePDBAtomTypes(PDB *pdb)
-{
-   PDB *p;
-   
-   /* Initialize atom types based on record types   */
-   for(p=pdb; p!=NULL; NEXT(p))
-   {
-      if(!strncmp(p->record_type, "ATOM  ", 6))
-      {
-         p->atomtype = ATOMTYPE_ATOM;
-      }
-      else if(!strncmp(p->record_type, "HETATM", 6))
-      {
-         p->atomtype = ATOMTYPE_HETATM;
-      }
-      else
-      {
-         p->atomtype = ATOMTYPE_UNDEF;
-      }
-   }
-   
-}
-
-void SetPDBAtomTypesMetals(PDB *pdb)
-{
-   PDB *p;
-   /* Update HETATMs to metals and waters */
-   for(p=pdb; p!=NULL; NEXT(p))
-   {
-      if(p->atomtype == ATOMTYPE_HETATM)
-      {
-         /* This is a list of non-metals in something like the order of
-            likelihood of occurrence. We don't include noble gases since
-            if these are found (unlikely!) they will be unbound and can
-            be thought of as metals.
-         */
-         if(strcmp(p->element,"C")  &&
-            strcmp(p->element,"N")  &&
-            strcmp(p->element,"O")  &&
-            strcmp(p->element,"H")  &&
-            strcmp(p->element,"S")  &&
-            strcmp(p->element,"P")  &&
-            strcmp(p->element,"CL") &&
-            strcmp(p->element,"BR") &&
-            strcmp(p->element,"I")  &&
-            strcmp(p->element,"F")  &&
-            strcmp(p->element,"B")  &&
-            strcmp(p->element,"SI") &&
-            strcmp(p->element,"AS") &&
-            strcmp(p->element,"SE") &&
-            strcmp(p->element,"TE") &&
-            strcmp(p->element,"AT"))
-         {
-            p->atomtype = ATOMTYPE_METAL;
-         }
-      }
-   }
-}
-
-
-void SetPDBAtomTypesWaterAndNucleotides(PDB *pdb)
-{
-   PDB *p;
-
-   /* Update HETATMs to metals and waters */
-   for(p=pdb; p!=NULL; NEXT(p))
-   {
-      if(ISWATER(p))
-      {
-         p->atomtype = ATOMTYPE_WATER;
-      }
-      else if(p->atomtype == ATOMTYPE_ATOM)
-      {
-         if(!strncmp(p->resnam,"A  ",3) ||
-            !strncmp(p->resnam,"C  ",3) ||
-            !strncmp(p->resnam,"G  ",3) ||
-            !strncmp(p->resnam,"I  ",3) ||
-            !strncmp(p->resnam,"T  ",3) ||
-            !strncmp(p->resnam,"Y  ",3) ||
-            !strncmp(p->resnam,"U  ",3) ||
-            !strncmp(p->resnam,"DA ",3) ||
-            !strncmp(p->resnam,"DC ",3) ||
-            !strncmp(p->resnam,"DT ",3) ||
-            !strncmp(p->resnam,"DG ",3) ||
-            !strncmp(p->resnam,"+A ",3) ||
-            !strncmp(p->resnam,"+C ",3) ||
-            !strncmp(p->resnam,"+G ",3) ||
-            !strncmp(p->resnam,"+I ",3) ||
-            !strncmp(p->resnam,"+T ",3) ||
-            !strncmp(p->resnam,"+Y ",3) ||
-            !strncmp(p->resnam,"+U ",3))
-         {
-            p->atomtype = ATOMTYPE_NUC;
-         }
-      }
-   }
-   
-}
-
-void SetPDBAtomTypesModifiers(PDB *pdb)
-{
-   PDB *p, *q; 
-   int i;
-   BOOL doneMod;
-
-   /* Now look for connections between HETATMs and ATOMs */
-   for(p=pdb; p!=NULL; NEXT(p))
-   {
-      if(p->atomtype == ATOMTYPE_HETATM)
-      {
-         for(i=0; i<p->nConect; i++)
-         {
-            q = p->conect[i];
-            if(p->atomtype == ATOMTYPE_ATOM)
-            {
-               q->atomtype = ATOMTYPE_MODPROT;
-            }
-            else if(p->atomtype == ATOMTYPE_NUC)
-            {
-               q->atomtype = ATOMTYPE_MODNUC;
-            }
-         }
-      }
-   }
-   
-   /* Now update all the HETATMs that are connected to MODPROT or 
-      MODNUC 
-   */
-   do
-   {
-      doneMod = FALSE;
-      for(p=pdb; p!=NULL; NEXT(p))
-      {
-         for(i=0; i<p->nConect; i++)
-         {
-            q = p->conect[i];
-            
-            if(p->atomtype == ATOMTYPE_MODPROT &&
-               q->atomtype == ATOMTYPE_HETATM)
-            {
-               q->atomtype = ATOMTYPE_MODPROT;
-               doneMod = TRUE;
-            }
-            else if(p->atomtype == ATOMTYPE_MODNUC &&
-                    q->atomtype == ATOMTYPE_HETATM)
-            {
-               q->atomtype = ATOMTYPE_MODNUC;
-               doneMod = TRUE;
-            }
-            else if(p->atomtype == ATOMTYPE_BOUNDHET &&
-                    q->atomtype == ATOMTYPE_HETATM)
-            {
-               q->atomtype = ATOMTYPE_BOUNDHET;
-               doneMod = TRUE;
-            }
-         }
-      }
-   }  while(doneMod);
-}
-
-
-
-
 /************************************************************************/
-/*>BOOL SetPDBAtomTypesNSResidues(PDB *pdb)
-   ----------------------------------------
+/*>BOOL isAPeptide(PDB *pdb, PDB *atm)
+   -----------------------------------
+*//**
+   \param[in]    pdb    Start of PDB linked list
+   \param[in]    atm    An atom in the PDB linked list
+   \return              Is it a peptide
 
-   Goes through BOUNDHET atoms and changes them to Non-standard residue
-   atoms if they are linked via the backbone.
+   Tests whether the molecule containing the given atom is a peptide
+   (i.e. less than MAX_PEPTIDE_LENGTH residues long)
 
-   23.03.99 Original  By: ACRM
-   27.04.99 .O3* and .P.. were the wrong way round so NSNUC not being
-            identified!
-   18.06.99 Added BOOL return and check on chain being correct (to catch
-            1ubs) and force parameter
-   21.06.99 Force now works for individual issues rather than on/off
-            for everything
-   06.09.99 Further simple check for nucleotides. If a non-standard
-            residue (not recognised as a nucleotide) contains a 
-            phosphorus and has a nucleotide on either side in the same
-            chain, then set it to a nonstandard nucleotide. Fixes 1gsg
-            (which is backbone only), 1ser (where the distance is too
-            long to get flagged as boundhet).  
+-  21.07.15  Original   By: ACRM
 */
-BOOL SetPDBAtomTypesNSResidues(PDB *pdb)
-{
-   PDB *p, *q,
-      *res1 = NULL,
-      *res2 = NULL,
-      *res3 = NULL,
-      *res0 = NULL;
-   int   nsVal = 0;
-   
-   for(res1=pdb; res1!=NULL; res1=res2)
-   {
-      /* Replacement non-standard value. 0 indicates not found to be
-         a non-standard residue
-      */
-      nsVal=0;
-         
-      if(res1!=NULL) res2 = blFindNextResidue(res1);
-      if(res2!=NULL) res3 = blFindNextResidue(res2);
-
-      /* If it's a bound het:
-         If bound to following N or preceeding C, set type to NONSTDAA
-         If bound to following P or preceeding O3*, set type to NONSTDNUC
-      */
-      if(res1->atomtype == ATOMTYPE_BOUNDHET)
-      {
-         for(p=res1; p!=res2; NEXT(p))
-         {
-            /* Search next residue                                      */
-            for(q=res2; q!=res3; NEXT(q))
-            {
-               if(!strncmp(q->atnam,"N   ",4))
-               {
-                  if(IsConnected(p, q))
-                  {
-                     /* 18.06.99 Check they are in the same chain       */
-                     if(!PDBCHAINMATCH(p, q))
-                     {
-                           fprintf(stderr,"Warning: Apparent \
-non-standard amino acid has different chain\n\
-          label from amino acid Nitrogen to which it is connected\n\
-          Residue %s %s%d%s\n",
-                                   res1->resnam,
-                                   res1->chain,
-                                   res1->resnum,
-                                   res1->insert);
-                     }
-                     
-                     nsVal = ATOMTYPE_NONSTDAA;
-                     p=NULL;
-                     break;
-                  }
-               }
-               if(!strncmp(q->atnam,"P   ",4))
-               {
-                  if(IsConnected(p, q))
-                  {
-                     /* 18.06.99 Check they are in the same chain       */
-                     if(!PDBCHAINMATCH(p, q))
-                     {
-                           fprintf(stderr,"Warning: Apparent \
-non-standard nucleotide has different chain\n\
-          label from nucleotide phosphorus to which it is connected\n\
-          Residue %s %s%d%s\n",
-                                   res1->resnam,
-                                   res1->chain,
-                                   res1->resnum,
-                                   res1->insert);
-
-                     }
-
-                     nsVal = ATOMTYPE_NONSTDNUC;
-                     p=NULL;
-                     break;
-                  }
-               }
-            }
-            if(nsVal==0)
-            {
-               /* Search previous residue                               */
-               for(q=res0; q!=NULL && q!=res1; NEXT(q))
-               {
-                  if(!strncmp(q->atnam,"C   ",4))
-                  {
-                     if(IsConnected(p, q))
-                     {
-                        /* 18.06.99 Check they are in the same chain    */
-                        if(!PDBCHAINMATCH(p, q))
-                        {
-
-                           fprintf(stderr,"Warning: Apparent \
-non-standard amino acid has different chain\n\
-          label from amino acid Carbon to which it is connected\n\
-          Residue %s %s%d%s\n",
-                                   res1->resnam,
-                                   res1->chain,
-                                   res1->resnum,
-                                   res1->insert);
-
-                        }
-
-                        nsVal = ATOMTYPE_NONSTDAA;
-                        p=NULL;
-                        break;
-                     }
-                  }
-                  if(!strncmp(q->atnam,"O3* ",4)) 
-                  {
-                     if(IsConnected(p, q))
-                     {
-                        /* 18.06.99 Check they are in the same chain    */
-                        if(!PDBCHAINMATCH(p, q))
-                        {
-                           fprintf(stderr,"Warning: Apparent \
-non-standard nucleotide has different chain\n\
-          label from nucleotide O3* to which it is connected\n\
-          Residue %s %s%d%s\n",
-                                   res1->resnam,
-                                   res1->chain,
-                                   res1->resnum,
-                                   res1->insert);
-
-                           
-                        }
-                        nsVal = ATOMTYPE_NONSTDNUC;
-                        p=NULL;
-                        break;
-                     }
-                  }
-               }
-            }
-            if(p==NULL)
-               break;
-         }
-      }
-
-      /* 06.09.99 Further simple check for nucleotides. If res1 is of
-         type ATOM with res0 or res2 in the same chain and of type
-         NUC, then we check that res1 contains a Phosphorus and, if
-         so, we assume res1 is a nonstandard nucleotide. Fixes 1gsg
-         (which is backbone only), 1ser (where the distance is too
-         long to get flagged as boundhet).  
-      */
-      if(!nsVal &&                           /* Not done already       */
-         (res1 != NULL) && (res1->atomtype == ATOMTYPE_ATOM) &&
-         (((res0 != NULL) &&                 /* residue before         */
-           ((res0->atomtype == ATOMTYPE_NUC) || 
-            (res0->atomtype == ATOMTYPE_NONSTDNUC)) &&
-           PDBCHAINMATCH(res0, res1)) ||
-          ((res2 != NULL) &&                 /* residue after          */
-           ((res2->atomtype == ATOMTYPE_NUC) || 
-            (res2->atomtype == ATOMTYPE_NONSTDNUC)) &&
-           PDBCHAINMATCH(res2, res1))))
-      {
-         for(p=res1; p!=res2; NEXT(p))
-         {
-            if(!strcmp(p->element,"P"))
-            {
-               nsVal = ATOMTYPE_NONSTDNUC;
-               break;
-            }
-         }
-      }
-
-      /* If we found one of these links then modify all atoms in
-         this residue
-      */
-      if(nsVal)
-      {
-         for(p=res1; p!=res2; NEXT(p))
-         {
-            p->atomtype = nsVal;
-         }
-      }
-
-      res0=res1;
-   }
-
-   return(TRUE);
-}
-
-
-
-
-
-
-void SetPDBAtomTypes(PDB *pdb)
-{
-   InitializePDBAtomTypes(pdb);
-   SetPDBAtomTypesMetals(pdb);
-   SetPDBAtomTypesWaterAndNucleotides(pdb);
-   SetPDBAtomTypesModifiers(pdb);
-   SetPDBAtomTypesNSResidues(pdb);
-}
-
-
 BOOL isAPeptide(PDB *pdb, PDB *atm)
 {
    PDB *start, *stop, *res;
    int nRes;
    
    
-   /* Find the start of this chain */
+   /* Find the start of this chain                                      */
    for(start=pdb; start!=atm; NEXT(start))
    {
       if(PDBCHAINMATCH(start, atm))
          break;
    }
-   /* Find the next chain  */
+   /* Find the next chain                                               */
    stop = blFindNextChain(start);
    
-   /* Count the residues in the chain */
+   /* Count the residues in the chain                                   */
    for(res=start, nRes=0; res!=stop; res=blFindNextResidue(res))
    {
       nRes++;
@@ -2077,6 +1742,18 @@ BOOL isAPeptide(PDB *pdb, PDB *atm)
    return(TRUE);
 }
 
+
+/************************************************************************/
+/*>void SetAtomNumExtras(PDB *pdb)
+   -------------------------------
+*//**
+   \param[in,out]   PDB  *pdb   PDB Linked list
+
+   Walks the PDB linked list storing the original atom numbers in a 
+   field of the PDB.extras structure.
+
+-  21.07.15  Original   By: ACRM
+*/
 void SetAtomNumExtras(PDB *pdb)
 {
    PDB *p;
@@ -2086,6 +1763,20 @@ void SetAtomNumExtras(PDB *pdb)
    }
 }
 
+/************************************************************************/
+/*>BOOL UpdatePDBExtras(PDB *pdb)
+   ------------------------------
+*//**
+   \param[in, out]   *pdb    PDB linked list
+   \return                   Success in allocations
+
+   Walks the PDB linked list creating an 'extra' structure for each
+   PDB entry that doesn't already have one. 
+   It initializes the PDB.extras.origAtnum to -1
+   and the PDB.extras.molid to 0
+
+-  21.07.15  Original   By: ACRM
+*/
 BOOL UpdatePDBExtras(PDB *pdb)
 {
    PDB *p;
@@ -2096,8 +1787,8 @@ BOOL UpdatePDBExtras(PDB *pdb)
       {
          if((p->extras = (APTR)malloc(sizeof(PDBEXTRAS)))==NULL)
             return(FALSE);
-         PDBEXTRASPTR(p, PDBEXTRAS)->origAtnum = p->atnum;
-         PDBEXTRASPTR(p, PDBEXTRAS)->molid = 0;
+         PDBEXTRASPTR(p, PDBEXTRAS)->origAtnum = (-1);
+         PDBEXTRASPTR(p, PDBEXTRAS)->molid     = 0;
       }
    }
 
@@ -2106,31 +1797,34 @@ BOOL UpdatePDBExtras(PDB *pdb)
 
 
 /************************************************************************/
-/*>BOOL SetMolecules(IPDB *head)
-   -----------------------------
-   I/O:       IPDB     *head       Head of PDB structure
-   Returns:   BOOL                 Success?
+/*>BOOL SetMolecules(PDB *pdb)
+   ---------------------------
+*//**
+   \param[in]   *pdb         PDB linked list
+   \return                   Success?
 
-   Identifies all individual molecules within the structure. Allocates
-   positions in the head->molecules linked list
+   Identifies all individual molecules within the structure.
 
-   23.03.99 Original   By: ACRM
-   01.04.99 Only checks for peptide if it's already a protein and
+-  23.03.99 Original   By: ACRM
+-  01.04.99 Only checks for peptide if it's already a protein and
             now also checks for CA only
-   21.05.99 Makes sure that the molecule ID gets incremented for each
+-  21.05.99 Makes sure that the molecule ID gets incremented for each
             protein chain as well as for HETATMs. Also labels all
             atoms within a protein chain with the molecule ID.
+-  21.07.15 Heavily modified to deal with being passed PDB linked list
+            No longer stores a list of molecules - just annotates them
+            in the PDB.extras.molid field
 */
 BOOL SetMolecules(PDB *pdb)
 {
-   PDB *chainStart,
-      *nextChain,
-      *resStart,
-      *nextRes,
-      *firstAtom,
-      *p;
-   BOOL  GotAtoms;
-   int   id=0;
+   PDB  *chainStart,
+        *nextChain,
+        *resStart,
+        *nextRes,
+        *firstAtom,
+        *p;
+   BOOL GotAtoms;
+   int  id=0;
    
 
    /* Clear all the molid flags                                         */
@@ -2190,7 +1884,7 @@ BOOL SetMolecules(PDB *pdb)
 #ifndef NO_WATERS_IN_MOL_LIST
             || (resStart->atomtype==ATOMTYPE_WATER)
 #endif
-           )
+            )
          {
             /* If we haven't set the flag to say this residue has been
                used, then we create a new molecule entry
@@ -2210,22 +1904,25 @@ BOOL SetMolecules(PDB *pdb)
 }
 
 
-
+/************************************************************************/
 /*>void MarkLinkedResidues(PDB *chainStart, PDB *resStart,
                            PDB *nextChain, int id)
-   ----------------------------------------------------------------------
-   Input:     IPDB     *head       Head of PDB structure
-              IPDBR    *chainStart Start of this chain
-              IPDBR    *resStart   First residue of maybe-linked residues
-              IPDBR    *nextChain  Start of next chain
-              int      id          Indentifier for this group
-   Output:    IMOL     *m          Molecule structure
+   -------------------------------------------------------
+*//**
+   \param[in]       *head       Head of PDB structure
+   \param[in]       *chainStart Start of this chain
+   \param[in]       *resStart   First residue of maybe-linked residues
+   \param[in]       *nextChain  Start of next chain
+   \param[in]       id          Indentifier for this group
+   \param[out]      *m          Molecule structure
 
    Marks all HET residues linked by CONNECTs to resStart. When a link is
    found, is called recursively to mark HET residues connected to that
    one. Sets m->polymer if any such links were found.
 
-   23.03.99 Original   By: ACRM
+-  23.03.99 Original   By: ACRM
+-  21.07.15 Modified to use PDB files and standard BiopLib structures
+            and functions - added pdb parameter. 
 */
 void MarkLinkedResidues(PDB *chainStart, PDB *resStart, 
                         PDB *nextChain, int id)
@@ -2270,7 +1967,7 @@ void MarkLinkedResidues(PDB *chainStart, PDB *resStart,
                /* If they are connected, set this molecule as
                   a polymer and mark this residue as used
                */
-               if(IsConnected(p, q))
+               if(blIsConected(p, q))
                {
                   PDBEXTRASPTR(resStart2, PDBEXTRAS)->molid = id;
                   MarkLinkedResidues(chainStart, resStart2, 
@@ -2309,7 +2006,7 @@ void MarkLinkedResidues(PDB *chainStart, PDB *resStart,
                /* If they are connected, set this molecule as
                   a polymer and mark this residue as used
                */
-               if(IsConnected(p, q))
+               if(blIsConected(p, q))
                {
                   PDBEXTRASPTR(resStart2, PDBEXTRAS)->molid = id;
                   MarkLinkedResidues(chainStart, resStart2, 
@@ -2322,6 +2019,18 @@ void MarkLinkedResidues(PDB *chainStart, PDB *resStart,
    }
 }
 
+
+/************************************************************************/
+/*>void DeleteMetalConects(PDB *pdb)
+   ---------------------------------
+*//**
+   \param[in,out]   *pdb    PDB linked list
+
+   Removes CONECT data related to metals. This is needed so that they
+   can be processed as pseudo-H-bonds.
+
+-  21.07.15  Original   By: ACRM
+*/
 void DeleteMetalConects(PDB *pdb)
 {
    PDB *p;
