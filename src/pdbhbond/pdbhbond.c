@@ -274,7 +274,7 @@ static HBONDING sPseudoHBonding[] =
 int main(int argc, char **argv);
 void Usage(void);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  REAL *minNBDistSq, REAL *maxNBDistSq, 
+                  char *pgpfile, REAL *minNBDistSq, REAL *maxNBDistSq, 
                   REAL *maxHBDistSq);
 HBLIST *FindProtProtHBonds(PDB *pdb);
 HBLIST *FindProtLigandHBonds(PDB *pdb, PDB **pdbarray,
@@ -326,7 +326,8 @@ int main(int argc, char **argv)
    int        nhyd,
               indexSize;
    char       infile[MAXBUFF],
-              outfile[MAXBUFF];
+              outfile[MAXBUFF],
+              pgpfile[MAXBUFF];
    HBLIST     *ppHBonds = NULL,
               *plHBonds = NULL,
               *llHBonds = NULL,
@@ -339,13 +340,13 @@ int main(int argc, char **argv)
               maxHBDistSq = MAXHBONDDISTSQ;
    STRINGLIST *warnings = NULL;
    
-   if(ParseCmdLine(argc, argv, infile, outfile, &minNBDistSq, 
+   if(ParseCmdLine(argc, argv, infile, outfile, pgpfile, &minNBDistSq, 
                    &maxNBDistSq, &maxHBDistSq))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
          /* Open the PGP file                                           */
-         if((pgp = blOpenPGPFile("Explicit.pgp", FALSE))==NULL)
+         if((pgp = blOpenPGPFile(pgpfile, FALSE))==NULL)
          {
             fprintf(stderr,"pdbhbond: (error) Unable to open PGP file\n");
             return(1);
@@ -480,21 +481,23 @@ data\n");
 -  07.06.99 Original   By: ACRM
 -  09.06.99 Added -q
 -  16.06.99 Added -n, -x, -b
--  22.07.15 V2.0
+-  22.07.15 V2.0. Added -p
+
 */
 void Usage(void)
 {
    fprintf(stderr,"\npdbhbond V2.0 (c) 2015, Dr. Andrew C.R. Martin, \
 UCL\n");
-   fprintf(stderr,"Usage: pdbhbond [-n dist][-x dist][-b dist] \
-[infile [outfile]]\n");
+   fprintf(stderr,"Usage: pdbhbond [-n dist][-x dist][-b dist]\
+[-p pgpfile] [infile [outfile]]\n");
    fprintf(stderr,"       -n  Minimum NBond distance (Default: %.2f)\n",
            sqrt(MINNBDISTSQ));
    fprintf(stderr,"       -x  Maximum NBond distance (Default: %.2f)\n",
            sqrt(MAXNBDISTSQ));
    fprintf(stderr,"       -b  Maximum HBond distance (Default: %.2f)\n",
            sqrt(MAXHBONDDISTSQ));
-
+   fprintf(stderr,"       -p  Specify PGP file containing data for \
+adding hydrogens\n");
    fprintf(stderr,"\nIdentifies hydrogen bonds using simple Baker and \
 Hubbard rules for\n");
    fprintf(stderr,"the definition of a hydrogen bond.\n");
@@ -504,7 +507,7 @@ specified.\n\n");
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                     REAL *minNBDistSq, REAL *maxNBDistSq,
+                     char *pgpfile, REAL *minNBDistSq, REAL *maxNBDistSq,
                      REAL *maxHBDistSq)
    ---------------------------------------------------------------------
 *//**
@@ -512,6 +515,7 @@ specified.\n\n");
    \param[in]    **argv        Argument array
    \param[out]   *infile       Input filename (or blank string)
    \param[out]   *outfile      Output filename (or blank string)
+   \param[out]   *pgpfile     PGP filename
    \param[out]   *minNBDistSq  Min non-bond distance
    \param[out]   *maxNBDistSq  Max non-bond distance
    \param[out]   *maxHBDistSq  Max HBond distance
@@ -523,15 +527,16 @@ specified.\n\n");
 -  09.06.99 Added -q
 -  16.06.99 Added -n, -x, -b and associated parameters
 -  21.07.15 Removed -q
+-  22.07.15 Added -p and pgpfile
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  REAL *minNBDistSq, REAL *maxNBDistSq,
+                  char *pgpfile, REAL *minNBDistSq, REAL *maxNBDistSq,
                   REAL *maxHBDistSq)
 {
    argc--;
    argv++;
    
-   infile[0] = outfile[0] = '\0';
+   infile[0] = outfile[0] = pgpfile[0] = '\0';
    
    while(argc)
    {
@@ -565,6 +570,13 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             if((sscanf(argv[0], "%lf", maxHBDistSq))==0)
                return(FALSE);
             *maxHBDistSq = (*maxHBDistSq) * (*maxHBDistSq);
+            break;
+         case 'p':
+            if(!(--argc))
+               return(FALSE);
+            argv++;
+            strncpy(pgpfile, argv[0], MAXBUFF);
+            pgpfile[MAXBUFF-1] = '\0';
             break;
          default:
             return(FALSE);
@@ -677,9 +689,7 @@ HBLIST *FindProtProtHBonds(PDB *pdb)
             double inverted commas
 -  12.05.99 Added 'relaxed' handling
 -  22.07.15 Modified to use PDB files and standard BiopLib structures
-            and functions
-
-TODO REWRITE!
+            and functions. Changed output format.
 */
 void PrintHBList(FILE *out, HBLIST *hblist, char *type, BOOL relaxed)
 {
@@ -688,22 +698,24 @@ void PrintHBList(FILE *out, HBLIST *hblist, char *type, BOOL relaxed)
 
    if(hblist != NULL)
    {
-      fprintf(out, "<DATA TYPE=%s>\n", type);
+      fprintf(out, "TYPE: %s\n", type);
+      fprintf(out, "# AtnumD  AtnumA Donor_______________ Acceptor____________\n");
       
       for(h=hblist; h!=NULL; NEXT(h))
       {
-         fprintf(out,"%5d %5d %s %s %d%s %s %s %s %d%s %s",
+         char donResID[24],
+              accResID[24];
+         MAKERESID(donResID, h->donor);
+         MAKERESID(accResID, h->acceptor);
+         
+         fprintf(out," %7d %7d %-5s %-9s %4s %-5s %-9s %4s",
                  PDBEXTRASPTR(h->donor, PDBEXTRAS)->origAtnum,
                  PDBEXTRASPTR(h->acceptor, PDBEXTRAS)->origAtnum,
                  h->donor->resnam,
-                 h->donor->chain,
-                 h->donor->resnum,
-                 h->donor->insert,
+                 donResID,
                  h->donor->atnam,
                  h->acceptor->resnam,
-                 h->acceptor->chain,
-                 h->acceptor->resnum,
-                 h->acceptor->insert,
+                 accResID,
                  h->acceptor->atnam);
 
          if(relaxed)
