@@ -3,11 +3,13 @@
    Program:    scorecons
    File:       scorecons.c
    
-   Version:    V1.3
-   Date:       16.07.08
+   Version:    V1.4
+   Date:       11.08.15
    Function:   Scores conservation from a PIR sequence alignment
+               Not to be confused with the program of the same name
+               by Will Valdar (this one predates his!)
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1996-2008
+   Copyright:  (c) Dr. Andrew C. R. Martin 1996-2015
    Author:     Dr. Andrew C. R. Martin
    Address:    Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -115,6 +117,7 @@
                   Added entropy scoring
    V1.2  18.09.96 Corrected calcuation of combined entropy score
    V1.3  15.07.08 Added -x flag
+   V1.4  11.08.15 Modified for new bioplib
 
 *************************************************************************/
 /* Includes
@@ -206,9 +209,9 @@ int main(int argc, char **argv)
    if(ParseCmdLine(argc, argv, InFile, OutFile, matrix, &Method,
                    &Extended))
    {
-      if(OpenStdFiles(InFile, OutFile, &in, &out))
+      if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
-         if(!ReadMDM(MUTMAT))
+         if(!blReadMDM(MUTMAT))
          {
             fprintf(stderr,"Unable to read mutation matrix: %s\n",MUTMAT);
             if(getenv(DATADIR) == NULL)
@@ -218,7 +221,7 @@ int main(int argc, char **argv)
             }
             return(1);
          }
-         MaxInMatrix = ZeroMDM();
+         MaxInMatrix = blZeroMDM();
          return(ReadAndScoreSeqs(in, out, MaxInMatrix, Method,
                                  Extended)?0:1);
       }
@@ -354,7 +357,7 @@ BOOL ReadAndScoreSeqs(FILE *fp, FILE *out, int MaxInMatrix, int Method,
                  Extended);
 
    /* Free memory from sequence table                                   */
-   FreeArray2D((char **)SeqTable, nseq, seqlen);
+   blFreeArray2D((char **)SeqTable, nseq, seqlen);
 
    return(TRUE);
 }
@@ -381,7 +384,7 @@ SEQDATA *ReadAllSeqs(FILE *fp)
    if((p=start)==NULL)
       return(NULL);
    
-   while(ReadPIR(fp, TRUE, p->seqs, 2, &seqinfo, &punct, &error))
+   while(blReadPIR(fp, TRUE, p->seqs, 2, &seqinfo, &punct, &error))
    {
       if(error)
       {
@@ -430,7 +433,7 @@ char **ListToTable(SEQDATA *SeqList, int *nseq, int *seqlen)
    }
 
    /* Allocate memory                                                   */
-   if((table = (char **)Array2D(sizeof(char), *nseq, (*seqlen + 1)))
+   if((table = (char **)blArray2D(sizeof(char), *nseq, (*seqlen + 1)))
       ==NULL)
       return(NULL);
    
@@ -461,7 +464,7 @@ void PadSeqs(char **SeqTable, int nseq, int seqlen)
    for(i=0; i<nseq; i++)
    {
       if(strlen(SeqTable[i]) < seqlen)
-         padchar(SeqTable[i], seqlen, '-');
+         blPadchar(SeqTable[i], seqlen, '-');
    }
 }
 
@@ -643,7 +646,7 @@ REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix)
          if(res2 == ' ')
             res2 = '-';
          count++;
-         score+=CalcMDMScore(res1, res2);
+         score += blCalcMDMScore(res1, res2);
       }
    }
 
@@ -741,10 +744,11 @@ REAL EntropyScore(char **SeqTable, int nseq, int pos,
 
    17.09.96 Original   By: ACRM
    15.07.08 V1.3 - added -x
+   11.08.15 V1.4
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nScoreCons V1.3 (c) 1996-2008 Dr. Andrew C.R. \
+   fprintf(stderr,"\nScoreCons V1.4 (c) 1996-2015 Dr. Andrew C.R. \
 Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: scorecons [-m matrixfile] [-a] [-g] [-e] \
@@ -783,5 +787,11 @@ the grouped and\n");
 together, but\n");
    fprintf(stderr,"weighted such that the the grouped score contributes \
 less owing to the\n");
-   fprintf(stderr,"loss of information content.\n\n");
+   fprintf(stderr,"loss of information content.\n");
+
+   fprintf(stderr,"\nThis program should not be confused by the program \
+of the same name by\n");
+   fprintf(stderr,"Will Valdar. This program was written first and \
+Will's program was\n");
+   fprintf(stderr,"inspired by this one.\n\n");
 }
