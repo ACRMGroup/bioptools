@@ -519,11 +519,13 @@ void DisplayScores(FILE *fp, char **SeqTable, int nseq, int seqlen,
             from CalcMDMScore() can be -ve!
             Added MaxInMatrix
    18.09.96 Changed calculation of combined score
+   11.08.15 Initialize e
 */
 REAL CalcScore(char **SeqTable, int nseq, int pos, int MaxInMatrix,
                int Method)
 {
-   REAL e, e9, e21;
+   REAL e = 0.0,
+        e9, e21;
    
    /* Defines group membership for the amino acid types                 */
    static AMINOACID AA21Groups[] =
