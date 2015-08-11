@@ -195,6 +195,11 @@ pdbtranslate
 ------------
 Translates a PDB file
 
+scorecons
+---------
+A program similar to (and which predates) Will Valdar's scorecons program
+for scoring conservation in a sequence alignment.
+
 setpdbnumbering
 ---------------
 Applies a standard numbering scheme to a set of PDB files.
