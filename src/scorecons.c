@@ -158,10 +158,17 @@ typedef struct
 #define METH_ENTROPY   1
 #define METH_ENTROPY20 2
 #define METH_ENTROPY8  3
+#define METH_VALDAR    4
+
+#define LAMBDA_UNITIALIZED 0
+#define SEQWEIGHTS_UNITIALIZED NULL
 
 /************************************************************************/
 /* Globals
 */
+
+static REAL lambda = LAMBDA_UNITIALIZED;
+static REAL *SeqWeights=NULL;
 
 /************************************************************************/
 /* Prototypes
@@ -177,12 +184,19 @@ char **ListToTable(SEQDATA *SeqList, int *nseq, int *seqlen);
 void PadSeqs(char **SeqTable, int nseq, int seqlen);
 void DisplayScores(FILE *fp, char **SeqTable, int nseq, int seqlen, 
                    int MaxInMatrix, int Method, BOOL Extended);
-REAL CalcScore(char **SeqTable, int nseq, int pos, int MaxInMatrix,
+REAL CalcScore(char **SeqTable, int nseq, int seqlen, int pos, int MaxInMatrix,
                int Method);
 REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix);
 REAL EntropyScore(char **SeqTable, int nseq, int pos, 
                   AMINOACID *aminoacids, int NGroups);
 
+REAL valdarScore (char **SeqTable, int pos, int numSeqs, int seqlen, int MaxInMatrix);
+void initLambda(int numSeqs);
+BOOL initSequenceWeights(char **SeqTable, int numSeqs, int seqlen, int MaxInMatrix);
+REAL **getSeqDistTable(char **SeqTable, int numSeqs, int seqlen, int MaxInMatrix);
+REAL getInterSeqDistance(char **SeqTable, int seqAindex, int seqBindex, int seqlen, int MaxInMatrix);
+int getNonGapPosCount(char **SeqTable, int seqAindex, int seqBindex, int seqlen);
+REAL valdarMatrixScore(char res1, char res2, int MaxInMatrix);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -286,6 +300,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             break;
          case 'g':
             *Method = METH_ENTROPY8;
+            break;
+         case 'd':
+            *Method = METH_VALDAR;
             break;
          case 'x':
             *Extended = TRUE;
@@ -490,13 +507,13 @@ void DisplayScores(FILE *fp, char **SeqTable, int nseq, int seqlen,
       {
          fprintf(fp,"%4d %9.6f ",
                  i+1,
-                 CalcScore(SeqTable, nseq, i, MaxInMatrix, Method));
+                 CalcScore(SeqTable, nseq, seqlen, i, MaxInMatrix, Method));
       }
       else
       {
          fprintf(fp,"%4d %6.3f ",
                  i+1,
-                 CalcScore(SeqTable, nseq, i, MaxInMatrix, Method));
+                 CalcScore(SeqTable, nseq, seqlen, i, MaxInMatrix, Method));
       }
       
       for(j=0; j<nseq; j++)
@@ -509,7 +526,7 @@ void DisplayScores(FILE *fp, char **SeqTable, int nseq, int seqlen,
 
 
 /************************************************************************/
-/*>REAL CalcScore(char **SeqTable, int nseq, int pos, int MaxInMatrix,
+/*>REAL CalcScore(char **SeqTable, int nseq, int seql, int pos, int MaxInMatrix,
                   int Method)
    -------------------------------------------------------------------
    Calculate the score for a given position in the alignment
@@ -520,8 +537,9 @@ void DisplayScores(FILE *fp, char **SeqTable, int nseq, int seqlen,
             Added MaxInMatrix
    18.09.96 Changed calculation of combined score
    11.08.15 Initialize e
+   24.08.15 Add seql parameter for valdar01 method.
 */
-REAL CalcScore(char **SeqTable, int nseq, int pos, int MaxInMatrix,
+REAL CalcScore(char **SeqTable, int nseq, int seql, int pos, int MaxInMatrix,
                int Method)
 {
    REAL e = 0.0,
@@ -607,6 +625,8 @@ REAL CalcScore(char **SeqTable, int nseq, int pos, int MaxInMatrix,
       e9  = EntropyScore(SeqTable, nseq, pos, AA9Groups,  9);
       e   = e21 * ((1.0 - (8.0/20.0))*e9 + (8.0/20.0));
       e   = 1.0 - e;
+   case METH_VALDAR:
+       return valdarScore(SeqTable, pos, nseq, seql, MaxInMatrix);
    default:
       return((REAL)e);
    }
@@ -654,7 +674,6 @@ REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix)
 
    return(((REAL)score/(REAL)count)/(REAL)MaxInMatrix);
 }
-
 
 /************************************************************************/
 /*>REAL EntropyScore(char **SeqTable, int nseq, int pos, 
@@ -738,6 +757,220 @@ REAL EntropyScore(char **SeqTable, int nseq, int pos,
    return(entropy);
 }
 
+/************************************************************************/
+/*>REAL valdarScore (char **SeqTable, int pos, int numSeqs, int seqlen,
+                     int MaxInMatrix)
+   -----------------------------------------------------------------------
+   Calculate the conservation score of an alignment position, using the
+   valdar01 method.
+   
+   20.08.2015 Original   By: TCN
+  
+*/
+REAL valdarScore (char **SeqTable, int pos, int numSeqs, int seqlen,
+                  int MaxInMatrix) {
+    int  i, j;
+    REAL matrixScore;
+    REAL weightedSum = 0;
+
+    if(SeqWeights == SEQWEIGHTS_UNITIALIZED)
+        if(initSequenceWeights(SeqTable, numSeqs, seqlen, MaxInMatrix)==FALSE)
+            return (REAL)9999.0;
+    if (lambda == LAMBDA_UNITIALIZED)
+        initLambda(numSeqs);
+    
+    for(i=0; i<numSeqs; i++)
+    {
+        for(j=i+1; j<numSeqs; j++)
+        {
+            matrixScore = valdarMatrixScore(SeqTable[i][pos], SeqTable[j][pos], MaxInMatrix);
+            weightedSum += SeqWeights[i] * SeqWeights[j] * matrixScore;
+        }
+    }
+    return lambda * weightedSum;
+}
+
+/************************************************************************/
+/*>void initLambda(int numSeqs)
+   -----------------------------------------------------------------------
+   Initializes the global static REAL lambda, a scalar used for
+   calculating conscores using the valdar01 method.
+   
+   20.08.2015 Original   By: TCN
+  
+*/
+void initLambda(int numSeqs) {
+    REAL weightSum = 0;
+    int i, j;
+    
+    for(i=0; i<numSeqs; i++)
+    {
+        for(j=i+1; j<numSeqs; j++)
+        {
+            weightSum += SeqWeights[i] * SeqWeights[j];
+        }
+    }
+    lambda =  ((REAL)1 / weightSum); 
+}
+
+/************************************************************************/
+/*>REAL initSequenceWeights(char **SeqTable, int numSeqs, int seqlen,
+                            int MaxInMatrix)
+   -----------------------------------------------------------------------
+   Initializes the global static array SeqWeights, used for the
+   valdar01 method. Each sequence is given a weight according to its
+   evolutionary distance from the other in the alignment.
+   
+   20.08.2015 Original   By: TCN
+   
+*/
+BOOL initSequenceWeights(char **SeqTable, int numSeqs, int seqlen,
+                         int MaxInMatrix) {
+    int i, j;
+    REAL seqDistSum;
+    REAL **seqDistTable = getSeqDistTable(SeqTable, numSeqs, seqlen, MaxInMatrix);
+
+    if((SeqWeights = malloc(sizeof(REAL) * numSeqs))==NULL)
+        return (FALSE);
+    for(i=0; i<numSeqs; i++)
+    {
+        seqDistSum = (REAL)0;
+        for(j=0; j<numSeqs; j++)
+        {
+            if (i == j)
+                continue;
+            seqDistSum += seqDistTable[i][j];
+        }
+        SeqWeights[i] = seqDistSum / ((REAL)numSeqs - (REAL)1);
+    }
+    return (TRUE);
+}
+
+/************************************************************************/
+/*>REAL **getSeqDistTable(char **SeqTable, int numSeqs, int seqlen, int MaxInMatrix)
+   -----------------------------------------------------------------------
+   Get 2d table of inter-sequence evolutionary distances.
+   
+   20.08.2015 Original   By: TCN
+   
+*/
+REAL **getSeqDistTable(char **SeqTable, int numSeqs, int seqlen, int MaxInMatrix) {
+    int i, j;
+    REAL **seqDistTable;
+
+    if((seqDistTable = malloc(sizeof(REAL *) * numSeqs))==NULL){
+        return (NULL); 
+    }
+    
+    for(i=0; i<numSeqs; ++i)
+    {
+        if((seqDistTable[i] = malloc(sizeof(REAL) * seqlen))==NULL)
+            return (NULL);
+    }
+    
+    for(i=0; i<numSeqs; ++i)
+    {
+        for(j=0 ; j<numSeqs; ++j)
+        {
+            if(i == j)
+                continue;
+            seqDistTable[i][j] = getInterSeqDistance(SeqTable, i, j, seqlen, MaxInMatrix);  
+        }
+    }
+    return seqDistTable;
+}
+
+/************************************************************************/
+/*>REAL getInterSeqDistance(char **SeqTable, int seqAindex, int seqBindex,
+                         int seqlen, int MaxInMatrix)
+   -----------------------------------------------------------------------
+   Calculates the evolutionary distance between two sequences.
+   
+   20.08.2015 Original   By: TCN
+   
+*/
+REAL getInterSeqDistance(char **SeqTable, int seqAindex, int seqBindex,
+                         int seqlen, int MaxInMatrix)
+{
+    int nonGapPosCount = getNonGapPosCount(SeqTable, seqAindex, seqBindex, seqlen);
+    int matrixScoreSum = 0;
+    int pos;
+    char res1, res2;
+    
+    for(pos=0; pos<seqlen; pos++)
+    {
+        res1 = SeqTable[seqAindex][pos];
+        res2 = SeqTable[seqBindex][pos];
+        
+        if (res1 == ' ')
+            res1 = '-';
+        if (res2 == ' ')
+            res2 = '-';
+       
+        if(! (res1 == '-' && res2 == '-'))
+        {
+            matrixScoreSum += valdarMatrixScore(res1, res2, MaxInMatrix);
+        }
+    }
+    return ((REAL)1 - ((REAL)matrixScoreSum / (REAL)nonGapPosCount));
+}
+
+/************************************************************************/
+/*>int getNonGapPosCount(char **SeqTable, int seqAindex, int seqBindex, int seqlen) 
+   -----------------------------------------------------------------------
+   Given two sequences, counts the number of positions where at least one sequence
+   is non-gap.
+   
+   20.08.2015 Original   By: TCN
+   
+*/
+int getNonGapPosCount(char **SeqTable, int seqAindex, int seqBindex, int seqlen)
+{
+    int pos;
+    int nonGapPosCount = 0;
+    char res1, res2;
+    
+    for(pos=0; pos<seqlen; pos++)
+    {
+        res1 = SeqTable[seqAindex][pos];
+        res2 = SeqTable[seqBindex][pos];
+        
+        if (res1 == ' ')
+            res1 = '-';
+        if (res2 == ' ')
+            res2 = '-';
+       
+        if(! (res1 == '-' && res2 == '-'))
+        {
+            nonGapPosCount += 1;
+        }
+    }
+    return nonGapPosCount;
+}
+
+/************************************************************************/
+/*>REAL valdarMatrixScore(char res1, char res2, int MaxInMatrix)
+   -----------------------------------------------------------------------
+   Calculate the score for a given position in the alignment for valdar01
+   method.
+   
+   20.08.2015 Original   By: TCN
+   
+*/
+REAL valdarMatrixScore(char res1, char res2, int MaxInMatrix)
+{
+    LONG score;
+    score = 0L;
+    if (res1 == '-' || res2 == '-')
+    {
+    return ((REAL)0.0);
+    }
+    else
+    {
+        score = blCalcMDMScore(res1, res2);
+        return ((REAL)score / (REAL)(MaxInMatrix));
+    }
+}
 
 /************************************************************************/
 /*>void Usage(void)
@@ -761,6 +994,7 @@ Martin, UCL\n");
    fprintf(stderr,"       -g Score by entropy method, 8 groups of \
 residues\n");
    fprintf(stderr,"       -e Score by combined entropy method\n");
+   fprintf(stderr,"       -d Score by the valdar01 method\n");
    fprintf(stderr,"       -x Extended precision output\n");
 
    fprintf(stderr,"\nCalculates a conservation score between 0 and 1 \
@@ -791,6 +1025,12 @@ together, but\n");
 less owing to the\n");
    fprintf(stderr,"loss of information content.\n");
 
+   fprintf(stderr,"\nThe valdar01 method is a scoring method developed by  \
+by Will Valdar.\n");
+   fprintf(stderr,"It uses a weighting scheme based on the evolutionary \
+distance\n");
+   fprintf(stderr,"between aligned sequences.\n");
+    
    fprintf(stderr,"\nThis program should not be confused by the program \
 of the same name by\n");
    fprintf(stderr,"Will Valdar. This program was written first and \
