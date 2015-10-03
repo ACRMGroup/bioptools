@@ -63,7 +63,7 @@
 -  V1.7   13.02.15  Removed handling of -l option since there are now
                     too many PDB files with lower case chain labels for
                     it to make sense
--  V1.8   02.10.15  Added -w parameter
+-  V1.8   02.10.15  Added -x and -f parameters
 
 *************************************************************************/
 /* Includes
@@ -86,8 +86,13 @@
 */
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
-                  char *infile, char *outfile, int *width);
+                  char *infile, char *outfile, int *width, BOOL *force);
 void Usage(void);
+BOOL UpdateResRange(PDB *pdb, int width,
+                    char *chain1, int *res1, char *insert1,
+                    char *chain2, int *res2, char *insert2);
+BOOL FindOffsetResidue(PDBSTRUCT *pdbs, int width,
+                       char *chain, int *resnum, char *insert);
 
 
 /************************************************************************/
@@ -103,7 +108,7 @@ void Usage(void);
 -  19.08.14 Added AsCopy suffix for call to blExtractZonePDBAsCopy() 
             By: CTP
 -  13.02.15 Removed -l handling - this is now the only option By: ACRM
--  02.10.15 Added -w (width) handling
+-  02.10.15 Added -x (extended width) handling
 */
 int main(int argc, char **argv)
 {
@@ -119,9 +124,11 @@ int main(int argc, char **argv)
         natom,   
         width = 0;
    PDB  *pdb;
+   BOOL force = FALSE;
    
 
-   if(ParseCmdLine(argc, argv, Zone1, Zone2, InFile, OutFile, &width))
+   if(ParseCmdLine(argc, argv, Zone1, Zone2, InFile, OutFile, &width,
+                   &force))
    {
       if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
@@ -153,9 +160,22 @@ int main(int argc, char **argv)
 
          if(width)
          {
-            UpdateResRange(pdb, width,
-                           chain1, &res1, insert1,
-                           chain2, &res2, insert2);
+            if(!UpdateResRange(pdb, width,
+                               chain1, &res1, insert1,
+                               chain2, &res2, insert2))
+            {
+               if(force)
+               {
+                  fprintf(stderr,"Warning (pdbgetzone): Cannot expand \
+the zone.\n");
+               }
+               else
+               {
+                  fprintf(stderr,"Error (pdbgetzone): Cannot expand \
+the zone.\n");
+                  return(1);
+               }
+            }
          }
 
          if((pdb = blExtractZonePDBAsCopy(pdb, chain1, res1, insert1,
@@ -178,7 +198,7 @@ int main(int argc, char **argv)
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
-                     char *infile, char *outfile, int *width)
+                     char *infile, char *outfile, int *width, BOOL *force)
    ----------------------------------------------------------------------
 *//**
 
@@ -189,6 +209,8 @@ int main(int argc, char **argv)
    \param[out]     *infile      Input file (or blank string)
    \param[out]     *outfile     Output file (or blank string)
    \param[out]     *width       Amount to expand the range
+   \param[out]     *force       If the expanded range doesn't exist,
+                                gives a warning instead of an error
    \return                      Success?
 
    Parse the command line
@@ -199,17 +221,19 @@ int main(int argc, char **argv)
             command line  By: ACRM
 -  13.02.15 -l option is now ignored - the program is always case 
             sensitive
--  02.10.15 Added -w and width parameter
+-  02.10.15 Added -x and width parameter
+                  -f and force parameter
 */
 BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
-                  char *infile, char *outfile, int *width)
+                  char *infile, char *outfile, int *width, BOOL *force)
 {
    argc--;
    argv++;
 
    infile[0] = outfile[0] = '\0';
    Zone1[0]  = Zone2[0]   = '\0';
-   width     = 0;
+   *width    = 0;
+   *force    = FALSE;
 
    if(!argc)               /* 05.11.07 Added this                       */
    {
@@ -226,9 +250,13 @@ BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
             return(FALSE);
             break;
          case 'l':
-            fprintf(stderr, "-l option is now deprecated\n");
+            fprintf(stderr, "Info (pdbgetzone) -l option is now \
+deprecated\n");
             break;
-         case 'w':
+         case 'f':
+            *force = TRUE;
+            break;
+         case 'x':
             argc--; argv++;
             if(!argc) return(FALSE);
             if(!sscanf(argv[0], "%d", width)) return(FALSE);
@@ -278,46 +306,114 @@ BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
 }
 
 /************************************************************************/
+/*>BOOL UpdateResRange(PDB *pdb, int width,
+                       char *chain1, int *resnum1, char *insert1,
+                       char *chain2, int *resnum2, char *insert2)
+   --------------------------------------------------------------
+*//**
+   \param[in]     pdb       PDB linked list
+   \param[in]     width     Width by which to expand range
+   \param[in]     chain1    First chain          
+   \param[in,out] resnum1   First residue number 
+   \param[in,out] insert1   First insert code    
+   \param[in]     chain2    Second chain          
+   \param[in,out] resnum2   Second residue number 
+   \param[in,out] insert2   Second insert code    
+   \return                  Success?
+
+   Expands the residue range by the specified number of residues.
+   (If width is negative, then the range will be contracted.)
+   The input range may span chains, but expanding the range will
+   not step to another chain.
+
+-- 03.10.15  Original   By: ACRM
+*/
 BOOL UpdateResRange(PDB *pdb, int width,
-                    char *chain1, int *res1, char *insert1,
-                    char *chain2, int *res2, char *insert2)
+                    char *chain1, int *resnum1, char *insert1,
+                    char *chain2, int *resnum2, char *insert2)
 {
    PDBSTRUCT  *pdbs;
-   PDBCHAIN   *pdbc;
-   PDBRESIDUE *pdbr, *endr, *startr;
-   char       chain[8], insert[8];
-   int        resnum, i;
+   BOOL       retval = TRUE;
    
+   if(width == 0)
+      return(TRUE);
    
    if((pdbs = blAllocPDBStructure(pdb))==NULL)
       return(FALSE);
 
+   if(!FindOffsetResidue(pdbs, -width, chain1, resnum1, insert1))
+      retval = FALSE;
+   if(!FindOffsetResidue(pdbs,  width, chain2, resnum2, insert2))
+      retval = FALSE;
+   
+   blFreePDBStructure(pdbs);
+
+   return(retval);
+}
+
+
+/************************************************************************/
+/*>BOOL FindOffsetResidue(PDBSTRUCT *pdbs, int width,
+                          char *chain, int *resnum, char *insert)
+   --------------------------------------------------------------
+*//**
+   \param[in]     *pdbs     PDBSTRUCT structure
+   \param[in]     width     Number of residues by which to step
+   \param[in]     *chain    Chain label
+   \param[in,out] *resnum   Residue nunmber
+   \param[in,out] *insert   Insert code
+   \return                  Success?
+
+   Steps the residue label by the specified number of residues which
+   may be positive of negative.
+
+   The chain will never change in stepping
+
+-- 03.10.15  Original   By: ACRM
+*/
+BOOL FindOffsetResidue(PDBSTRUCT *pdbs, int width,
+                       char *chain, int *resnum, char *insert)
+{
+   PDBCHAIN   *pdbc;
+   PDBRESIDUE *keyres, *newres;
+   int        i;
+   
    for(pdbc = pdbs->chains; pdbc!=NULL; NEXT(pdbc))
    {
-      if(CHAINMATCH(pdbc->chain, chain1))
+      if(CHAINMATCH(pdbc->chain, chain))
       {
-         for(pdbr = pdbc->residues; pdbr!=NULL; NEXT(pdbr))
+         for(keyres = pdbc->residues; keyres!=NULL; NEXT(keyres))
          {
-            if((pdbr->resnum == resnum1) && 
-               INSERTMATCH(pdbr->insert, insert1))
+            if((keyres->resnum == *resnum) && 
+               INSERTMATCH(keyres->insert, insert))
             {
-               startr = endr = pdbr;
-               for(i=0; i<width; i++)
+               newres = keyres;
+               for(i=0; i<ABS(width); i++)
                {
-                  if(startr!=NULL) startr = startr->prev;
+                  if(width < 0)
+                  {
+                     if(newres!=NULL) newres = newres->prev;
+                  }
+                  else
+                  {
+                     if(newres!=NULL) newres = newres->next;
+                  }
                }
-               if(startr == NULL) return(FALSE);
+               if(newres == NULL) return(FALSE);
                
-               *resnum1 = startr->resnum;
-               strcpy(insert1, startr->insert);
+               *resnum = newres->resnum;
+               strcpy(insert, newres->insert);
                
-               return(0);
+               return(TRUE);
             }
          }
          break;
       }
    }
+
+   return(FALSE);
 }
+
 
 
 /************************************************************************/
@@ -330,17 +426,23 @@ BOOL UpdateResRange(PDB *pdb, int width,
 -  22.07.14 V1.4 By: CTP
 -  06.11.14 V1.6 By: ACRM
 -  13.02.15 V1.7 By: ACRM
+-  03.10.15 V1.8
 */
 void Usage(void)
 {
    fprintf(stderr,"\n");
-   fprintf(stderr,"pdbgetzone V1.7 (c) 1996-2015, Dr. Andrew C.R. \
+   fprintf(stderr,"pdbgetzone V1.8 (c) 1996-2015, Dr. Andrew C.R. \
 Martin, UCL.\n");
    fprintf(stderr,"                    Modified by Tony Lewis, \
 UCL, 2005\n");
 
-   fprintf(stderr,"\nUsage: pdbgetzone [-l] start end [in.pdb \
-[out.pdb]]\n");
+   fprintf(stderr,"\nUsage: pdbgetzone [-x extension] [-f] [-l] \
+start end [in.pdb [out.pdb]]\n");
+   fprintf(stderr,"       -x  Extend the zone by the specified number \
+of residues\n");
+   fprintf(stderr,"           each side\n");
+   fprintf(stderr,"       -f  Force output even if the zone could not \
+be expanded\n");
    fprintf(stderr,"       -l  Redundant - kept for backwards \
 compatibility\n");
    fprintf(stderr,"\n");

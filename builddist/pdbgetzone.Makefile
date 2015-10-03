@@ -22,7 +22,8 @@ LFILES = bioplib/BuildConect.o     \
          bioplib/CopyPDB.o         \
          bioplib/StoreString.o     \
          bioplib/ExtractZonePDB.o  \
-         bioplib/DupePDB.o
+         bioplib/DupePDB.o         \
+         bioplib/StructurePDB.o
 
 
 pdbgetzone : pdbgetzone.o $(LFILES)
