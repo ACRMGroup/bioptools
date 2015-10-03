@@ -3,8 +3,8 @@
 
    \file       pdbgetzone.c
    
-   \version    V1.7
-   \date       13.02.15
+   \version    V1.8
+   \date       02.10.15
    \brief      Extract a numbered zone from a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 1996-2015
@@ -63,6 +63,7 @@
 -  V1.7   13.02.15  Removed handling of -l option since there are now
                     too many PDB files with lower case chain labels for
                     it to make sense
+-  V1.8   02.10.15  Added -w parameter
 
 *************************************************************************/
 /* Includes
@@ -85,7 +86,7 @@
 */
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
-                  char *infile, char *outfile);
+                  char *infile, char *outfile, int *width);
 void Usage(void);
 
 
@@ -102,6 +103,7 @@ void Usage(void);
 -  19.08.14 Added AsCopy suffix for call to blExtractZonePDBAsCopy() 
             By: CTP
 -  13.02.15 Removed -l handling - this is now the only option By: ACRM
+-  02.10.15 Added -w (width) handling
 */
 int main(int argc, char **argv)
 {
@@ -114,11 +116,12 @@ int main(int argc, char **argv)
         chain1[8],  chain2[8],
         insert1[8], insert2[8];
    int  res1,    res2,
-        natom;
+        natom,   
+        width = 0;
    PDB  *pdb;
    
 
-   if(ParseCmdLine(argc, argv, Zone1, Zone2, InFile, OutFile))
+   if(ParseCmdLine(argc, argv, Zone1, Zone2, InFile, OutFile, &width))
    {
       if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
@@ -147,6 +150,14 @@ int main(int argc, char **argv)
 (%s)\n", Zone2);
             return(1);
          }
+
+         if(width)
+         {
+            UpdateResRange(pdb, width,
+                           chain1, &res1, insert1,
+                           chain2, &res2, insert2);
+         }
+
          if((pdb = blExtractZonePDBAsCopy(pdb, chain1, res1, insert1,
                                           chain2, res2, insert2))==NULL)
          {
@@ -167,7 +178,7 @@ int main(int argc, char **argv)
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
-                     char *infile, char *outfile)
+                     char *infile, char *outfile, int *width)
    ----------------------------------------------------------------------
 *//**
 
@@ -177,7 +188,8 @@ int main(int argc, char **argv)
    \param[out]     *Zone2       Second end of zone
    \param[out]     *infile      Input file (or blank string)
    \param[out]     *outfile     Output file (or blank string)
-   \return                     Success?
+   \param[out]     *width       Amount to expand the range
+   \return                      Success?
 
    Parse the command line
    
@@ -187,15 +199,17 @@ int main(int argc, char **argv)
             command line  By: ACRM
 -  13.02.15 -l option is now ignored - the program is always case 
             sensitive
+-  02.10.15 Added -w and width parameter
 */
 BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
-                     char *infile, char *outfile)
+                  char *infile, char *outfile, int *width)
 {
    argc--;
    argv++;
 
    infile[0] = outfile[0] = '\0';
    Zone1[0]  = Zone2[0]   = '\0';
+   width     = 0;
 
    if(!argc)               /* 05.11.07 Added this                       */
    {
@@ -213,6 +227,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
             break;
          case 'l':
             fprintf(stderr, "-l option is now deprecated\n");
+            break;
+         case 'w':
+            argc--; argv++;
+            if(!argc) return(FALSE);
+            if(!sscanf(argv[0], "%d", width)) return(FALSE);
             break;
          default:
             return(FALSE);
@@ -256,6 +275,48 @@ BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
    }
    
    return(TRUE);
+}
+
+/************************************************************************/
+BOOL UpdateResRange(PDB *pdb, int width,
+                    char *chain1, int *res1, char *insert1,
+                    char *chain2, int *res2, char *insert2)
+{
+   PDBSTRUCT  *pdbs;
+   PDBCHAIN   *pdbc;
+   PDBRESIDUE *pdbr, *endr, *startr;
+   char       chain[8], insert[8];
+   int        resnum, i;
+   
+   
+   if((pdbs = blAllocPDBStructure(pdb))==NULL)
+      return(FALSE);
+
+   for(pdbc = pdbs->chains; pdbc!=NULL; NEXT(pdbc))
+   {
+      if(CHAINMATCH(pdbc->chain, chain1))
+      {
+         for(pdbr = pdbc->residues; pdbr!=NULL; NEXT(pdbr))
+         {
+            if((pdbr->resnum == resnum1) && 
+               INSERTMATCH(pdbr->insert, insert1))
+            {
+               startr = endr = pdbr;
+               for(i=0; i<width; i++)
+               {
+                  if(startr!=NULL) startr = startr->prev;
+               }
+               if(startr == NULL) return(FALSE);
+               
+               *resnum1 = startr->resnum;
+               strcpy(insert1, startr->insert);
+               
+               return(0);
+            }
+         }
+         break;
+      }
+   }
 }
 
 
