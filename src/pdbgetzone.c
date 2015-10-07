@@ -88,7 +88,7 @@
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
                   char *infile, char *outfile, int *width, BOOL *force,
-                  BOOL *invert);
+                  BOOL *invert, BOOL *metadata);
 void Usage(void);
 BOOL UpdateResRange(PDB *pdb, int width,
                     char *chain1, int *res1, char *insert1,
@@ -114,34 +114,37 @@ BOOL FindOffsetResidue(PDBSTRUCT *pdbs, int width,
 */
 int main(int argc, char **argv)
 {
-   FILE *in  = stdin,
-        *out = stdout;
-   char InFile[MAXBUFF],
-        OutFile[MAXBUFF],
-        Zone1[MAXBUFF],
-        Zone2[MAXBUFF],
-        chain1[8],  chain2[8],
-        insert1[8], insert2[8];
-   int  res1,    res2,
-        natom,   
-        width = 0;
-   PDB  *pdb;
-   BOOL force  = FALSE,
-        invert = FALSE;
+   FILE     *in  = stdin,
+            *out = stdout;
+   char     InFile[MAXBUFF],
+            OutFile[MAXBUFF],
+            Zone1[MAXBUFF],
+            Zone2[MAXBUFF],
+            chain1[8],  chain2[8],
+            insert1[8], insert2[8];
+   int      res1,    res2,
+            nter,
+            width = 0;
+   PDB      *pdb, *newpdb;
+   BOOL     force    = FALSE,
+            invert   = FALSE,
+            metadata = FALSE;
+   WHOLEPDB *wpdb;
    
 
    if(ParseCmdLine(argc, argv, Zone1, Zone2, InFile, OutFile, &width,
-                   &force, &invert))
+                   &force, &invert, &metadata))
    {
       if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
          BOOL ParseResSpec1Result, ParseResSpec2Result;
 
-         if((pdb=blReadPDB(in, &natom))==NULL)
+         if(((wpdb=ReadWholePDB(in))==NULL) || (wpdb->pdb == NULL))
          {
             fprintf(stderr,"pdbgetzone: No atoms read from PDB file\n");
             return(1);
          }
+         pdb = wpdb->pdb;
          
          ParseResSpec1Result = blParseResSpec(Zone1, chain1, 
                                               &res1, insert1);
@@ -181,15 +184,36 @@ the zone.\n");
             }
          }
 
-         if((pdb = blExtractZonePDBAsCopy(pdb, chain1, res1, insert1,
-                                          chain2, res2, insert2))==NULL)
+         if(invert)
          {
-            fprintf(stderr,"pdbgetzone: Zone not found (%s or %s)\n",
-                    Zone1, Zone2);
-            return(1);
+            if((newpdb = blExtractNotZonePDBAsCopy(pdb, 
+                                                   chain1, res1, insert1,
+                                                   chain2, res2, insert2))
+               ==NULL)
+            {
+               fprintf(stderr,"pdbgetzone: Zone not found (%s or %s)\n",
+                       Zone1, Zone2);
+               return(1);
+            }
          }
+         else
+         {
+            if((newpdb = blExtractZonePDBAsCopy(pdb, 
+                                                chain1, res1, insert1,
+                                                chain2, res2, insert2))
+               ==NULL)
+            {
+               fprintf(stderr,"pdbgetzone: Zone not found (%s or %s)\n",
+                       Zone1, Zone2);
+               return(1);
+            }
+         }
+         FREELIST(pdb, PDB);
+         wpdb->pdb = newpdb;
          
-         blWritePDB(out,pdb);
+         if(metadata) blWriteWholePDBHeader(out, wpdb);
+         nter = blWritePDBAsPDBorGromos(out, newpdb, FALSE);
+         if(metadata) blWriteWholePDBTrailer(out, wpdb, nter);
       }
    }
    else
@@ -202,7 +226,7 @@ the zone.\n");
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
                      char *infile, char *outfile, int *width, BOOL *force,
-                     BOOL *invert)
+                     BOOL *invert, BOOL *metadata)
    ----------------------------------------------------------------------
 *//**
 
@@ -217,6 +241,8 @@ the zone.\n");
                                 gives a warning instead of an error
    \param[out]     *invert      Invert the selection (i.e. exclude
                                 the zone rather than include it)
+   \param[out]     *metadata    Include the metadata (header and trailer)
+                                in the output.
    \return                      Success?
 
    Parse the command line
@@ -230,10 +256,11 @@ the zone.\n");
 -  02.10.15 Added -x and width parameter
                   -f and force parameter
 -  07.10.15 Added -v and invert parameter
+                  -m and metadata parameter
 */
 BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
                   char *infile, char *outfile, int *width, BOOL *force,
-                  BOOL *invert)
+                  BOOL *invert, BOOL *metadata)
 {
    argc--;
    argv++;
@@ -243,6 +270,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
    *width    = 0;
    *force    = FALSE;
    *invert   = FALSE;
+   *metadata = FALSE;
 
    if(!argc)               /* 05.11.07 Added this                       */
    {
@@ -267,6 +295,9 @@ deprecated\n");
             break;
          case 'v':
             *invert = TRUE;
+            break;
+         case 'm':
+            *metadata = TRUE;
             break;
          case 'x':
             argc--; argv++;
@@ -449,7 +480,7 @@ Martin, UCL.\n");
    fprintf(stderr,"                    Modified by Tony Lewis, \
 UCL, 2005\n");
 
-   fprintf(stderr,"\nUsage: pdbgetzone [-x extension] [-f] [-l] [-v] \
+   fprintf(stderr,"\nUsage: pdbgetzone [-x extension][-f][-l][-m][-v] \
 start end [in.pdb [out.pdb]]\n");
    fprintf(stderr,"       -x  Extend the zone by the specified number \
 of residues\n");
@@ -458,6 +489,8 @@ of residues\n");
 be expanded\n");
    fprintf(stderr,"       -l  Redundant - kept for backwards \
 compatibility\n");
+   fprintf(stderr,"       -m  Include metatdata (header and trailed) in \
+the output file\n");
    fprintf(stderr,"       -v  Invert the selection (i.e. exclude the \
 zone\n");
 
