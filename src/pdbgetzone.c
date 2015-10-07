@@ -3,8 +3,8 @@
 
    \file       pdbgetzone.c
    
-   \version    V1.8
-   \date       02.10.15
+   \version    V1.9
+   \date       07.10.15
    \brief      Extract a numbered zone from a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 1996-2015
@@ -63,7 +63,8 @@
 -  V1.7   13.02.15  Removed handling of -l option since there are now
                     too many PDB files with lower case chain labels for
                     it to make sense
--  V1.8   02.10.15  Added -x and -f parameters
+-  V1.8   02.10.15  Added -x (extend) and -f (force) parameters
+-  V1.9   07.10.15  Added -v (invert) parameter
 
 *************************************************************************/
 /* Includes
@@ -86,7 +87,8 @@
 */
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
-                  char *infile, char *outfile, int *width, BOOL *force);
+                  char *infile, char *outfile, int *width, BOOL *force,
+                  BOOL *invert);
 void Usage(void);
 BOOL UpdateResRange(PDB *pdb, int width,
                     char *chain1, int *res1, char *insert1,
@@ -124,11 +126,12 @@ int main(int argc, char **argv)
         natom,   
         width = 0;
    PDB  *pdb;
-   BOOL force = FALSE;
+   BOOL force  = FALSE,
+        invert = FALSE;
    
 
    if(ParseCmdLine(argc, argv, Zone1, Zone2, InFile, OutFile, &width,
-                   &force))
+                   &force, &invert))
    {
       if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
@@ -198,7 +201,8 @@ the zone.\n");
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
-                     char *infile, char *outfile, int *width, BOOL *force)
+                     char *infile, char *outfile, int *width, BOOL *force,
+                     BOOL *invert)
    ----------------------------------------------------------------------
 *//**
 
@@ -211,6 +215,8 @@ the zone.\n");
    \param[out]     *width       Amount to expand the range
    \param[out]     *force       If the expanded range doesn't exist,
                                 gives a warning instead of an error
+   \param[out]     *invert      Invert the selection (i.e. exclude
+                                the zone rather than include it)
    \return                      Success?
 
    Parse the command line
@@ -223,9 +229,11 @@ the zone.\n");
             sensitive
 -  02.10.15 Added -x and width parameter
                   -f and force parameter
+-  07.10.15 Added -v and invert parameter
 */
 BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
-                  char *infile, char *outfile, int *width, BOOL *force)
+                  char *infile, char *outfile, int *width, BOOL *force,
+                  BOOL *invert)
 {
    argc--;
    argv++;
@@ -234,6 +242,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *Zone1, char *Zone2,
    Zone1[0]  = Zone2[0]   = '\0';
    *width    = 0;
    *force    = FALSE;
+   *invert   = FALSE;
 
    if(!argc)               /* 05.11.07 Added this                       */
    {
@@ -255,6 +264,9 @@ deprecated\n");
             break;
          case 'f':
             *force = TRUE;
+            break;
+         case 'v':
+            *invert = TRUE;
             break;
          case 'x':
             argc--; argv++;
@@ -427,16 +439,17 @@ BOOL FindOffsetResidue(PDBSTRUCT *pdbs, int width,
 -  06.11.14 V1.6 By: ACRM
 -  13.02.15 V1.7 By: ACRM
 -  03.10.15 V1.8
+-  07.10.15 V1.9
 */
 void Usage(void)
 {
    fprintf(stderr,"\n");
-   fprintf(stderr,"pdbgetzone V1.8 (c) 1996-2015, Dr. Andrew C.R. \
+   fprintf(stderr,"pdbgetzone V1.9 (c) 1996-2015, Dr. Andrew C.R. \
 Martin, UCL.\n");
    fprintf(stderr,"                    Modified by Tony Lewis, \
 UCL, 2005\n");
 
-   fprintf(stderr,"\nUsage: pdbgetzone [-x extension] [-f] [-l] \
+   fprintf(stderr,"\nUsage: pdbgetzone [-x extension] [-f] [-l] [-v] \
 start end [in.pdb [out.pdb]]\n");
    fprintf(stderr,"       -x  Extend the zone by the specified number \
 of residues\n");
@@ -445,8 +458,10 @@ of residues\n");
 be expanded\n");
    fprintf(stderr,"       -l  Redundant - kept for backwards \
 compatibility\n");
-   fprintf(stderr,"\n");
-   fprintf(stderr,"Start and end are resspec residue \
+   fprintf(stderr,"       -v  Invert the selection (i.e. exclude the \
+zone\n");
+
+   fprintf(stderr,"\nStart and end are resspec residue \
 specifications:\n");
    blPrintResSpecHelp(stderr);
    fprintf(stderr,"\npdbgetzone extracts a specified zone from a PDB \
