@@ -139,7 +139,7 @@ int main(int argc, char **argv)
       {
          BOOL ParseResSpec1Result, ParseResSpec2Result;
 
-         if(((wpdb=ReadWholePDB(in))==NULL) || (wpdb->pdb == NULL))
+         if(((wpdb=blReadWholePDB(in))==NULL) || (wpdb->pdb == NULL))
          {
             fprintf(stderr,"pdbgetzone: No atoms read from PDB file\n");
             return(1);
