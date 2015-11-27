@@ -1,3 +1,5 @@
+Inform Carles Mitjans <carlesm@bioinf.uab.es> of fix
+
 PDB 6INS uses the insert code for something different... so has
 E1B...E29B, then E1A...E21A, etc.
 
