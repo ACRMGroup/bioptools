@@ -1,0 +1,29 @@
+PDB 6INS uses the insert code for something different... so has
+E1B...E29B, then E1A...E21A, etc.
+
+If I try to get the zone from E.29B to E.20A, I get E29B to the end of
+file.
+
+If I try to get the zone from E.20B to E.29B, it returns a zone from
+E.20B to E.21A
+
+This is because the code assumes that residue numbers will be in
+numeric order within the PDB file (as they should be). It allows
+errors in your zones, so if you specify a zone of say H31-H35B it will
+extract H31-H35 if H35A and H35B don't exist. Consequently, it works
+from the start of the zone (E29B) until it finds E20A or a residue
+number in chain E with a residue number greater than 20. Since it is
+already in E29B, it stops immediately and says E20A doesn't exist so
+it prints to the end of the file.
+
+In your second example (E20B-E29B), the problem is the same - we are
+trying to find the residue after E29B which is E1A - but since 1 is
+numerically lower than 20, it keeps on searching until it finds the
+residue with a number greater than 29, which it doesn't - instead it
+finds the end of the chain (E21A).
+
+The way around this is to add a 'strict' flag that could make sure you
+use the strict zones as specified rather than allowing this
+flexibility. Thinking about it this could be automatic - i.e. check
+first if the residies exist. If they do, then turn on the strict flag;
+if they don't then work as we do at the moment.
