@@ -1,0 +1,29 @@
+                        makepatch - INSTALL guide
+
+                          Andrew C.R. Martin
+
+                         andrew@bioinf.org.uk
+
+
+Very simply type:
+   cd src
+   make
+to build the makepatch and as2bval programs
+
+Move the makepatch and as2bval executables to somewhere in your path.
+
+Type:
+    makepatch -h
+    as2bval -h
+for some help.
+
+In addition you need a copy of NACCESS from Simon Hubbard.
+
+Run NACCESS on your PDB file
+Run as2bval on the .asa file that results from NACCESS to create a 
+PDB file with accessibility in the B-val column and radius in the
+occupancy column.
+Run makepatch on the resulting PDB file
+
+
+
