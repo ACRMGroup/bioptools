@@ -4,11 +4,11 @@
 #   Program:    makemake
 #   File:       makemake.pl
 #   
-#   Version:    V1.5
-#   Date:       26.02.15
+#   Version:    V1.6
+#   Date:       15.02.16
 #   Function:   Build the Makefile for BiopTools
 #   
-#   Copyright:  (c) Dr. Andrew C. R. Martin, UCL, 2014-2015
+#   Copyright:  (c) Dr. Andrew C. R. Martin, UCL, 2014-2016
 #   Author:     Dr. Andrew C. R. Martin
 #   Address:    Institute of Structural and Molecular Biology
 #               Division of Biosciences
@@ -56,6 +56,7 @@
 #                     this grabs the bioplib archive as well
 #   V1.4    21.11.14  Added -install option
 #   V1.5    26.02.15  Bumped to require BiopLib V3.3
+#   V1.6    15.02.16  Makes the libsrc directory
 #
 #*************************************************************************
 $::biopversion = "3.3";
@@ -104,6 +105,7 @@ close $makefp;
 # this as a git 
 #
 # 07.11.14 Original   By: ACRM
+# 15.02.16 Added making the libsrc directory
 sub GetBiopLib
 {
     if(-d "../.git")
@@ -116,6 +118,7 @@ sub GetBiopLib
         if((! -d "libsrc/bioplib/.git") && (! -d "libsrc/bioplib/src"))
         {
             system("\\rm -rf libsrc/bioplib");
+            system("mkdir -p libsrc");
             my $url = "$::biopgit$::biopversion$::biopext";
             my $tar = "V$::biopversion$::biopext";
             system("(cd libsrc; wget $url; tar xvf $tar; mv bioplib-$::biopversion bioplib)");
