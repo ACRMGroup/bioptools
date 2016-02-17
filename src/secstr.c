@@ -50,6 +50,8 @@
    V1.0   19.05.99 Original, written while at Inpharmatica   By: ACRM
    V1.1   10.07.15 Modified for BiopLib
           17.02.15 xyz for coordinates now count from zero
+                   CalcDihedral() also now uses arrays that count from
+                   zero
 
 *************************************************************************/
 /* Doxygen
@@ -80,7 +82,7 @@
 /* Defines and macros
 */
 #define MAXBUFF 160
-#define COORD_DIM         (3)   /* number of coord dimensions: x, y, z  */
+#define COORD_DIM          3    /* number of coord dimensions: x, y, z  */
 #define NUM_STRAND_CHARS  26    /* number of available strand characters
                                    (the 26 letters of the alphabet)     */
 #define MAX_NUM_HBOND     (4+1) /* number of allowed H-bonds            */
@@ -96,7 +98,7 @@
 #define NRULES 4
 #define PARLEL 1
 
-#define NUM_DIHED_DATA    (4+1) /* number of dihedral data points       */
+#define NUM_DIHED_DATA     4    /* number of dihedral data points       */
 #define RESTYPE_PROLINE      16 /* residue type number for Proline - an
                                    offset into the KnownResidueTypes
                                    array                                */
@@ -979,6 +981,7 @@ generated for residue %d\n",
 -  19.05.99 Original   By: ACRM
 -  13.07.15 Modified for BiopLib
 -  17.02.16 x,y,z for coordinates now count from 0 instead of 1
+            dotproduct[][] and dihatm[] now count from 0
 */
 static REAL CalcDihedral(int  angnum, 
                          REAL *atoma,
@@ -995,29 +998,29 @@ static REAL CalcDihedral(int  angnum,
         determinant;
    int  i, j, k;
 
-   dihatm[1] = atoma;
-   dihatm[2] = atomb;
-   dihatm[3] = atomc;
-   dihatm[4] = atomd;
+   dihatm[0] = atoma;
+   dihatm[1] = atomb;
+   dihatm[2] = atomc;
+   dihatm[3] = atomd;
    
-   for(i=1; i<NUM_DIHED_DATA-1; i++)
+   for(i=0; i<NUM_DIHED_DATA-1; i++)
    {
       atomDistance[i] = ATDIST(dihatm[i],dihatm[i+1]);
-      for(j = 0; j<COORD_DIM; j++)
+      for(j=0; j<COORD_DIM; j++)
       {
          codist[j][i] = dihatm[i+1][j] - dihatm[i][j];
       }
    }
    
-   for(i=1; i<NUM_DIHED_DATA-1; i++)
+   for(i=0; i<NUM_DIHED_DATA-1; i++)
    {
-      for(j=1; j<NUM_DIHED_DATA-1; j++)
+      for(j=0; j<NUM_DIHED_DATA-1; j++)
       {
          dotProduct[i][j] = 0.0;
       }
    }
    
-   for(i=1; i<NUM_DIHED_DATA-2; i++)
+   for(i=0; i<NUM_DIHED_DATA-2; i++)
    {
       for(j=i+1; j<NUM_DIHED_DATA-1; j++)
       {
@@ -1028,7 +1031,7 @@ static REAL CalcDihedral(int  angnum,
       }
    }
    
-   for(i=1; i<NUM_DIHED_DATA-2; i++)
+   for(i=0; i<NUM_DIHED_DATA-2; i++)
    {
       for(j=i+1; j<NUM_DIHED_DATA-1; j++)
       {
@@ -1047,20 +1050,20 @@ static REAL CalcDihedral(int  angnum,
    /* If it's a non-standard dihedral                                   */
    if((angnum > NDIHED) && (angnum < MAX_NUM_ANGLES))
    {
-      cosAngle = dotProduct[1][3];
+      cosAngle = dotProduct[0][2];
    }
    else  /* A standard dihedral                                         */
    {
-      if(XEQY(dotProduct[1][2], 1.0) || XEQY(dotProduct[2][3], 1.0))
+      if(XEQY(dotProduct[0][1], 1.0) || XEQY(dotProduct[1][2], 1.0))
       {
          cosAngle = 1.0;
       }
       else
       {
-         cosAngle = (dotProduct[1][2] * dotProduct[2][3] - 
-                     dotProduct[1][3]) /
-                    (sqrt(1.0-(dotProduct[1][2]*dotProduct[1][2])) * 
-                     sqrt(1.0-(dotProduct[2][3]*dotProduct[2][3])));
+         cosAngle = (dotProduct[0][1] * dotProduct[1][2] - 
+                     dotProduct[0][2]) /
+                    (sqrt(1.0-(dotProduct[0][1]*dotProduct[0][1])) * 
+                     sqrt(1.0-(dotProduct[1][2]*dotProduct[1][2])));
       }
    }
 
