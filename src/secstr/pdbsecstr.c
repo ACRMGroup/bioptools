@@ -54,7 +54,7 @@
 #include "bioplib/pdb.h"
 #include "bioplib/general.h"
 #include "bioplib/macros.h"
-#include "secstr.h"
+#include "bioplib/secstr.h"
 
 /************************************************************************/
 /* Defines and macros
