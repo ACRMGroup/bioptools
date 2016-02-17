@@ -49,6 +49,7 @@
 
    V1.0   19.05.99 Original, written while at Inpharmatica   By: ACRM
    V1.1   10.07.15 Modified for BiopLib
+          17.02.15 xyz for coordinates now count from zero
 
 *************************************************************************/
 /* Doxygen
@@ -79,7 +80,7 @@
 /* Defines and macros
 */
 #define MAXBUFF 160
-#define COORD_DIM         (3+1) /* number of coord dimensions: x, y, z  */
+#define COORD_DIM         (3)   /* number of coord dimensions: x, y, z  */
 #define NUM_STRAND_CHARS  26    /* number of available strand characters
                                    (the 26 letters of the alphabet)     */
 #define MAX_NUM_HBOND     (4+1) /* number of allowed H-bonds            */
@@ -168,10 +169,11 @@
 #define XNEY(x, y) (ABS((x)-(y)) >= ACURCY)
 
 /* Macro to calculate atom distance                                     */
+/* 17.02.16 x,y,z for coordinates now count from 0 instead of 1         */
 #define ATDIST(a, b)                                                     \
-   sqrt(((a)[1]-(b)[1])*((a)[1]-(b)[1]) +                                \
-        ((a)[2]-(b)[2])*((a)[2]-(b)[2]) +                                \
-        ((a)[3]-(b)[3])*((a)[3]-(b)[3]))
+   sqrt(((a)[0]-(b)[0])*((a)[0]-(b)[0]) +                                \
+        ((a)[1]-(b)[1])*((a)[1]-(b)[1]) +                                \
+        ((a)[2]-(b)[2])*((a)[2]-(b)[2]))
 
 /* Return the nearest integer (cast to a REAL)                          */
 #define ANINT(x) ((REAL)(int)((x) + (((x) >= 0.0)?0.5:(-0.5))))
@@ -565,6 +567,7 @@ static int FindResidueCode(char *resnam, char *KnownResidueIndex)
 
 -  19.05.99 Original   By: ACRM
 -  13.07.15 Modified for BiopLib
+-  17.02.16 x,y,z for coordinates now count from 0 instead of 1
 */
 static void ExtractPDBData(PDB  *pdbStart, PDB  *pdbStop, 
                            REAL ***mcCoords, BOOL **gotAtom,
@@ -648,9 +651,9 @@ static void ExtractPDBData(PDB  *pdbStart, PDB  *pdbStop,
       if(atomIdx != (-1))
       {
          gotAtom[atomIdx][resCount] = TRUE;
-         mcCoords[atomIdx][resCount][1] = p->x;
-         mcCoords[atomIdx][resCount][2] = p->y;
-         mcCoords[atomIdx][resCount][3] = p->z;
+         mcCoords[atomIdx][resCount][0] = p->x;
+         mcCoords[atomIdx][resCount][1] = p->y;
+         mcCoords[atomIdx][resCount][2] = p->z;
       }
    }
 
@@ -893,6 +896,7 @@ chain-breaks exceeded (MAX_NUM_CHN = %d)\n", MAX_NUM_CHN-1);
 -  19.05.99 Original   By: ACRM
 -  27.05.99 Warning in standard format and checks quiet flag
 -  13.07.15 Modified for BiopLib
+-  17.02.16 x,y,z for coordinates now count from 0 instead of 1
 */
 static void AddHydrogens(REAL ***mcCoords, BOOL **gotAtom, int *chainSize,
                          int numChains, BOOL verbose)
@@ -916,7 +920,7 @@ static void AddHydrogens(REAL ***mcCoords, BOOL **gotAtom, int *chainSize,
             gotAtom[ATOM_O][resCount-1])
          {
             colen = 0.0;
-            for(i=1; i<COORD_DIM; i++)
+            for(i=0; i<COORD_DIM; i++)
             {
                atvec[i] = mcCoords[ATOM_C][resCount-1][i] - 
                           mcCoords[ATOM_O][resCount-1][i];
@@ -924,12 +928,12 @@ static void AddHydrogens(REAL ***mcCoords, BOOL **gotAtom, int *chainSize,
             }
             colen = sqrt(colen);
 
-            for(i=1; i<COORD_DIM; i++)
+            for(i=0; i<COORD_DIM; i++)
             {
                atvec[i] /= colen;
             }
 
-            for(i=1; i<COORD_DIM; i++)
+            for(i=0; i<COORD_DIM; i++)
             {
                mcCoords[ATOM_H][resCount][i] = 
                   mcCoords[ATOM_N][resCount][i] + atvec[i];
@@ -974,6 +978,7 @@ generated for residue %d\n",
 
 -  19.05.99 Original   By: ACRM
 -  13.07.15 Modified for BiopLib
+-  17.02.16 x,y,z for coordinates now count from 0 instead of 1
 */
 static REAL CalcDihedral(int  angnum, 
                          REAL *atoma,
@@ -998,7 +1003,7 @@ static REAL CalcDihedral(int  angnum,
    for(i=1; i<NUM_DIHED_DATA-1; i++)
    {
       atomDistance[i] = ATDIST(dihatm[i],dihatm[i+1]);
-      for(j = 1; j<COORD_DIM; j++)
+      for(j = 0; j<COORD_DIM; j++)
       {
          codist[j][i] = dihatm[i+1][j] - dihatm[i][j];
       }
@@ -1016,7 +1021,7 @@ static REAL CalcDihedral(int  angnum,
    {
       for(j=i+1; j<NUM_DIHED_DATA-1; j++)
       {
-         for(k=1; k<COORD_DIM; k++)
+         for(k=0; k<COORD_DIM; k++)
          {
             dotProduct[i][j] += (codist[k][i] * codist[k][j]);
          }
@@ -1071,12 +1076,12 @@ static REAL CalcDihedral(int  angnum,
    /* If it's not one of the special dihedrals (i.e. KAPPA or TCO)      */
    if((angnum <= NDIHED) || (angnum >= MAX_NUM_ANGLES))
    {
-      determinant = codist[1][1] * codist[2][2] * codist[3][3] -
-                    codist[1][1] * codist[2][3] * codist[3][2] +
-                    codist[1][2] * codist[2][3] * codist[3][1] -
-                    codist[1][2] * codist[2][1] * codist[3][3] +
-                    codist[1][3] * codist[2][1] * codist[3][2] -
-                    codist[1][3] * codist[2][2] * codist[3][1];
+      determinant = codist[0][1] * codist[1][2] * codist[2][3] -
+                    codist[0][1] * codist[1][3] * codist[2][2] +
+                    codist[0][2] * codist[1][3] * codist[2][1] -
+                    codist[0][2] * codist[1][1] * codist[2][3] +
+                    codist[0][3] * codist[1][1] * codist[2][2] -
+                    codist[0][3] * codist[1][2] * codist[2][1];
 
       if(determinant < 0.0) 
          ang = -ang;
