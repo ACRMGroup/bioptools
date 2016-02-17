@@ -58,9 +58,10 @@
 #   V1.5    26.02.15  Bumped to require BiopLib V3.3
 #   V1.6    15.02.16  Makes the libsrc directory and bumped to BiopLib
 #                     V3.4.1
+#   V1.6.1  17.02.16  Bumped to require BiopLib V3.4.2
 #
 #*************************************************************************
-$::biopversion = "3.4.1";
+$::biopversion = "3.4.2";
 #*************************************************************************
 $::biopgit     = "https://github.com/ACRMGroup/bioplib/archive/V";
 $::biopext     = ".tar.gz";
