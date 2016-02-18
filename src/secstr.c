@@ -49,9 +49,11 @@
 
    V1.0   19.05.99 Original, written while at Inpharmatica   By: ACRM
    V1.1   10.07.15 Modified for BiopLib
-          17.02.15 xyz for coordinates now count from zero
+          17.02.16 xyz for coordinates now count from zero
                    CalcDihedral() also now uses arrays that count from
                    zero
+          18.02.16 NUM_MC_ATOM_TYPES now counts from zero
+                   MAX_NUM_ANGLES now counts from zero
 
 *************************************************************************/
 /* Doxygen
@@ -103,23 +105,23 @@
                                    offset into the KnownResidueTypes
                                    array                                */
 
-#define NUM_MC_ATOM_TYPES (6+1) /* number of M/C atom types             */
-#define ATOM_N                1 /* atom indexes                         */
-#define ATOM_CA               2
-#define ATOM_C                3
-#define ATOM_O                4
-#define ATOM_H                5
-#define ATOM_CB               6
+#define NUM_MC_ATOM_TYPES     6 /* number of M/C atom types             */
+#define ATOM_N                0 /* atom indexes                         */
+#define ATOM_CA               1
+#define ATOM_C                2
+#define ATOM_O                3
+#define ATOM_H                4
+#define ATOM_CB               5
 
-#define MAX_NUM_ANGLES    (7+1) /* number of angles calculated          */
-#define NDIHED                5 /* number of standard dihedrals         */
-#define DIHED_PHI             1 /* dihedral indexes                     */
-#define DIHED_PSI             2
-#define DIHED_OMEGA           3
-#define DIHED_CHIRAL          4
-#define DIHED_IMPLD           5
-#define DIHED_KAPPA           6
-#define DIHED_TCO             7
+#define MAX_NUM_ANGLES        7 /* number of angles calculated          */
+#define NDIHED                4 /* number of standard dihedrals         */
+#define DIHED_PHI             0 /* dihedral indexes                     */
+#define DIHED_PSI             1
+#define DIHED_OMEGA           2
+#define DIHED_CHIRAL          3
+#define DIHED_IMPLD           4
+#define DIHED_KAPPA           5
+#define DIHED_TCO             6
 
 #define NUM_STRUC_SYMS   (11+1)    /* number of structure symbols       */
 #define SECSTR_IDX_ALPHAH        1 /* Symbol indexes                    */
@@ -606,7 +608,7 @@ static void ExtractPDBData(PDB  *pdbStart, PDB  *pdbStop,
          strcpy(prevInsert, p->insert);
 
          resCount++;
-         for(i=1; i<NUM_MC_ATOM_TYPES; i++)
+         for(i=0; i<NUM_MC_ATOM_TYPES; i++)
          {
             gotAtom[i][resCount] = FALSE;
          }
@@ -1539,7 +1541,7 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
                          BOOL caOnly, int seqlen)
 {
    static int angleIndices[MAX_NUM_ANGLES][4] = 
-      {{0,  0,  0, 0},
+      {
        {0,  2,  0, DIHED_PHI},
        {0,  1, -1, DIHED_PSI}, 
        {0,  1, -1, DIHED_OMEGA}, 
@@ -1548,7 +1550,7 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
        {0,  3, -2, DIHED_KAPPA}, 
        {0,  2,  0, DIHED_TCO}};
    static int angleAtoms[MAX_NUM_ANGLES][5] = 
-      {{0,  0,     0,     0,     0},
+      {
        {0,  ATOM_C,  ATOM_N, ATOM_CA, ATOM_C},
        {0,  ATOM_N, ATOM_CA, ATOM_C,  ATOM_N}, 
        {0,  ATOM_CA, ATOM_C,  ATOM_N, ATOM_CA}, 
@@ -1557,7 +1559,7 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
        {0,  ATOM_CA, ATOM_CA, ATOM_CA, ATOM_CA}, 
        {0,  ATOM_C,  ATOM_O,  ATOM_C,  ATOM_O}};
    static int angleOffsets[MAX_NUM_ANGLES][5] =
-      {{0,  0,  0,  0,  0},
+      {
        {0, -1,  0,  0,  0},
        {0,  0,  0,  0,  1}, 
        {0,  0,  0,  1,  1}, 
@@ -1566,7 +1568,7 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
        {0, -2,  0,  0,  2}, 
        {0,  0,  0, -1, -1}};
    static int  numAtomsRequired[MAX_NUM_ANGLES] =
-      {0, 2, 2, 2, 4, 1, 5, 2};
+      {2, 2, 2, 4, 1, 5, 2};
    
    int resCount, 
        angleIndex, 
