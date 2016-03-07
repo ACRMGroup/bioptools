@@ -186,14 +186,14 @@
 #define FREE_SECSTR_MEMORY                                               \
    do {                                                                  \
    if(gotAtom != NULL)                                                   \
-      blFreeArray2D((char **)gotAtom, NUM_MC_ATOM_TYPES, seqlenMalloc);  \
+      blFreeArray2D((char **)gotAtom, NUM_MC_ATOM_TYPES, (seqlenMalloc-1)); \
    if(mcCoords != NULL)                                                  \
       blFreeArray3D((char ***)mcCoords, NUM_MC_ATOM_TYPES, seqlenMalloc, \
                     COORD_DIM);                                          \
    if(hbondEnergy != NULL)                                               \
-      blFreeArray2D((char **)hbondEnergy, seqlenMalloc, MAX_NUM_HBOND);  \
+      blFreeArray2D((char **)hbondEnergy, (seqlenMalloc-1), MAX_NUM_HBOND); \
    if(mcAngles != NULL)                                                  \
-      blFreeArray2D((char **)mcAngles, MAX_NUM_ANGLES, seqlenMalloc);    \
+      blFreeArray2D((char **)mcAngles, MAX_NUM_ANGLES, (seqlenMalloc-1)); \
    if(detailSS != NULL) free(detailSS);                                  \
    if(finalSS != NULL) free(finalSS);                                    \
    if(breakSymbol != NULL) free(breakSymbol);                            \
@@ -335,17 +335,18 @@ LYSLEUMETASNXXXPROGLNARGSERTHRXXXVALTRPXXXTYRGLXUNKPCAINI";
    seqlenMalloc = CountResidues(pdbStart, pdbStop)+1;
 
    /* Allocate memory for arrays                                        */
-   detailSS     = (char *)malloc(sizeof(char) * seqlenMalloc);
-   finalSS      = (char *)malloc(sizeof(char) * seqlenMalloc);
-   breakSymbol  = (char *)malloc(sizeof(char) * seqlenMalloc);
-   residueTypes = (int  *)malloc(sizeof(int)  * seqlenMalloc);
+   detailSS     = (char *)malloc(sizeof(char) * (seqlenMalloc-1));
+   finalSS      = (char *)malloc(sizeof(char) * (seqlenMalloc-1));
+   breakSymbol  = (char *)malloc(sizeof(char) * (seqlenMalloc-1));
+   residueTypes = (int  *)malloc(sizeof(int)  * (seqlenMalloc-1));
 
    gotAtom      = (BOOL **)blArray2D(sizeof(BOOL), NUM_MC_ATOM_TYPES, 
-                                     seqlenMalloc);
-   hbondEnergy  = (REAL **)blArray2D(sizeof(REAL), seqlenMalloc, 
+                                     (seqlenMalloc-1));
+   hbondEnergy  = (REAL **)blArray2D(sizeof(REAL), (seqlenMalloc-1), 
                                      MAX_NUM_HBOND);
    mcAngles     = (REAL **)blArray2D(sizeof(REAL), MAX_NUM_ANGLES, 
-                                     seqlenMalloc);
+                                     (seqlenMalloc-1));
+/*** THIS ONE NEXT ***/
    ssTable      = (char **)blArray2D(sizeof(char), NUM_STRUC_SYMS, 
                                      seqlenMalloc);
    residueID    = (char **)blArray2D(sizeof(char), seqlenMalloc, 
@@ -378,7 +379,7 @@ LYSLEUMETASNXXXPROGLNARGSERTHRXXXVALTRPXXXTYRGLXUNKPCAINI";
 
       if(caOnly)  /* Secondary structure undefined - just insert '?'    */
       {
-         for(resCount=1; resCount<=seqlen; resCount++)
+         for(resCount=0; resCount<seqlen; resCount++)
          {
             finalSS[resCount] = '?';
          }
@@ -475,7 +476,8 @@ static void SetPDBSecStruc(PDB *pdbStart, PDB *pdbStop, char *finalSS)
       /* Extract the secondary structure value or use '?' if the backbone
          N was not found
       */
-      ssChar = ((gotN) ? finalSS[++i] : '?');
+/*      ssChar = ((gotN) ? finalSS[++i] : '?'); */
+      ssChar = ((gotN) ? finalSS[i++] : '?');
 
       /* Set the values into the PDB linked list                        */
       for(r=p; r!=nextRes; NEXT(r))
@@ -610,12 +612,12 @@ static void ExtractPDBData(PDB  *pdbStart, PDB  *pdbStop,
          resCount++;
          for(i=0; i<NUM_MC_ATOM_TYPES; i++)
          {
-            gotAtom[i][resCount] = FALSE;
+            gotAtom[i][resCount-1] = FALSE;
          }
 
          sprintf(buffer,"%s.%d%s", p->chain, p->resnum, p->insert);
          strncpy(residueID[resCount], buffer, 16);
-         residueTypes[resCount] = FindResidueCode(p->resnam, 
+         residueTypes[resCount-1] = FindResidueCode(p->resnam, 
                                                   KnownResidueIndex);
       }
 
@@ -654,7 +656,7 @@ static void ExtractPDBData(PDB  *pdbStart, PDB  *pdbStop,
       /* If it was, then we store it                                    */
       if(atomIdx != (-1))
       {
-         gotAtom[atomIdx][resCount] = TRUE;
+         gotAtom[atomIdx][resCount-1] = TRUE;
          mcCoords[atomIdx][resCount][0] = p->x;
          mcCoords[atomIdx][resCount][1] = p->y;
          mcCoords[atomIdx][resCount][2] = p->z;
@@ -694,11 +696,11 @@ static void MarkBends(char **ssTable, char *detailSS, char *finalSS,
    {
       if(ssTable[SECSTR_IDX_BEND][resCount] != SECSTR_COIL)
       {
-         if(detailSS[resCount] == SECSTR_COIL) 
-            detailSS[resCount] = ssTable[SECSTR_IDX_BEND][resCount];
+         if(detailSS[resCount-1] == SECSTR_COIL) 
+            detailSS[resCount-1] = ssTable[SECSTR_IDX_BEND][resCount];
 
-         if(finalSS[resCount] == SECSTR_COIL) 
-            finalSS[resCount] = ssTable[SECSTR_IDX_BEND][resCount];
+         if(finalSS[resCount-1] == SECSTR_COIL) 
+            finalSS[resCount-1] = ssTable[SECSTR_IDX_BEND][resCount];
       }
    }
 }
@@ -755,7 +757,7 @@ static void FindChainBreaks(REAL ***mcCoords, BOOL **gotAtom,
 
    for(resIndex=1; resIndex<=seqlen; resIndex++)
    {
-      breakSymbol[resIndex] = SECSTR_COIL;
+      breakSymbol[resIndex-1] = SECSTR_COIL;
    }
    numberInChain = 1;
    *numChains    = 1;
@@ -779,7 +781,7 @@ static void FindChainBreaks(REAL ***mcCoords, BOOL **gotAtom,
       }
       else
       {
-         if(gotAtom[ATOM_C][resIndex-1] && gotAtom[ATOM_N][resIndex])
+         if(gotAtom[ATOM_C][resIndex-1-1] && gotAtom[ATOM_N][resIndex-1])
          {
             if(ATDIST(mcCoords[ATOM_C][resIndex-1],
                       mcCoords[ATOM_N][resIndex]) > MAX_PEPTIDE_BOND)
@@ -856,8 +858,8 @@ static void SetChainEnds(char *breakSymbol, int *chainSize,
 
    if(resIndex <= seqlen) 
    {
-      breakSymbol[resIndex-1] = SECSTR_BREAK;
-      breakSymbol[resIndex]   = SECSTR_BREAK;
+      breakSymbol[resIndex-1-1] = SECSTR_BREAK;
+      breakSymbol[resIndex-1]   = SECSTR_BREAK;
       
       if(verbose)
       {
@@ -919,9 +921,9 @@ static void AddHydrogens(REAL ***mcCoords, BOOL **gotAtom, int *chainSize,
           resCount<=chainStart+chainSize[chainNumber]; 
           resCount++)
       {  /* Check we have the N, C and O                                */
-         if(gotAtom[ATOM_N][resCount]   && 
-            gotAtom[ATOM_C][resCount-1] &&
-            gotAtom[ATOM_O][resCount-1])
+         if(gotAtom[ATOM_N][resCount-1]   && 
+            gotAtom[ATOM_C][resCount-1-1] &&
+            gotAtom[ATOM_O][resCount-1-1])
          {
             colen = 0.0;
             for(i=0; i<COORD_DIM; i++)
@@ -943,7 +945,7 @@ static void AddHydrogens(REAL ***mcCoords, BOOL **gotAtom, int *chainSize,
                   mcCoords[ATOM_N][resCount][i] + atvec[i];
             }
 
-            gotAtom[ATOM_H][resCount] = TRUE;
+            gotAtom[ATOM_H][resCount-1] = TRUE;
          }
          else
          {
@@ -953,7 +955,7 @@ static void AddHydrogens(REAL ***mcCoords, BOOL **gotAtom, int *chainSize,
 generated for residue %d\n",
                        resCount);
             }
-            gotAtom[ATOM_H][resCount] = FALSE;
+            gotAtom[ATOM_H][resCount-1] = FALSE;
          }
       }
       chainStart += chainSize[chainNumber];
@@ -1167,11 +1169,11 @@ static void SetHBond(REAL **hbondEnergy,
        rejectOffset;
 
    donorOffset    = FindHBondOffset(energy, 
-                                    hbondEnergy[donorResIndex][NST], 
-                                    hbondEnergy[donorResIndex][NST+1]);
+                                    hbondEnergy[donorResIndex-1][NST], 
+                                    hbondEnergy[donorResIndex-1][NST+1]);
    acceptorOffset = FindHBondOffset(energy, 
-                                    hbondEnergy[acceptorResIndex][CST], 
-                                    hbondEnergy[acceptorResIndex][CST+1]);
+                                    hbondEnergy[acceptorResIndex-1][CST], 
+                                    hbondEnergy[acceptorResIndex-1][CST+1]);
 
    if(acceptorOffset == 0 || donorOffset == 0)
    {
@@ -1192,12 +1194,12 @@ Donor index: %4d;  Acceptor Index: %4d; Energy: %6.2f\n",
 Donor index: %4d; Acceptor index: %4d; Energy %6.2f\n", 
                     donorResIndex, 
                     hbond[donorResIndex][NST+1], 
-                    hbondEnergy[donorResIndex][NST+1]);
+                    hbondEnergy[donorResIndex-1][NST+1]);
          }
          rejectOffset = hbond[donorResIndex][NST+1];
          RejectHBond(donorResIndex,
                      hbond[rejectOffset]+CST,
-                     hbondEnergy[rejectOffset]+CST);
+                     hbondEnergy[rejectOffset-1]+CST);
          (*bondCount)--;
       }
 
@@ -1209,12 +1211,12 @@ Donor index: %4d; Acceptor index: %4d; Energy %6.2f\n",
 Donor index: %4d; Acceptor index: %4d; Energy %6.2f\n", 
                     hbond[acceptorResIndex][CST+1], 
                     acceptorResIndex, 
-                    hbondEnergy[acceptorResIndex][CST+1]);
+                    hbondEnergy[acceptorResIndex-1][CST+1]);
          }
          rejectOffset = hbond[acceptorResIndex][CST+1];
          RejectHBond(acceptorResIndex,
                      hbond[rejectOffset]+NST,
-                     hbondEnergy[rejectOffset]+NST);
+                     hbondEnergy[rejectOffset-1]+NST);
          (*bondCount)--;
       }
 
@@ -1222,22 +1224,22 @@ Donor index: %4d; Acceptor index: %4d; Energy %6.2f\n",
       {
          hbond[acceptorResIndex][CST+1] = hbond[acceptorResIndex][CST];
 
-         hbondEnergy[acceptorResIndex][CST+1] = 
-            hbondEnergy[acceptorResIndex][CST];
+         hbondEnergy[acceptorResIndex-1][CST+1] = 
+            hbondEnergy[acceptorResIndex-1][CST];
       }
 
       if(donorOffset == 1)
       {
          hbond[donorResIndex][NST+1] = hbond[donorResIndex][NST];
 
-         hbondEnergy[donorResIndex][NST+1] = 
-            hbondEnergy[donorResIndex][NST];
+         hbondEnergy[donorResIndex-1][NST+1] = 
+            hbondEnergy[donorResIndex-1][NST];
       }
 
       hbond[acceptorResIndex][CST+acceptorOffset-1]       = donorResIndex;
-      hbondEnergy[acceptorResIndex][CST+acceptorOffset-1] = energy;
+      hbondEnergy[acceptorResIndex-1][CST+acceptorOffset-1] = energy;
       hbond[donorResIndex][NST+donorOffset-1]       = acceptorResIndex;
-      hbondEnergy[donorResIndex][NST+donorOffset-1] = energy;
+      hbondEnergy[donorResIndex-1][NST+donorOffset-1] = energy;
 
       (*bondCount)++;
    }
@@ -1488,27 +1490,27 @@ static void SetHelices(char **ssTable, char *detailSS, char *finalSS,
          {
             for(posInHelix = 0; posInHelix <= helixSize - 1; posInHelix++)
             {
-               if(detailSS[resCount+posInHelix] == SECSTR_COIL)
+               if(detailSS[resCount+posInHelix-1] == SECSTR_COIL)
                {
-                  detailSS[resCount+posInHelix] = helixCharacter;
+                  detailSS[resCount+posInHelix-1] = helixCharacter;
                }
 
-               if(finalSS[resCount+posInHelix] == SECSTR_COIL || 
-                  finalSS[resCount+posInHelix] == altHelixCharacter)
+               if(finalSS[resCount+posInHelix-1] == SECSTR_COIL || 
+                  finalSS[resCount+posInHelix-1] == altHelixCharacter)
                {
-                  finalSS[resCount+posInHelix] = helixCharacter;
+                  finalSS[resCount+posInHelix-1] = helixCharacter;
                }
                
             }
 
-            if(finalSS[resCount-1] == SECSTR_COIL)
+            if(finalSS[resCount-1-1] == SECSTR_COIL)
             {
-               finalSS[resCount-1] = altHelixCharacter;
+               finalSS[resCount-1-1] = altHelixCharacter;
             }
 
-            if(finalSS[resCount+helixSize] == SECSTR_COIL)
+            if(finalSS[resCount+helixSize-1] == SECSTR_COIL)
             {
-               finalSS[resCount+helixSize] = altHelixCharacter;
+               finalSS[resCount+helixSize-1] = altHelixCharacter;
             }
          }
       }
@@ -1599,7 +1601,7 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
                 resCount <= (chainStart + chainSize[chainCount]); 
                 resCount++)
             {
-               mcAngles[angleIndices[angleIndex][3]][resCount] = NULLVAL;
+               mcAngles[angleIndices[angleIndex][3]][resCount-1] = NULLVAL;
             }
          }
          else
@@ -1609,16 +1611,16 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
                              angleIndices[angleIndex][2]); 
                 resCount++)
             {
-               if(gotAtom[angleAtoms[angleIndex][1]]
+               if(gotAtom[angleAtoms[angleIndex][1-1]]
                           [resCount+angleOffsets[angleIndex][1]] &&
-                  gotAtom[angleAtoms[angleIndex][2]]
+                  gotAtom[angleAtoms[angleIndex][2-1]]
                           [resCount+angleOffsets[angleIndex][2]] &&
-                  gotAtom[angleAtoms[angleIndex][3]]
+                  gotAtom[angleAtoms[angleIndex][3-1]]
                           [resCount+angleOffsets[angleIndex][3]] &&
-                  gotAtom[angleAtoms[angleIndex][4]]
+                  gotAtom[angleAtoms[angleIndex][4-1]]
                           [resCount+angleOffsets[angleIndex][4]])
                {
-                  mcAngles[angleIndices[angleIndex][3]][resCount] = 
+                  mcAngles[angleIndices[angleIndex][3]][resCount-1] = 
                      CalcDihedral(angleIndex,
                                   mcCoords[angleAtoms[angleIndex][1]]
                                           [resCount+
@@ -1635,7 +1637,7 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
                }
                else
                {
-                  mcAngles[angleIndices[angleIndex][3]][resCount] = 
+                  mcAngles[angleIndices[angleIndex][3]][resCount-1] = 
                      NULLVAL;
                }
             }
@@ -1644,7 +1646,7 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
                 resCount <= chainStart + angleIndices[angleIndex][1] - 1; 
                 resCount++)
             {
-               mcAngles[angleIndices[angleIndex][3]][resCount] = NULLVAL;
+               mcAngles[angleIndices[angleIndex][3]][resCount-1] = NULLVAL;
             }
 
             for(resCount = chainStart + 
@@ -1653,7 +1655,7 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
                 resCount <= (chainStart + chainSize[chainCount]);
                 resCount++)
             {
-               mcAngles[angleIndices[angleIndex][3]][resCount] = 
+               mcAngles[angleIndices[angleIndex][3]][resCount-1] = 
                   NULLVAL;
             }
          }
@@ -1683,8 +1685,8 @@ static void SetBendResidues(REAL **mcAngles, char **ssTable, int seqlen)
 
    for(resCount=1; resCount<=seqlen; resCount++)
    {
-      if((mcAngles[DIHED_KAPPA][resCount] > BEND_SIZE) &&
-          XNEY(mcAngles[DIHED_KAPPA][resCount], NULLVAL)) 
+      if((mcAngles[DIHED_KAPPA][resCount-1] > BEND_SIZE) &&
+          XNEY(mcAngles[DIHED_KAPPA][resCount-1], NULLVAL)) 
       {
          ssTable[SECSTR_IDX_BEND][resCount] = SECSTR_BEND;
       }
@@ -1756,7 +1758,7 @@ static void MakeHBonds(REAL ***mcCoords, BOOL **gotAtom, int **hbond,
       for(i=1; i<MAX_NUM_HBOND; i++)
       {
          hbond[resCount][i] = 0;
-         hbondEnergy[resCount][i] = 0.0;
+         hbondEnergy[resCount-1][i] = 0.0;
       }
    }
    nbonds = 0;
@@ -1768,9 +1770,9 @@ static void MakeHBonds(REAL ***mcCoords, BOOL **gotAtom, int **hbond,
          firstChain++;
       
       /* Check both N and H are present                                 */
-      if(gotAtom[ATOM_N][resCount] && 
-         gotAtom[ATOM_H][resCount] &&
-         residueTypes[resCount] != RESTYPE_PROLINE)
+      if(gotAtom[ATOM_N][resCount-1] && 
+         gotAtom[ATOM_H][resCount-1] &&
+         residueTypes[resCount-1] != RESTYPE_PROLINE)
       {
          otherChain = 1;
          for(otherRes=1; otherRes<=seqlen; otherRes++)
@@ -1782,15 +1784,15 @@ static void MakeHBonds(REAL ***mcCoords, BOOL **gotAtom, int **hbond,
                 (firstChain != otherChain))     ||  
                abs(resCount - otherRes) >= 2) 
             {
-               if(gotAtom[ATOM_CA][resCount] && 
-                  gotAtom[ATOM_CA][otherRes]) 
+               if(gotAtom[ATOM_CA][resCount-1] && 
+                  gotAtom[ATOM_CA][otherRes-1]) 
                {
                   caDist = ATDIST(mcCoords[ATOM_CA][otherRes],
                                   mcCoords[ATOM_CA][resCount]);
                   if(caDist < HBOND_MAX_CA_DIST) 
                   {
-                     if(gotAtom[ATOM_C][otherRes] && 
-                        gotAtom[ATOM_O][otherRes]) 
+                     if(gotAtom[ATOM_C][otherRes-1] && 
+                        gotAtom[ATOM_O][otherRes-1]) 
                      {
                         distON = ATDIST(mcCoords[ATOM_O][otherRes],
                                         mcCoords[ATOM_N][resCount]);
@@ -1882,8 +1884,8 @@ static void MakeSummary(char **ssTable,
    
    for(resCount = 1; resCount <= seqlen; resCount++)
    {
-      detailSS[resCount] = SECSTR_COIL;
-      finalSS[resCount]  = SECSTR_COIL;
+      detailSS[resCount-1] = SECSTR_COIL;
+      finalSS[resCount-1]  = SECSTR_COIL;
    }
    
    SetHelices(ssTable, detailSS, finalSS, SECSTR_IDX_ALPHAH, 
@@ -1894,39 +1896,39 @@ static void MakeSummary(char **ssTable,
    {
       if(ssTable[SECSTR_IDX_SHEET][resCount] != SECSTR_COIL)
       {
-         if(detailSS[resCount] == SECSTR_COIL) 
-            detailSS[resCount] = ssSymbols[SECSTR_IDX_SHEET];
+         if(detailSS[resCount-1] == SECSTR_COIL) 
+            detailSS[resCount-1] = ssSymbols[SECSTR_IDX_SHEET];
 
-         if(finalSS[resCount] == SECSTR_COIL || 
-            finalSS[resCount] == altSSSymbols[SECSTR_IDX_ALPHAH] || 
-            finalSS[resCount] == altSSSymbols[SECSTR_IDX_SHEET])
+         if(finalSS[resCount-1] == SECSTR_COIL || 
+            finalSS[resCount-1] == altSSSymbols[SECSTR_IDX_ALPHAH] || 
+            finalSS[resCount-1] == altSSSymbols[SECSTR_IDX_SHEET])
          {
-            finalSS[resCount] = ssSymbols[SECSTR_IDX_SHEET];
+            finalSS[resCount-1] = ssSymbols[SECSTR_IDX_SHEET];
          }
          
          if(ssTable[SECSTR_IDX_SHEET][resCount] == SECSTR_SHEET_SMALL)
          {
-            if(finalSS[resCount-1] == SECSTR_COIL || 
-               finalSS[resCount-1] == ssSymbols[SECSTR_IDX_BRIDGE]) 
+            if(finalSS[resCount-1-1] == SECSTR_COIL || 
+               finalSS[resCount-1-1] == ssSymbols[SECSTR_IDX_BRIDGE]) 
             {
-               finalSS[resCount-1] = altSSSymbols[SECSTR_IDX_SHEET];
+               finalSS[resCount-1-1] = altSSSymbols[SECSTR_IDX_SHEET];
             }
 
-            if(finalSS[resCount+1] == SECSTR_COIL || 
-               finalSS[resCount-1] == ssSymbols[SECSTR_IDX_BRIDGE]) 
+            if(finalSS[resCount+1-1] == SECSTR_COIL || 
+               finalSS[resCount-1-1] == ssSymbols[SECSTR_IDX_BRIDGE]) 
             {
-               finalSS[resCount+1] = altSSSymbols[SECSTR_IDX_SHEET];
+               finalSS[resCount+1-1] = altSSSymbols[SECSTR_IDX_SHEET];
             }
          }
       }
 
       if(ssTable[SECSTR_IDX_BRIDGE][resCount] != SECSTR_COIL)
       {
-         if(detailSS[resCount] == SECSTR_COIL) 
-            detailSS[resCount] = ssSymbols[SECSTR_IDX_BRIDGE];
+         if(detailSS[resCount-1] == SECSTR_COIL) 
+            detailSS[resCount-1] = ssSymbols[SECSTR_IDX_BRIDGE];
 
-         if(finalSS[resCount] == SECSTR_COIL) 
-            finalSS[resCount] = ssSymbols[SECSTR_IDX_BRIDGE];
+         if(finalSS[resCount-1] == SECSTR_COIL) 
+            finalSS[resCount-1] = ssSymbols[SECSTR_IDX_BRIDGE];
       }
    }
    
@@ -2212,10 +2214,10 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
 
    for(resCount = 1; resCount <= seqlen; resCount++)
    {
-      if(XNEY(mcAngles[DIHED_CHIRAL][resCount], NULLVAL)) 
+      if(XNEY(mcAngles[DIHED_CHIRAL][resCount-1], NULLVAL)) 
       {
          ssTable[SECSTR_IDX_CHISGN][resCount] = '+';
-         if(mcAngles[DIHED_CHIRAL][resCount] < 0.0) 
+         if(mcAngles[DIHED_CHIRAL][resCount-1] < 0.0) 
             ssTable[SECSTR_IDX_CHISGN][resCount] =   '-';
       }
    }
@@ -2824,23 +2826,23 @@ static void FindTurns(char **ssTable, char *detailSS,   char *finalSS,
              symbolCount <= helixSize[helixCount]; 
              symbolCount++)
          {
-            if(detailSS[symbolCount] == SECSTR_COIL) 
+            if(detailSS[symbolCount-1] == SECSTR_COIL) 
             {
-               detailSS[symbolCount] = turnChar;
+               detailSS[symbolCount-1] = turnChar;
             }
 
-            if(finalSS[symbolCount] == SECSTR_COIL || 
-               finalSS[symbolCount] == altTurnChar) 
+            if(finalSS[symbolCount-1] == SECSTR_COIL || 
+               finalSS[symbolCount-1] == altTurnChar) 
             {
-               finalSS[symbolCount] = turnChar;
+               finalSS[symbolCount-1] = turnChar;
             }
          }
          
-         if(finalSS[1] == SECSTR_COIL) 
-            finalSS[1] = altTurnChar;
+         if(finalSS[1-1] == SECSTR_COIL) 
+            finalSS[1-1] = altTurnChar;
 
-         if(finalSS[helixSize[helixCount]+1] == SECSTR_COIL)
-            finalSS[helixSize[helixCount]+1] = altTurnChar;
+         if(finalSS[helixSize[helixCount]+1-1] == SECSTR_COIL)
+            finalSS[helixSize[helixCount]+1-1] = altTurnChar;
       }
       
       for(resCount = 2; 
@@ -2864,23 +2866,23 @@ static void FindTurns(char **ssTable, char *detailSS,   char *finalSS,
                 symbolCount <= (resCount + helixSize[helixCount] - 1); 
                 symbolCount++)
             {
-               if(detailSS[symbolCount] == SECSTR_COIL) 
+               if(detailSS[symbolCount-1] == SECSTR_COIL) 
                {
-                  detailSS[symbolCount] = turnChar;
+                  detailSS[symbolCount-1] = turnChar;
                }
 
-               if(finalSS[symbolCount] == SECSTR_COIL || 
-                  finalSS[symbolCount] == altTurnChar) 
+               if(finalSS[symbolCount-1] == SECSTR_COIL || 
+                  finalSS[symbolCount-1] == altTurnChar) 
                {
-                  finalSS[symbolCount] = turnChar;
+                  finalSS[symbolCount-1] = turnChar;
                }
             }
 
-            if(finalSS[resCount] == SECSTR_COIL) 
-               finalSS[resCount] = altTurnChar;
+            if(finalSS[resCount-1] == SECSTR_COIL) 
+               finalSS[resCount-1] = altTurnChar;
 
-            if(finalSS[resCount+helixSize[helixCount]] == SECSTR_COIL)
-               finalSS[resCount+helixSize[helixCount]] = altTurnChar;
+            if(finalSS[resCount+helixSize[helixCount]-1] == SECSTR_COIL)
+               finalSS[resCount+helixSize[helixCount]-1] = altTurnChar;
          }
       }
    }
