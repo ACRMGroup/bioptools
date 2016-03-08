@@ -3,11 +3,11 @@
 
    \file       pdbsolv.c
    
-   \version    V1.4
-   \date       17.06.15
+   \version    V1.5
+   \date       08.03.16
    \brief      Solvent accessibility using bioplib
    
-   \copyright  (c) UCL, Dr. Andrew C.R. Martin, 2014-2015
+   \copyright  (c) UCL, Dr. Andrew C.R. Martin, 2014-2016
    \author     Dr. Andrew C.R. Martin
    \par
                Institute of Structural & Molecular Biology,
@@ -52,6 +52,8 @@
 -   V1.3   13.02.15 Modified to use whole PDB
 -   V1.4   17.06.15 Residue access file now includes sidechain 
                     accessibility
+-   V1.5   08.03.16 Corrected insert code printing so it is left-justified
+                    and now touches the residue number
 
 *************************************************************************/
 /* Includes
@@ -329,10 +331,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -   06.11.14 V1.2
 -   13.02.15 V1.3
 -   17.06.15 V1.4
+-   08.03.16 V1.5
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbsolv V1.4 (c) 2014-2015 UCL, Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbsolv V1.5 (c) 2014-2016 UCL, Dr. Andrew C.R. \
 Martin\n");
 
    fprintf(stderr,"\nUsage: pdbsolv [-i val] [-p val] [-f radfile] \
@@ -402,6 +405,7 @@ void PopulateBValWithAccess(PDB *pdb)
 
 -  17.07.14  Original   By:ACRM
 -  17.06.15  Added sidechain accessibility printing
+-  08.03.16  Corrected insertion printing so it is left justified
 */
 void PrintResidueAccessibility(FILE *out, PDB *pdb, RESRAD *resrad)
 {
@@ -418,7 +422,7 @@ residue accessibilities\n");
 
       for(r=resaccess; r!=NULL; NEXT(r))
       {
-         fprintf(out, "RESACC %2s%5d%2s %s %7.3f %7.3f %7.3f %7.3f\n",
+         fprintf(out, "RESACC %2s%5d%-2s %s %7.3f %7.3f %7.3f %7.3f\n",
                  r->chain, r->resnum, r->insert, r->resnam, 
                  r->resAccess, r->relAccess,
                  r->scAccess,  r->scRelAccess);
