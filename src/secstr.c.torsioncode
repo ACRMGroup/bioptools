@@ -990,6 +990,13 @@ generated for residue %d\n",
 -  17.02.16 x,y,z for coordinates now count from 0 instead of 1
             dotproduct[][] and dihatm[] now count from 0
 */
+#define SETCOOR(a, b) do {                      \
+   (a).x = (b)[0];                              \
+   (a).y = (b)[1];                              \
+   (a).z = (b)[2];                              \
+   }                                            \
+   while(0)
+
 static REAL CalcDihedral(int  angnum, 
                          REAL *atoma,
                          REAL *atomb,
@@ -1005,6 +1012,16 @@ static REAL CalcDihedral(int  angnum,
         determinant;
    int  i, j, k;
 
+
+   COOR aa, ab, ac, ad;
+   SETCOOR(aa, atoma);
+   SETCOOR(ab, atomb);
+   SETCOOR(ac, atomd);
+   SETCOOR(ad, atomd);
+
+   return(blPhi(&aa, &ab, &ac, &ad);
+
+#ifdef OLD
    dihatm[0] = atoma;
    dihatm[1] = atomb;
    dihatm[2] = atomc;
@@ -1098,6 +1115,7 @@ static REAL CalcDihedral(int  angnum,
    }
    
    return(ang);
+#endif
 }
 
 

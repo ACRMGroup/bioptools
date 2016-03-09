@@ -1,0 +1,45 @@
+
+Hi Dr. Andrew, 
+
+I was just wondering if it is trivial to modify pdbsecstr to read a trajectory file and calculate SS assignments for each frame and provide output in the following form. 
+
+For example, for a trajectory of 5 frames, I get following output where each column corresponds to one frame. 
+ 
+
+12345
+-----
+hhhhh
+HHHHH
+HHHHH
+HHHHH
+HHHHH
+HHHHH
+HHHHH
+HHHHH
+HHHHH
+HHHHH
+HHHHH
+hhhhhh
+hhhhhh
+hhhhhh
+
+I can think of a very long and complicated solution. Like converting each frame into pdb and then running pdbsecstr on each pdb and somehow concatenate output from each file as above and then calculate percentage for each amino acid in the peptide. 
+
+Alternatively if we modify pdbsecstr to read trajectory file and then produce output as above. Can you please suggest on this?
+
+
+
+Hi Dr. Andrew,
+
+Please find the attached trajectory for 100ps (each frame at 10ps).
+And when I run this traj through my perl script then I get the attached output.
+
+Details on output format are.
+1. There should be n number of columns where n=number of frames in trajectory
+2. Number of rows = number of A.A in peptide.
+3. Each row should be in double quotes. (This is because dssp provides output in double quotes and my script to calculate percentage of time requires each row starting and ending with quotes).
+
+Please see attached sample output (2W9EWtPep_traj_ss.dat).
+
+Best regards,
+Saba
