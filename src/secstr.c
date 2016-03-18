@@ -982,10 +982,8 @@ generated for residue %d\n",
 
    Calculate the dihedral described by 4 atoms. angnum specifies which
    dihedral is to be calculated (see the DIHED_XXXX defines) as the
-   'special' ones (KAPPA and TCO) need special treatment.
-
-   TODO: This needs to call our normal blPhi() routine rather than 
-   calculating the angle here
+   'special' ones (KAPPA (CA-CA-CA-CA) and TCO (C=O, C=O)) need special 
+   treatment. 
 
 -  19.05.99 Original   By: ACRM
 -  13.07.15 Modified for BiopLib
@@ -1528,33 +1526,33 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
                          BOOL **gotAtom, int *chainSize, int numChains,
                          BOOL caOnly, int seqlen)
 {
-   static int angleIndices[MAX_NUM_ANGLES][4] = 
+   static int angleIndices[MAX_NUM_ANGLES][3] = 
       {
-       {0,  2,  0, DIHED_PHI},
-       {0,  1, -1, DIHED_PSI}, 
-       {0,  1, -1, DIHED_OMEGA}, 
-       {0,  2, -2, DIHED_CHIRAL}, 
-       {0,  1,  0, DIHED_IMPLD}, 
-       {0,  3, -2, DIHED_KAPPA}, 
-       {0,  2,  0, DIHED_TCO}};
-   static int angleAtoms[MAX_NUM_ANGLES][5] = 
+       {2,  0, DIHED_PHI},
+       {1, -1, DIHED_PSI}, 
+       {1, -1, DIHED_OMEGA}, 
+       {2, -2, DIHED_CHIRAL}, 
+       {1,  0, DIHED_IMPLD}, 
+       {3, -2, DIHED_KAPPA}, 
+       {2,  0, DIHED_TCO}};
+   static int angleAtoms[MAX_NUM_ANGLES][4] = 
       {
-       {0,  ATOM_C,  ATOM_N, ATOM_CA, ATOM_C},
-       {0,  ATOM_N, ATOM_CA, ATOM_C,  ATOM_N}, 
-       {0,  ATOM_CA, ATOM_C,  ATOM_N, ATOM_CA}, 
-       {0,  ATOM_CA, ATOM_CA, ATOM_CA, ATOM_CA}, 
-       {0,  ATOM_CA, ATOM_N, ATOM_C,  ATOM_CB}, 
-       {0,  ATOM_CA, ATOM_CA, ATOM_CA, ATOM_CA}, 
-       {0,  ATOM_C,  ATOM_O,  ATOM_C,  ATOM_O}};
-   static int angleOffsets[MAX_NUM_ANGLES][5] =
+       {ATOM_C,  ATOM_N, ATOM_CA, ATOM_C},
+       {ATOM_N, ATOM_CA, ATOM_C,  ATOM_N}, 
+       {ATOM_CA, ATOM_C,  ATOM_N, ATOM_CA}, 
+       {ATOM_CA, ATOM_CA, ATOM_CA, ATOM_CA}, 
+       {ATOM_CA, ATOM_N, ATOM_C,  ATOM_CB}, 
+       {ATOM_CA, ATOM_CA, ATOM_CA, ATOM_CA}, 
+       {ATOM_C,  ATOM_O,  ATOM_C,  ATOM_O}};
+   static int angleOffsets[MAX_NUM_ANGLES][4] =
       {
-       {0, -1,  0,  0,  0},
-       {0,  0,  0,  0,  1}, 
-       {0,  0,  0,  1,  1}, 
-       {0, -1,  0,  1,  2}, 
-       {0,  0,  0,  0,  0}, 
-       {0, -2,  0,  0,  2}, 
-       {0,  0,  0, -1, -1}};
+       {-1,  0,  0,  0},
+       { 0,  0,  0,  1}, 
+       { 0,  0,  1,  1}, 
+       {-1,  0,  1,  2}, 
+       { 0,  0,  0,  0}, 
+       {-2,  0,  0,  2}, 
+       { 0,  0, -1, -1}};
    static int  numAtomsRequired[MAX_NUM_ANGLES] =
       {2, 2, 2, 4, 1, 5, 2};
    
@@ -1587,27 +1585,30 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
                 resCount <= (chainStart + chainSize[chainCount-1]); 
                 resCount++)
             {
-               mcAngles[angleIndices[angleIndex][3]][resCount-1] = NULLVAL;
+               mcAngles[angleIndices[angleIndex][2]][resCount-1] = NULLVAL;
             }
          }
          else
          {
-            for(resCount  = (chainStart + angleIndices[angleIndex][1]); 
+            for(resCount  = (chainStart + angleIndices[angleIndex][0]); 
                 resCount <= (chainStart + chainSize[chainCount-1] + 
-                             angleIndices[angleIndex][2]); 
+                             angleIndices[angleIndex][1]); 
                 resCount++)
             {
-               if(gotAtom[angleAtoms[angleIndex][1-1]]
+               if(gotAtom[angleAtoms[angleIndex][0]]
+                          [resCount+angleOffsets[angleIndex][0]] &&
+                  gotAtom[angleAtoms[angleIndex][1]]
                           [resCount+angleOffsets[angleIndex][1]] &&
-                  gotAtom[angleAtoms[angleIndex][2-1]]
+                  gotAtom[angleAtoms[angleIndex][2]]
                           [resCount+angleOffsets[angleIndex][2]] &&
-                  gotAtom[angleAtoms[angleIndex][3-1]]
-                          [resCount+angleOffsets[angleIndex][3]] &&
-                  gotAtom[angleAtoms[angleIndex][4-1]]
-                          [resCount+angleOffsets[angleIndex][4]])
+                  gotAtom[angleAtoms[angleIndex][3]]
+                          [resCount+angleOffsets[angleIndex][3]])
                {
-                  mcAngles[angleIndices[angleIndex][3]][resCount-1] = 
+                  mcAngles[angleIndices[angleIndex][2]][resCount-1] = 
                      CalcDihedral(angleIndex,
+                                  mcCoords[angleAtoms[angleIndex][0]]
+                                          [resCount+
+                                           angleOffsets[angleIndex][0]-1],
                                   mcCoords[angleAtoms[angleIndex][1]]
                                           [resCount+
                                            angleOffsets[angleIndex][1]-1],
@@ -1616,32 +1617,29 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
                                            angleOffsets[angleIndex][2]-1],
                                   mcCoords[angleAtoms[angleIndex][3]]
                                           [resCount+
-                                           angleOffsets[angleIndex][3]-1],
-                                  mcCoords[angleAtoms[angleIndex][4]]
-                                          [resCount+
-                                           angleOffsets[angleIndex][4]-1]);
+                                           angleOffsets[angleIndex][3]-1]);
                }
                else
                {
-                  mcAngles[angleIndices[angleIndex][3]][resCount-1] = 
+                  mcAngles[angleIndices[angleIndex][2]][resCount-1] = 
                      NULLVAL;
                }
             }
 
             for(resCount = chainStart + 1; 
-                resCount <= chainStart + angleIndices[angleIndex][1] - 1; 
+                resCount <= chainStart + angleIndices[angleIndex][0] - 1; 
                 resCount++)
             {
-               mcAngles[angleIndices[angleIndex][3]][resCount-1] = NULLVAL;
+               mcAngles[angleIndices[angleIndex][2]][resCount-1] = NULLVAL;
             }
 
             for(resCount = chainStart + 
                            chainSize[chainCount-1] + 
-                           angleIndices[angleIndex][2] + 1;
+                           angleIndices[angleIndex][1] + 1;
                 resCount <= (chainStart + chainSize[chainCount-1]);
                 resCount++)
             {
-               mcAngles[angleIndices[angleIndex][3]][resCount-1] = 
+               mcAngles[angleIndices[angleIndex][2]][resCount-1] = 
                   NULLVAL;
             }
          }
