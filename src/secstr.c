@@ -77,6 +77,7 @@
 #include "bioplib/MathType.h"
 #include "bioplib/SysDefs.h"
 #include "bioplib/macros.h"
+#include "bioplib/angle.h"
 
 #include "secstr.h"
 
@@ -405,7 +406,7 @@ CA-only. Secondary structure undefined.\n", pdbStart->chain[0]);
          /* Sets mcAngles[]                                             */
          CalcMCAngles(mcCoords, mcAngles, gotAtom, chainSize, numChains, 
                       caOnly, seqlen);
-      
+
          /* Sets ssTable[][], bridgePoints[][]                          */
          if(!MakeTurnsAndBridges(hbond, ssTable, mcAngles, bridgePoints, 
                                  chainEnd, seqlen, verbose))
@@ -1005,6 +1006,15 @@ static REAL CalcDihedral(int  angnum,
         determinant;
    int  i, j, k;
 
+
+
+#ifdef TESTCODE
+   fprintf(stderr,"NEW: %f ", RADIAN * blPhi(atoma[0], atoma[1], atoma[2],
+                                             atomb[0], atomb[1], atomb[2],
+                                             atomc[0], atomc[1], atomc[2],
+                                             atomd[0], atomd[1], atomd[2]));
+#endif /* TESTCODE */
+
    dihatm[0] = atoma;
    dihatm[1] = atomb;
    dihatm[2] = atomc;
@@ -1096,7 +1106,11 @@ static REAL CalcDihedral(int  angnum,
       if(determinant < 0.0) 
          ang = -ang;
    }
-   
+
+#ifdef TESTCODE
+   fprintf(stderr,"OLD: %f \n", ang);
+#endif /* TESTCODE */
+
    return(ang);
 }
 
