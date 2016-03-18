@@ -102,7 +102,7 @@
 #define NRULES 4
 #define PARLEL 1
 
-#define NUM_DIHED_DATA     4    /* number of dihedral data points       */
+#define NUM_DIHED_DATA     3    /* number of dihedral data points       */
 #define RESTYPE_PROLINE      16 /* residue type number for Proline - an
                                    offset into the KnownResidueTypes
                                    array                                */
@@ -997,9 +997,9 @@ static REAL CalcDihedral(int  angnum,
                          REAL *atomd)
 {
    REAL *dihatm[NUM_DIHED_DATA], 
-        codist[COORD_DIM][NUM_DIHED_DATA-1],
-        atomDistance[NUM_DIHED_DATA-1], 
-        dotProduct[NUM_DIHED_DATA-1][NUM_DIHED_DATA-1],
+        codist[COORD_DIM][NUM_DIHED_DATA],
+        atomDistance[NUM_DIHED_DATA], 
+        dotProduct[NUM_DIHED_DATA][NUM_DIHED_DATA],
         ang, 
         cosAngle; 
    int  i, j, k;
@@ -1019,7 +1019,7 @@ static REAL CalcDihedral(int  angnum,
    dihatm[2] = atomc;
    dihatm[3] = atomd;
    
-   for(i=0; i<NUM_DIHED_DATA-1; i++)
+   for(i=0; i<NUM_DIHED_DATA; i++)
    {
       atomDistance[i] = ATDIST(dihatm[i],dihatm[i+1]);
       for(j=0; j<COORD_DIM; j++)
@@ -1028,17 +1028,17 @@ static REAL CalcDihedral(int  angnum,
       }
    }
    
-   for(i=0; i<NUM_DIHED_DATA-1; i++)
+   for(i=0; i<NUM_DIHED_DATA; i++)
    {
-      for(j=0; j<NUM_DIHED_DATA-1; j++)
+      for(j=0; j<NUM_DIHED_DATA; j++)
       {
          dotProduct[i][j] = 0.0;
       }
    }
    
-   for(i=0; i<NUM_DIHED_DATA-2; i++)
+   for(i=0; i<NUM_DIHED_DATA-1; i++)
    {
-      for(j=i+1; j<NUM_DIHED_DATA-1; j++)
+      for(j=i+1; j<NUM_DIHED_DATA; j++)
       {
          for(k=0; k<COORD_DIM; k++)
          {
@@ -1047,9 +1047,9 @@ static REAL CalcDihedral(int  angnum,
       }
    }
    
-   for(i=0; i<NUM_DIHED_DATA-2; i++)
+   for(i=0; i<NUM_DIHED_DATA-1; i++)
    {
-      for(j=i+1; j<NUM_DIHED_DATA-1; j++)
+      for(j=i+1; j<NUM_DIHED_DATA; j++)
       {
          if(XEQY(atomDistance[i], 0.0) || XEQY(atomDistance[j], 0.0))
          {
