@@ -1005,7 +1005,7 @@ static REAL CalcDihedral(int  angnum,
    int  i, j, k;
 
    /* It's a standard dihedral, call our normal bioplib routine   */
-   if(angnum <= NDIHED)
+   if((angnum <= NDIHED) || (angnum >= MAX_NUM_ANGLES))
    {
       return(RADIAN * blPhi(atoma[0], atoma[1], atoma[2],
                             atomb[0], atomb[1], atomb[2],
@@ -1063,11 +1063,7 @@ static REAL CalcDihedral(int  angnum,
       }
    }
    
-   /* If it's a non-standard dihedral                                   */
-   if((angnum > NDIHED) && (angnum < MAX_NUM_ANGLES))
-   {
-      cosAngle = dotProduct[0][2];
-   }
+   cosAngle = dotProduct[0][2];
 
    if(fabs(cosAngle) > 1.0) 
    {
