@@ -1,3 +1,4 @@
+#define TESTCODE 1
 /************************************************************************/
 /**
 
@@ -1002,19 +1003,19 @@ static REAL CalcDihedral(int  angnum,
         atomDistance[NUM_DIHED_DATA-1], 
         dotProduct[NUM_DIHED_DATA-1][NUM_DIHED_DATA-1],
         ang, 
-        cosAngle, 
-        determinant;
+        cosAngle; 
    int  i, j, k;
 
+   /* It's a standard dihedral, call our normal bioplib routine   */
+   if(angnum <= NDIHED)
+   {
+      return(RADIAN * blPhi(atoma[0], atoma[1], atoma[2],
+                            atomb[0], atomb[1], atomb[2],
+                            atomc[0], atomc[1], atomc[2],
+                            atomd[0], atomd[1], atomd[2]));
+   }
 
-
-#ifdef TESTCODE
-   fprintf(stderr,"NEW: %f ", RADIAN * blPhi(atoma[0], atoma[1], atoma[2],
-                                             atomb[0], atomb[1], atomb[2],
-                                             atomc[0], atomc[1], atomc[2],
-                                             atomd[0], atomd[1], atomd[2]));
-#endif /* TESTCODE */
-
+   /* A non-standard dihedral, use the special code */
    dihatm[0] = atoma;
    dihatm[1] = atomb;
    dihatm[2] = atomc;
@@ -1069,20 +1070,6 @@ static REAL CalcDihedral(int  angnum,
    {
       cosAngle = dotProduct[0][2];
    }
-   else  /* A standard dihedral                                         */
-   {
-      if(XEQY(dotProduct[0][1], 1.0) || XEQY(dotProduct[1][2], 1.0))
-      {
-         cosAngle = 1.0;
-      }
-      else
-      {
-         cosAngle = (dotProduct[0][1] * dotProduct[1][2] - 
-                     dotProduct[0][2]) /
-                    (sqrt(1.0-(dotProduct[0][1]*dotProduct[0][1])) * 
-                     sqrt(1.0-(dotProduct[1][2]*dotProduct[1][2])));
-      }
-   }
 
    if(fabs(cosAngle) > 1.0) 
    {
@@ -1093,24 +1080,6 @@ static REAL CalcDihedral(int  angnum,
    
    ang = acos(cosAngle) * RADIAN;
    
-   /* If it's not one of the special dihedrals (i.e. KAPPA or TCO)      */
-   if((angnum <= NDIHED) || (angnum >= MAX_NUM_ANGLES))
-   {
-      determinant = codist[0][1] * codist[1][2] * codist[2][3] -
-                    codist[0][1] * codist[1][3] * codist[2][2] +
-                    codist[0][2] * codist[1][3] * codist[2][1] -
-                    codist[0][2] * codist[1][1] * codist[2][3] +
-                    codist[0][3] * codist[1][1] * codist[2][2] -
-                    codist[0][3] * codist[1][2] * codist[2][1];
-
-      if(determinant < 0.0) 
-         ang = -ang;
-   }
-
-#ifdef TESTCODE
-   fprintf(stderr,"OLD: %f \n", ang);
-#endif /* TESTCODE */
-
    return(ang);
 }
 
