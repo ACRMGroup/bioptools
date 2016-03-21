@@ -2488,9 +2488,6 @@ have restarted\n",
    
    bridgeCount = 0;
 
-/* DOING */
-   
-
    for(resCount=0; resCount<seqlen; resCount++)
    {
       for(newBridgeIndex=1; newBridgeIndex<=2; newBridgeIndex++)
@@ -2615,19 +2612,19 @@ static void SetSheet(int bridgePoint,
        sheetEnd;
       
 
-   resCount = bridgePoint;
+   resCount = bridgePoint-1;
    
-   while(ssTable[SECSTR_IDX_SHEET][resCount-1] != SECSTR_COIL)
+   while(ssTable[SECSTR_IDX_SHEET][resCount] != SECSTR_COIL)
    {
       resCount++;
-      if(resCount > seqlen) 
+      if(resCount >= seqlen) 
          break;
    }
    
    sheetEnd = resCount - 1;
-   resCount = bridgePoint;
+   resCount = bridgePoint-1;
    
-   while(ssTable[SECSTR_IDX_SHEET][resCount-1] != SECSTR_COIL)
+   while(ssTable[SECSTR_IDX_SHEET][resCount] != SECSTR_COIL)
    {
       resCount--;
       if(resCount < 1)
@@ -2638,7 +2635,7 @@ static void SetSheet(int bridgePoint,
    
    for(resCount = sheetStart; resCount <= sheetEnd; resCount++)
    {
-      sheetCode[resCount-1] = (-sheetNum);
+      sheetCode[resCount] = (-sheetNum);
    }
 }
 
@@ -2672,11 +2669,13 @@ static void LabelSheets(char **ssTable, int **bridgePoints,
         bridgeIndex;
    BOOL found;
 
-   for(resCount=1; resCount<=seqlen; resCount++)
+   for(resCount=0; resCount<seqlen; resCount++)
    {
-      sheetCode[resCount-1] = 0;
+      sheetCode[resCount] = 0;
    }
-   
+
+/* DOING */
+
    sheetNum = 0;
    resCount = 1;
    
