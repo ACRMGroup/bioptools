@@ -90,7 +90,7 @@
 #define NUM_STRAND_CHARS  26    /* number of available strand characters
                                    (the 26 letters of the alphabet)     */
 #define MAX_NUM_HBOND     (4+1) /* number of allowed H-bonds            */
-#define MAX_NUM_CHN      (50+1) /* number of allowed 'chains'; the way
+#define MAX_NUM_CHN       200   /* number of allowed 'chains'; the way
                                    the code is used, it should be handled
                                    an individual chain, but it can also
                                    cope with (up to 50) multiple chains
@@ -125,18 +125,18 @@
 #define DIHED_KAPPA           5
 #define DIHED_TCO             6
 
-#define NUM_STRUC_SYMS   (11+1)    /* number of structure symbols       */
-#define SECSTR_IDX_ALPHAH        1 /* Symbol indexes                    */
-#define SECSTR_IDX_SHEET1        2
-#define SECSTR_IDX_SHEET         3
-#define SECSTR_IDX_BRIDGE        4
-#define SECSTR_IDX_BRIDG1        5
-#define SECSTR_IDX_BRIDG2        6
-#define SECSTR_IDX_THRTNH        7
-#define SECSTR_IDX_PIH           8
-#define SECSTR_IDX_TURN          9
-#define SECSTR_IDX_BEND         10
-#define SECSTR_IDX_CHISGN       11
+#define NUM_STRUC_SYMS   (11)    /* number of structure symbols       */
+#define SECSTR_IDX_ALPHAH        0 /* Symbol indexes                    */
+#define SECSTR_IDX_SHEET1        1
+#define SECSTR_IDX_SHEET         2
+#define SECSTR_IDX_BRIDGE        3
+#define SECSTR_IDX_BRIDG1        4
+#define SECSTR_IDX_BRIDG2        5
+#define SECSTR_IDX_THRTNH        6
+#define SECSTR_IDX_PIH           7
+#define SECSTR_IDX_TURN          8
+#define SECSTR_IDX_BEND          9
+#define SECSTR_IDX_CHISGN       10
 
 #define NUM_HELIX_TYPE    (3+1) /* number of helix types                */
 #define HELIX_CHUNK_SIZE      4 /* Helices are made in chunks of this   */
@@ -881,7 +881,7 @@ and %d(%s)\n",
          if(verbose)
          {
             fprintf(stderr,"Sec Struc: (warning) Maximum number of \
-chain-breaks exceeded (MAX_NUM_CHN = %d)\n", MAX_NUM_CHN-1);
+chain-breaks exceeded (MAX_NUM_CHN = %d)\n", MAX_NUM_CHN);
          }
       }
    }
@@ -1178,7 +1178,7 @@ Donor index: %4d; Acceptor index: %4d; Energy %6.2f\n",
          }
          rejectOffset = hbond[donorResIndex-1][NST+1];
          RejectHBond(donorResIndex,
-                     hbond[rejectOffset-1]+CST,        /* HERE */
+                     hbond[rejectOffset-1]+CST,
                      hbondEnergy[rejectOffset-1]+CST);
          (*bondCount)--;
       }
@@ -1459,38 +1459,37 @@ static void SetHelices(char **ssTable, char *detailSS, char *finalSS,
    int resCount, 
        posInHelix;
 
-      
-   for(resCount=2; resCount <= (seqlen - helixSize); resCount++)
+   for(resCount=1; resCount < (seqlen - helixSize); resCount++)
    {
-      if(ssTable[helixPos][resCount-1] == SECSTR_BEND_START ||
-         ssTable[helixPos][resCount-1] == SECSTR_BEND_BOTH)
+      if(ssTable[helixPos][resCount] == SECSTR_BEND_START ||
+         ssTable[helixPos][resCount] == SECSTR_BEND_BOTH)
       {
-         if(ssTable[helixPos][resCount-1-1] == SECSTR_BEND_START ||
-            ssTable[helixPos][resCount-1-1] == SECSTR_BEND_BOTH)
+         if(ssTable[helixPos][resCount-1] == SECSTR_BEND_START ||
+            ssTable[helixPos][resCount-1] == SECSTR_BEND_BOTH)
          {
             for(posInHelix = 0; posInHelix <= helixSize - 1; posInHelix++)
             {
-               if(detailSS[resCount+posInHelix-1] == SECSTR_COIL)
+               if(detailSS[resCount+posInHelix] == SECSTR_COIL)
                {
-                  detailSS[resCount+posInHelix-1] = helixCharacter;
+                  detailSS[resCount+posInHelix] = helixCharacter;
                }
 
-               if(finalSS[resCount+posInHelix-1] == SECSTR_COIL || 
-                  finalSS[resCount+posInHelix-1] == altHelixCharacter)
+               if(finalSS[resCount+posInHelix] == SECSTR_COIL || 
+                  finalSS[resCount+posInHelix] == altHelixCharacter)
                {
-                  finalSS[resCount+posInHelix-1] = helixCharacter;
+                  finalSS[resCount+posInHelix] = helixCharacter;
                }
                
             }
 
-            if(finalSS[resCount-1-1] == SECSTR_COIL)
+            if(finalSS[resCount-1] == SECSTR_COIL)
             {
-               finalSS[resCount-1-1] = altHelixCharacter;
+               finalSS[resCount-1] = altHelixCharacter;
             }
 
-            if(finalSS[resCount+helixSize-1] == SECSTR_COIL)
+            if(finalSS[resCount+helixSize] == SECSTR_COIL)
             {
-               finalSS[resCount+helixSize-1] = altHelixCharacter;
+               finalSS[resCount+helixSize] = altHelixCharacter;
             }
          }
       }
@@ -1577,11 +1576,11 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
          /* If too few residues in chain, create extra NULL coordinates */
          if(chainSize[chainCount-1] < numAtomsRequired[angleIndex])
          {
-            for(resCount =  (chainStart + 1); 
-                resCount <= (chainStart + chainSize[chainCount-1]); 
+            for(resCount =  chainStart; 
+                resCount < (chainStart + chainSize[chainCount-1]); 
                 resCount++)
             {
-               mcAngles[angleIndices[angleIndex][2]][resCount-1] = NULLVAL;
+               mcAngles[angleIndices[angleIndex][2]][resCount] = NULLVAL;
             }
          }
          else
@@ -1622,20 +1621,20 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
                }
             }
 
-            for(resCount = chainStart + 1; 
-                resCount <= chainStart + angleIndices[angleIndex][0] - 1; 
+            for(resCount = chainStart; 
+                resCount < chainStart + angleIndices[angleIndex][0] - 1; 
                 resCount++)
             {
-               mcAngles[angleIndices[angleIndex][2]][resCount-1] = NULLVAL;
+               mcAngles[angleIndices[angleIndex][2]][resCount] = NULLVAL;
             }
 
             for(resCount = chainStart + 
                            chainSize[chainCount-1] + 
-                           angleIndices[angleIndex][1] + 1;
-                resCount <= (chainStart + chainSize[chainCount-1]);
+                           angleIndices[angleIndex][1];
+                resCount < (chainStart + chainSize[chainCount-1]);
                 resCount++)
             {
-               mcAngles[angleIndices[angleIndex][2]][resCount-1] = 
+               mcAngles[angleIndices[angleIndex][2]][resCount] = 
                   NULLVAL;
             }
          }
@@ -1663,12 +1662,12 @@ static void SetBendResidues(REAL **mcAngles, char **ssTable, int seqlen)
 {
    int  resCount;
 
-   for(resCount=1; resCount<=seqlen; resCount++)
+   for(resCount=0; resCount<seqlen; resCount++)
    {
-      if((mcAngles[DIHED_KAPPA][resCount-1] > BEND_SIZE) &&
-          APPROXNE(mcAngles[DIHED_KAPPA][resCount-1], NULLVAL)) 
+      if((mcAngles[DIHED_KAPPA][resCount] > BEND_SIZE) &&
+          APPROXNE(mcAngles[DIHED_KAPPA][resCount], NULLVAL)) 
       {
-         ssTable[SECSTR_IDX_BEND][resCount-1] = SECSTR_BEND;
+         ssTable[SECSTR_IDX_BEND][resCount] = SECSTR_BEND;
       }
    }
 }
@@ -1733,12 +1732,12 @@ static void MakeHBonds(REAL ***mcCoords, BOOL **gotAtom, int **hbond,
         caDist;
    
 
-   for(resCount=1; resCount<=seqlen; resCount++)
+   for(resCount=0; resCount<seqlen; resCount++)
    {
       for(i=1; i<MAX_NUM_HBOND; i++)
       {
-         hbond[resCount-1][i] = 0;
-         hbondEnergy[resCount-1][i] = 0.0;
+         hbond[resCount][i] = 0;
+         hbondEnergy[resCount][i] = 0.0;
       }
    }
    nbonds = 0;
@@ -1857,58 +1856,58 @@ static void MakeSummary(char **ssTable,
                         char *finalSS,
                         int  seqlen)
 {
-   static char ssSymbols[]    = " H EB  GITS+";
-   static char altSSSymbols[] = " h eb  gits+";
+   static char ssSymbols[]    = "H EB  GITS+";
+   static char altSSSymbols[] = "h eb  gits+";
 
    int resCount;
    
-   for(resCount = 1; resCount <= seqlen; resCount++)
+   for(resCount = 0; resCount < seqlen; resCount++)
    {
-      detailSS[resCount-1] = SECSTR_COIL;
-      finalSS[resCount-1]  = SECSTR_COIL;
+      detailSS[resCount] = SECSTR_COIL;
+      finalSS[resCount]  = SECSTR_COIL;
    }
    
    SetHelices(ssTable, detailSS, finalSS, SECSTR_IDX_ALPHAH, 
               HELIX_CHUNK_SIZE, ssSymbols[SECSTR_IDX_ALPHAH],
               altSSSymbols[SECSTR_IDX_ALPHAH], seqlen);
 
-   for(resCount = 1; resCount <= seqlen; resCount++)
+   for(resCount = 0; resCount < seqlen; resCount++)
    {
-      if(ssTable[SECSTR_IDX_SHEET][resCount-1] != SECSTR_COIL)
+      if(ssTable[SECSTR_IDX_SHEET][resCount] != SECSTR_COIL)
       {
-         if(detailSS[resCount-1] == SECSTR_COIL) 
-            detailSS[resCount-1] = ssSymbols[SECSTR_IDX_SHEET];
+         if(detailSS[resCount] == SECSTR_COIL) 
+            detailSS[resCount] = ssSymbols[SECSTR_IDX_SHEET];
 
-         if(finalSS[resCount-1] == SECSTR_COIL || 
-            finalSS[resCount-1] == altSSSymbols[SECSTR_IDX_ALPHAH] || 
-            finalSS[resCount-1] == altSSSymbols[SECSTR_IDX_SHEET])
+         if(finalSS[resCount] == SECSTR_COIL || 
+            finalSS[resCount] == altSSSymbols[SECSTR_IDX_ALPHAH] || 
+            finalSS[resCount] == altSSSymbols[SECSTR_IDX_SHEET])
          {
-            finalSS[resCount-1] = ssSymbols[SECSTR_IDX_SHEET];
+            finalSS[resCount] = ssSymbols[SECSTR_IDX_SHEET];
          }
          
-         if(ssTable[SECSTR_IDX_SHEET][resCount-1] == SECSTR_SHEET_SMALL)
+         if(ssTable[SECSTR_IDX_SHEET][resCount] == SECSTR_SHEET_SMALL)
          {
-            if(finalSS[resCount-1-1] == SECSTR_COIL || 
-               finalSS[resCount-1-1] == ssSymbols[SECSTR_IDX_BRIDGE]) 
+            if(finalSS[resCount-1] == SECSTR_COIL || 
+               finalSS[resCount-1] == ssSymbols[SECSTR_IDX_BRIDGE]) 
             {
-               finalSS[resCount-1-1] = altSSSymbols[SECSTR_IDX_SHEET];
+               finalSS[resCount-1] = altSSSymbols[SECSTR_IDX_SHEET];
             }
 
-            if(finalSS[resCount+1-1] == SECSTR_COIL || 
-               finalSS[resCount-1-1] == ssSymbols[SECSTR_IDX_BRIDGE]) 
+            if(finalSS[resCount+1] == SECSTR_COIL || 
+               finalSS[resCount-1] == ssSymbols[SECSTR_IDX_BRIDGE]) 
             {
-               finalSS[resCount+1-1] = altSSSymbols[SECSTR_IDX_SHEET];
+               finalSS[resCount+1] = altSSSymbols[SECSTR_IDX_SHEET];
             }
          }
       }
 
-      if(ssTable[SECSTR_IDX_BRIDGE][resCount-1] != SECSTR_COIL)
+      if(ssTable[SECSTR_IDX_BRIDGE][resCount] != SECSTR_COIL)
       {
-         if(detailSS[resCount-1] == SECSTR_COIL) 
-            detailSS[resCount-1] = ssSymbols[SECSTR_IDX_BRIDGE];
+         if(detailSS[resCount] == SECSTR_COIL) 
+            detailSS[resCount] = ssSymbols[SECSTR_IDX_BRIDGE];
 
-         if(finalSS[resCount-1] == SECSTR_COIL) 
-            finalSS[resCount-1] = ssSymbols[SECSTR_IDX_BRIDGE];
+         if(finalSS[resCount] == SECSTR_COIL) 
+            finalSS[resCount] = ssSymbols[SECSTR_IDX_BRIDGE];
       }
    }
    
@@ -2071,52 +2070,52 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    }
       
    /* Initialize everything as being coil                               */
-   for(resCount = 1; resCount <= seqlen; resCount++)
+   for(resCount = 0; resCount < seqlen; resCount++)
    {
-      for(i = 1; i<NUM_STRUC_SYMS; i++)
+      for(i = 0; i<NUM_STRUC_SYMS; i++)
       {
-         ssTable[i][resCount-1] = SECSTR_COIL;
+         ssTable[i][resCount] = SECSTR_COIL;
       }
    }
    
    firstChain = 1;
    
-   for(resCount=1; resCount<=seqlen; resCount++)
+   for(resCount=0; resCount<seqlen; resCount++)
    {
-      if(resCount > chainEnd[firstChain]) 
+      if(resCount >= chainEnd[firstChain]) 
          firstChain++;
       
       for(bondCount=1; bondCount<=2; bondCount++)
       {
          for(turnCount=1; turnCount<NUM_TURN_TYPE; turnCount++)
          {
-            if(hbond[resCount-1][bondCount] != 0) 
+            if(hbond[resCount][bondCount] != 0) 
             {
-               if((hbond[resCount-1][bondCount]-resCount == 
+               if((hbond[resCount][bondCount]-resCount-1 == 
                     turnSize[turnCount]) && 
-                   (hbond[resCount-1][bondCount] <= chainEnd[firstChain]))
+                   (hbond[resCount][bondCount] <= chainEnd[firstChain]))
                {
-                  if(ssTable[turnIndex[turnCount]][resCount-1] == 
+                  if(ssTable[turnIndex[turnCount]][resCount] == 
                      SECSTR_BEND_END)
                   {
-                     ssTable[turnIndex[turnCount]][resCount-1] = 
+                     ssTable[turnIndex[turnCount]][resCount] = 
                         SECSTR_BEND_BOTH;
                   }
                   else
                   {
-                     ssTable[turnIndex[turnCount]][resCount-1] = 
+                     ssTable[turnIndex[turnCount]][resCount] = 
                         SECSTR_BEND_START;
                   }
                   ssTable[turnIndex[turnCount]]
-                         [hbond[resCount-1][bondCount]-1] = SECSTR_BEND_END;
+                         [hbond[resCount][bondCount]-1] = SECSTR_BEND_END;
                   
                   for(i = resCount + 1; 
                       i<= resCount + turnSize[turnCount] - 1; 
                       i++)
                   {
-                     if(ssTable[turnIndex[turnCount]][i-1] == SECSTR_COIL)
+                     if(ssTable[turnIndex[turnCount]][i] == SECSTR_COIL)
                      {
-                        ssTable[turnIndex[turnCount]][i-1] = 
+                        ssTable[turnIndex[turnCount]][i] = 
                            turnChar[turnCount];
                      }
                      
@@ -2125,7 +2124,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                       i<= resCount + turnSize[turnCount]; 
                       i++)
                   {
-                     ssTable[SECSTR_IDX_TURN][i-1] = SECSTR_TURN;
+                     ssTable[SECSTR_IDX_TURN][i] = SECSTR_TURN;
                   }
                }
             }
@@ -2134,11 +2133,11 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    }
    
    /* Initialize bridge counts to zero                                  */
-   for(resCount = 1; resCount<=seqlen; resCount++)
+   for(resCount = 0; resCount<seqlen; resCount++)
    {
       for(bondCount = 1; bondCount<= 4; bondCount++)
       {
-         bridge[bondCount][resCount-1] = 0;
+         bridge[bondCount][resCount] = 0;
       }
    }
    
@@ -2194,26 +2193,26 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
       }
    }
 
-   for(resCount = 1; resCount <= seqlen; resCount++)
+   for(resCount = 0; resCount < seqlen; resCount++)
    {
-      if(APPROXNE(mcAngles[DIHED_CHIRAL][resCount-1], NULLVAL)) 
+      if(APPROXNE(mcAngles[DIHED_CHIRAL][resCount], NULLVAL)) 
       {
-         ssTable[SECSTR_IDX_CHISGN][resCount-1] = '+';
-         if(mcAngles[DIHED_CHIRAL][resCount-1] < 0.0) 
-            ssTable[SECSTR_IDX_CHISGN][resCount-1] =   '-';
+         ssTable[SECSTR_IDX_CHISGN][resCount] = '+';
+         if(mcAngles[DIHED_CHIRAL][resCount] < 0.0) 
+            ssTable[SECSTR_IDX_CHISGN][resCount] =   '-';
       }
    }
    
-   for(resCount = 1; resCount<= seqlen; resCount++)
+   for(resCount = 0; resCount < seqlen; resCount++)
    {
-      sheetCode[resCount-1]       = 0;
-      strandCode[1][resCount-1]   = 0;
-      strandCode[2][resCount-1]   = 0;
-      bridgePoints[1][resCount-1] = 0;
-      bridgePoints[2][resCount-1] = 0;
+      sheetCode[resCount]       = 0;
+      strandCode[1][resCount]   = 0;
+      strandCode[2][resCount]   = 0;
+      bridgePoints[1][resCount] = 0;
+      bridgePoints[2][resCount] = 0;
    }
    strandNumber = 0;
-   
+
    for(resCount=1; resCount<=seqlen; resCount++)
    {
       for(bridgeIndex=1; bridgeIndex<=2; bridgeIndex++)
@@ -2348,23 +2347,23 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
       }
    }
    
-   resCount = 1;
+   resCount = 0;
    
    do{
-      while(ssTable[SECSTR_IDX_SHEET][resCount-1] == SECSTR_COIL)
+      while(ssTable[SECSTR_IDX_SHEET][resCount] == SECSTR_COIL)
       {
          resCount++;
-         if(resCount > seqlen) 
+         if(resCount >= seqlen) 
             goto RES_COUNT_ERROR;
       }
       
       startOfSheet = resCount;
       resCount = startOfSheet + 1;
       
-      while(ssTable[SECSTR_IDX_SHEET][resCount-1] != SECSTR_COIL)
+      while(ssTable[SECSTR_IDX_SHEET][resCount] != SECSTR_COIL)
       {
          resCount++;
-         if(resCount > seqlen)
+         if(resCount >= seqlen)
             break;
       }
       endOfSheet = (resCount - 1);
@@ -2465,7 +2464,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                         &bestValue);
       }
       resCount = endOfSheet + 1;
-   } while (resCount <= seqlen);
+   } while (resCount < seqlen);
    
    
 RES_COUNT_ERROR: 
@@ -2478,33 +2477,36 @@ have restarted\n",
    
    LabelSheets(ssTable, bridgePoints, sheetCode, seqlen, verbose);
    
-   for(resCount=1; resCount<=seqlen; resCount++)
+   for(resCount=0; resCount<seqlen; resCount++)
    {
-      if(sheetCode[resCount-1] != 0)
+      if(sheetCode[resCount] != 0)
       {
-         charCode                             = sheetCode[resCount-1];
-         ssTable[SECSTR_IDX_SHEET1][resCount-1] = nstchp[charCode];
+         charCode                             = sheetCode[resCount];
+         ssTable[SECSTR_IDX_SHEET1][resCount] = nstchp[charCode];
       }
    }
    
    bridgeCount = 0;
 
-   for(resCount=1; resCount<=seqlen; resCount++)
+/* DOING */
+   
+
+   for(resCount=0; resCount<seqlen; resCount++)
    {
       for(newBridgeIndex=1; newBridgeIndex<=2; newBridgeIndex++)
       {
-         if((bridge[newBridgeIndex][resCount-1]      != 0) && 
-            (strandCode[newBridgeIndex][resCount-1]  == 0) && 
-            (fabs(bridge[newBridgeIndex][resCount-1]) > resCount))
+         if((bridge[newBridgeIndex][resCount]      != 0) && 
+            (strandCode[newBridgeIndex][resCount]  == 0) && 
+            (fabs(bridge[newBridgeIndex][resCount]) >= resCount))
          {
             bridgeCount++;
-            theBridgePoint = fabs(bridge[newBridgeIndex][resCount-1]);
+            theBridgePoint = fabs(bridge[newBridgeIndex][resCount]);
             charCode       = bridgeCount%NUM_STRAND_CHARS;
 
             if(charCode == 0) 
                charCode = NUM_STRAND_CHARS;
 
-            if(bridge[newBridgeIndex][resCount-1] < 0)
+            if(bridge[newBridgeIndex][resCount] < 0)
             {
                bridgeChar = upperCaseLetters[charCode];
             }
@@ -2515,12 +2517,12 @@ have restarted\n",
             
             bridgeArrayIndex = SECSTR_IDX_BRIDG1;
             
-            if(ssTable[SECSTR_IDX_BRIDG1][resCount-1] != SECSTR_COIL) 
+            if(ssTable[SECSTR_IDX_BRIDG1][resCount] != SECSTR_COIL) 
                bridgeArrayIndex = SECSTR_IDX_BRIDG2;
 
-            ssTable[bridgeArrayIndex][resCount-1] = bridgeChar;
+            ssTable[bridgeArrayIndex][resCount] = bridgeChar;
 
-            bridgePoints[bridgeArrayIndex-SECSTR_IDX_BRIDG1+1][resCount-1] =
+            bridgePoints[bridgeArrayIndex-SECSTR_IDX_BRIDG1+1][resCount] =
                theBridgePoint;
 
             bridgeArrayIndex = SECSTR_IDX_BRIDG1;
@@ -2531,7 +2533,7 @@ have restarted\n",
             ssTable[bridgeArrayIndex][theBridgePoint-1] = bridgeChar;
 
             bridgePoints[bridgeArrayIndex-SECSTR_IDX_BRIDG1+1]
-                        [theBridgePoint-1] = resCount;
+                        [theBridgePoint-1] = resCount+1;
          }
       }
    }
@@ -2903,21 +2905,21 @@ static void FindNextStrand(int **strandCode, int sheetStart, int sheetEnd,
    {
       for(nxpl=1; nxpl<=2; nxpl++)
       {
-         if(abs(strandCode[nxpl][nxstr-1]) > lastStrand)
+         if(abs(strandCode[nxpl][nxstr]) > lastStrand)
          {
             if(*bestValue == 0)
             {
-               *bestValue = abs(strandCode[nxpl][nxstr-1]);
+               *bestValue = abs(strandCode[nxpl][nxstr]);
                *startIndex = nxpl;
-               *startRes = nxstr;
+               *startRes = nxstr+1;
             }
             else
             {
-               if(abs(strandCode[nxpl][nxstr-1]) < *bestValue)
+               if(abs(strandCode[nxpl][nxstr]) < *bestValue)
                {
-                  *bestValue = abs(strandCode[nxpl][nxstr-1]);
+                  *bestValue = abs(strandCode[nxpl][nxstr]);
                   *startIndex = nxpl;
-                  *startRes = nxstr;
+                  *startRes = nxstr+1;
                }
             }
          }
