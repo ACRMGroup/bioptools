@@ -102,8 +102,8 @@
 #define NRULES 4
 #define PARLEL 1
 
-#define NUM_DIHED_DATA     3    /* number of dihedral data points       */
-#define RESTYPE_PROLINE      16 /* residue type number for Proline - an
+#define NUM_DIHED_DATA        3 /* number of dihedral data points       */
+#define RESTYPE_PROLINE      15 /* residue type number for Proline - an
                                    offset into the KnownResidueTypes
                                    array                                */
 
@@ -171,8 +171,8 @@
 
 /* Macros for approximate equality and inequality                       */
 #define ACURCY 0.0001
-#define XEQY(x, y) (ABS((x)-(y)) < ACURCY)
-#define XNEY(x, y) (ABS((x)-(y)) >= ACURCY)
+#define APPROXEQ(x, y) (ABS((x)-(y)) < ACURCY)
+#define APPROXNE(x, y) (ABS((x)-(y)) >= ACURCY)
 
 /* Macro to calculate atom distance                                     */
 /* 17.02.16 x,y,z for coordinates now count from 0 instead of 1         */
@@ -544,7 +544,7 @@ static int FindResidueCode(char *resnam, char *KnownResidueIndex)
    for(i=0; i<codLen; i+=3)
    {
       if(!strncmp(resnam, KnownResidueIndex+i, 3))
-         return(1+(i/3));
+         return((int)(i/3));
    }
 
    return(-1);
@@ -1051,7 +1051,7 @@ static REAL CalcDihedral(int  angnum,
    {
       for(j=i+1; j<NUM_DIHED_DATA; j++)
       {
-         if(XEQY(atomDistance[i], 0.0) || XEQY(atomDistance[j], 0.0))
+         if(APPROXEQ(atomDistance[i], 0.0) || APPROXEQ(atomDistance[j], 0.0))
          {
             dotProduct[i][j] = 1.0;
          }
@@ -1666,7 +1666,7 @@ static void SetBendResidues(REAL **mcAngles, char **ssTable, int seqlen)
    for(resCount=1; resCount<=seqlen; resCount++)
    {
       if((mcAngles[DIHED_KAPPA][resCount-1] > BEND_SIZE) &&
-          XNEY(mcAngles[DIHED_KAPPA][resCount-1], NULLVAL)) 
+          APPROXNE(mcAngles[DIHED_KAPPA][resCount-1], NULLVAL)) 
       {
          ssTable[SECSTR_IDX_BEND][resCount-1] = SECSTR_BEND;
       }
@@ -1782,8 +1782,8 @@ static void MakeHBonds(REAL ***mcCoords, BOOL **gotAtom, int **hbond,
                                         mcCoords[ATOM_H][resCount-1]);
                         distCN = ATDIST(mcCoords[ATOM_C][otherRes-1],
                                         mcCoords[ATOM_N][resCount-1]);
-                        if(XEQY(distON,0.0) || XEQY(distOH,0.0) || 
-                           XEQY(distCH,0.0) || XEQY(distCN,0.0)) 
+                        if(APPROXEQ(distON,0.0) || APPROXEQ(distOH,0.0) || 
+                           APPROXEQ(distCH,0.0) || APPROXEQ(distCN,0.0)) 
                         {
                            if(verbose)
                            {
@@ -2196,7 +2196,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
 
    for(resCount = 1; resCount <= seqlen; resCount++)
    {
-      if(XNEY(mcAngles[DIHED_CHIRAL][resCount-1], NULLVAL)) 
+      if(APPROXNE(mcAngles[DIHED_CHIRAL][resCount-1], NULLVAL)) 
       {
          ssTable[SECSTR_IDX_CHISGN][resCount-1] = '+';
          if(mcAngles[DIHED_CHIRAL][resCount-1] < 0.0) 
