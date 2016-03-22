@@ -887,7 +887,6 @@ chain-breaks exceeded (MAX_NUM_CHN = %d)\n", MAX_NUM_CHN);
    }
 }
 
-
 /************************************************************************/
 /*>static void AddHydrogens(REAL ***mcCoords, BOOL **gotAtom, 
                             int *chainSize, int numChains, BOOL verbose)
@@ -920,21 +919,21 @@ static void AddHydrogens(REAL ***mcCoords, BOOL **gotAtom, int *chainSize,
    
    chainStart = 0;
    /* For each chain                                                    */
-   for(chainNumber=1; chainNumber<=numChains; chainNumber++)
+   for(chainNumber=0; chainNumber<numChains; chainNumber++)
    {
-      for(resCount=chainStart+2; 
-          resCount<=chainStart+chainSize[chainNumber-1]; 
+      for(resCount=chainStart+1; 
+          resCount<chainStart+chainSize[chainNumber]; 
           resCount++)
       {  /* Check we have the N, C and O                                */
-         if(gotAtom[ATOM_N][resCount-1]   && 
-            gotAtom[ATOM_C][resCount-1-1] &&
-            gotAtom[ATOM_O][resCount-1-1])
+         if(gotAtom[ATOM_N][resCount]   && 
+            gotAtom[ATOM_C][resCount-1] &&
+            gotAtom[ATOM_O][resCount-1])
          {
             colen = 0.0;
             for(i=0; i<COORD_DIM; i++)
             {
-               atvec[i] = mcCoords[ATOM_C][resCount-1-1][i] - 
-                          mcCoords[ATOM_O][resCount-1-1][i];
+               atvec[i] = mcCoords[ATOM_C][resCount-1][i] - 
+                          mcCoords[ATOM_O][resCount-1][i];
                colen += atvec[i] * atvec[i];
             }
             colen = sqrt(colen);
@@ -946,11 +945,11 @@ static void AddHydrogens(REAL ***mcCoords, BOOL **gotAtom, int *chainSize,
 
             for(i=0; i<COORD_DIM; i++)
             {
-               mcCoords[ATOM_H][resCount-1][i] = 
-                  mcCoords[ATOM_N][resCount-1][i] + atvec[i];
+               mcCoords[ATOM_H][resCount][i] = 
+                  mcCoords[ATOM_N][resCount][i] + atvec[i];
             }
 
-            gotAtom[ATOM_H][resCount-1] = TRUE;
+            gotAtom[ATOM_H][resCount] = TRUE;
          }
          else
          {
@@ -958,15 +957,18 @@ static void AddHydrogens(REAL ***mcCoords, BOOL **gotAtom, int *chainSize,
             {
                fprintf(stderr,"Sec Struc: (warning) Hydrogen atom not \
 generated for residue %d\n",
-                       resCount);
+                       resCount+1);
             }
-            gotAtom[ATOM_H][resCount-1] = FALSE;
+            gotAtom[ATOM_H][resCount] = FALSE;
          }
       }
-      chainStart += chainSize[chainNumber-1];
+      chainStart += chainSize[chainNumber];
    }
 }
 
+
+
+/* DOING */
 
 /************************************************************************/
 /*>static REAL CalcDihedral(int  angnum, REAL *atoma, REAL *atomb,
@@ -2869,9 +2871,6 @@ static void FindTurns(char **ssTable, char *detailSS,   char *finalSS,
       }
    }
 }
-
-
-/* DOING */
 
 
 /************************************************************************/
