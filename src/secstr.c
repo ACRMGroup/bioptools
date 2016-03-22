@@ -968,8 +968,6 @@ generated for residue %d\n",
 
 
 
-/* DOING */
-
 /************************************************************************/
 /*>static REAL CalcDihedral(int  angnum, REAL *atoma, REAL *atomb,
                             REAL *atomc, REAL *atomd)
@@ -1151,11 +1149,11 @@ static void SetHBond(REAL **hbondEnergy,
        rejectOffset;
 
    donorOffset    = FindHBondOffset(energy, 
-                                    hbondEnergy[donorResIndex-1][NST], 
-                                    hbondEnergy[donorResIndex-1][NST+1]);
+                                    hbondEnergy[donorResIndex][NST], 
+                                    hbondEnergy[donorResIndex][NST+1]);
    acceptorOffset = FindHBondOffset(energy, 
-                                    hbondEnergy[acceptorResIndex-1][CST], 
-                                    hbondEnergy[acceptorResIndex-1][CST+1]);
+                                    hbondEnergy[acceptorResIndex][CST], 
+                                    hbondEnergy[acceptorResIndex][CST+1]);
 
    if(acceptorOffset == 0 || donorOffset == 0)
    {
@@ -1163,40 +1161,40 @@ static void SetHBond(REAL **hbondEnergy,
       {
          fprintf(stderr,"Sec Struc: (info) Third H-bond skipped. \
 Donor index: %4d;  Acceptor Index: %4d; Energy: %6.2f\n", 
-                 donorResIndex, acceptorResIndex, energy);
+                 donorResIndex+1, acceptorResIndex+1, energy);
       }
    }
    else
    {
-      if(hbond[donorResIndex-1][NST+1] != 0)
+      if(hbond[donorResIndex][NST+1] != 0)
       {
          if(verbose)
          {
             fprintf(stderr,"Sec Struc: (info) Third H-bond skipped. \
 Donor index: %4d; Acceptor index: %4d; Energy %6.2f\n", 
-                    donorResIndex, 
-                    hbond[donorResIndex-1][NST+1], 
-                    hbondEnergy[donorResIndex-1][NST+1]);
+                    donorResIndex+1, 
+                    hbond[donorResIndex][NST+1], 
+                    hbondEnergy[donorResIndex][NST+1]);
          }
-         rejectOffset = hbond[donorResIndex-1][NST+1];
-         RejectHBond(donorResIndex,
+         rejectOffset = hbond[donorResIndex][NST+1];
+         RejectHBond(donorResIndex+1,
                      hbond[rejectOffset-1]+CST,
                      hbondEnergy[rejectOffset-1]+CST);
          (*bondCount)--;
       }
 
-      if(hbond[acceptorResIndex-1][CST+1] != 0)
+      if(hbond[acceptorResIndex][CST+1] != 0)
       {
          if(verbose)
          {
             fprintf(stderr,"Sec Struc: (info) Third H-bond skipped. \
 Donor index: %4d; Acceptor index: %4d; Energy %6.2f\n", 
-                    hbond[acceptorResIndex-1][CST+1], 
-                    acceptorResIndex, 
-                    hbondEnergy[acceptorResIndex-1][CST+1]);
+                    hbond[acceptorResIndex][CST+1], 
+                    acceptorResIndex+1, 
+                    hbondEnergy[acceptorResIndex][CST+1]);
          }
-         rejectOffset = hbond[acceptorResIndex-1][CST+1];
-         RejectHBond(acceptorResIndex,
+         rejectOffset = hbond[acceptorResIndex][CST+1];
+         RejectHBond(acceptorResIndex+1,
                      hbond[rejectOffset-1]+NST,
                      hbondEnergy[rejectOffset-1]+NST);
          (*bondCount)--;
@@ -1204,24 +1202,24 @@ Donor index: %4d; Acceptor index: %4d; Energy %6.2f\n",
 
       if(acceptorOffset == 1)
       {
-         hbond[acceptorResIndex-1][CST+1] = hbond[acceptorResIndex-1][CST];
+         hbond[acceptorResIndex][CST+1] = hbond[acceptorResIndex][CST];
 
-         hbondEnergy[acceptorResIndex-1][CST+1] = 
-            hbondEnergy[acceptorResIndex-1][CST];
+         hbondEnergy[acceptorResIndex][CST+1] = 
+            hbondEnergy[acceptorResIndex][CST];
       }
 
       if(donorOffset == 1)
       {
-         hbond[donorResIndex-1][NST+1] = hbond[donorResIndex-1][NST];
+         hbond[donorResIndex][NST+1] = hbond[donorResIndex][NST];
 
-         hbondEnergy[donorResIndex-1][NST+1] = 
-            hbondEnergy[donorResIndex-1][NST];
+         hbondEnergy[donorResIndex][NST+1] = 
+            hbondEnergy[donorResIndex][NST];
       }
 
-      hbond[acceptorResIndex-1][CST+acceptorOffset-1]       = donorResIndex;
-      hbondEnergy[acceptorResIndex-1][CST+acceptorOffset-1] = energy;
-      hbond[donorResIndex-1][NST+donorOffset-1]       = acceptorResIndex;
-      hbondEnergy[donorResIndex-1][NST+donorOffset-1] = energy;
+      hbond[acceptorResIndex][CST+acceptorOffset-1]       = donorResIndex+1;
+      hbondEnergy[acceptorResIndex][CST+acceptorOffset-1] = energy;
+      hbond[donorResIndex][NST+donorOffset-1]       = acceptorResIndex+1;
+      hbondEnergy[donorResIndex][NST+donorOffset-1] = energy;
 
       (*bondCount)++;
    }
@@ -1264,37 +1262,37 @@ static void FindNextPartialSheet(int  startPoint,
        i;
    
    *found   = FALSE;
-   resCount = startPoint;
+   resCount = startPoint - 1;
    
-   while (sheetCode[resCount-1] != (-sheetNum))
+   while (sheetCode[resCount] != (-sheetNum))
    {
       resCount++;
-      if(resCount > seqlen)
+      if(resCount >= seqlen)
          return;
    }
    
    startOfSheet = resCount;
    *found = TRUE;
    
-   while(sheetCode[resCount-1] == (-sheetNum))
+   while(sheetCode[resCount] == (-sheetNum))
    { 
       resCount++;
-      if(resCount > seqlen) 
+      if(resCount >= seqlen) 
          break;
    }
    
-   endOfSheet = resCount - 1;
+   endOfSheet = resCount-1;
    
    for(resCount = startOfSheet; resCount <= endOfSheet; resCount++)
    {
-      sheetCode[resCount-1] = sheetNum;
+      sheetCode[resCount] = sheetNum;
       for(i=0; i<2; i++)
       {
-         if(bridgePoints[i][resCount-1] != 0)
+         if(bridgePoints[i][resCount] != 0)
          {
-            if(sheetCode[bridgePoints[i][resCount-1]-1] == 0)
+            if(sheetCode[bridgePoints[i][resCount]-1] == 0)
             {
-               SetSheet(bridgePoints[i][resCount-1], sheetNum, sheetCode, 
+               SetSheet(bridgePoints[i][resCount], sheetNum, sheetCode, 
                         ssTable, seqlen);
             }
          }
@@ -1329,25 +1327,28 @@ static void FindFirstUnsetSheet(int startPoint, char **ssTable,
    int   resCount;
    
    *startOfSheet = 0;
-   resCount = startPoint;
+   resCount      = startPoint-1;
    
-   while((ssTable[SECSTR_IDX_SHEET][resCount-1] == SECSTR_COIL) || 
-         (sheetCode[resCount-1] != 0)) 
+   while((ssTable[SECSTR_IDX_SHEET][resCount] == SECSTR_COIL) || 
+         (sheetCode[resCount] != 0)) 
    {
       resCount++;
-      if(resCount > seqlen) 
+      if(resCount >= seqlen) 
          return;
    }
-   *startOfSheet = resCount;
+   *startOfSheet = resCount+1;
    
    do
    {
       resCount++;
-   }  while((resCount <= seqlen) && 
-            (ssTable[SECSTR_IDX_SHEET][resCount-1] != SECSTR_COIL));
+   }  while((resCount <= seqlen-1) && 
+            (ssTable[SECSTR_IDX_SHEET][resCount] != SECSTR_COIL));
 
-   *endOfSheet = resCount - 1;
+   *endOfSheet = resCount;
 }
+
+/* DOING */
+
 
       
 /************************************************************************/
@@ -1817,7 +1818,7 @@ C-N: %8.3f\n",
                            if(energy < MAX_HBOND_ENERGY) 
                            {
                               SetHBond(hbondEnergy, hbond, energy, 
-                                       resCount, otherRes, &nbonds,
+                                       resCount-1, otherRes-1, &nbonds,
                                        verbose);
                            }
                         }
