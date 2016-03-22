@@ -138,7 +138,7 @@
 #define SECSTR_IDX_BEND          9
 #define SECSTR_IDX_CHISGN       10
 
-#define NUM_HELIX_TYPE    (3+1) /* number of helix types                */
+#define NUM_HELIX_TYPE        3 /* number of helix types                */
 #define HELIX_CHUNK_SIZE      4 /* Helices are made in chunks of this   */
 #define THREE_TEN_CHUNK_SIZE  3 /* 3_10 helices in chunks of this       */
 #define PIH_CHUNK_SIZE        5 /* Pi helices in chunks of this         */
@@ -207,7 +207,7 @@
    if(hbond != NULL)                                                     \
       blFreeArray2D((char **)hbond, seqlenMalloc, MAX_NUM_HBOND);   \
    if(bridgePoints != NULL)                                              \
-      blFreeArray2D((char **)bridgePoints, 3, seqlenMalloc);             \
+      blFreeArray2D((char **)bridgePoints, 2, seqlenMalloc);             \
    } while(0)
 
 
@@ -355,7 +355,7 @@ LYSLEUMETASNXXXPROGLNARGSERTHRXXXVALTRPXXXTYRGLXUNKPCAINI";
                                      16);
    hbond        = (int  **)blArray2D(sizeof(int), seqlenMalloc, 
                                      MAX_NUM_HBOND);
-   bridgePoints = (int  **)blArray2D(sizeof(int), 3, 
+   bridgePoints = (int  **)blArray2D(sizeof(int), 2, 
                                      seqlenMalloc);
    mcCoords     = (REAL ***)blArray3D(sizeof(REAL), NUM_MC_ATOM_TYPES, 
                                       seqlenMalloc, COORD_DIM);
@@ -1286,7 +1286,7 @@ static void FindNextPartialSheet(int  startPoint,
    for(resCount = startOfSheet; resCount <= endOfSheet; resCount++)
    {
       sheetCode[resCount-1] = sheetNum;
-      for(i=1; i<=2; i++)
+      for(i=0; i<2; i++)
       {
          if(bridgePoints[i][resCount-1] != 0)
          {
@@ -2054,7 +2054,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
  
 
    bridge     = (int **)blArray2D(sizeof(int), 5, seqlenMalloc);
-   strandCode = (int **)blArray2D(sizeof(int), 3, seqlenMalloc);
+   strandCode = (int **)blArray2D(sizeof(int), 2, seqlenMalloc);
    sheetCode  = (int *)malloc(sizeof(int) * seqlenMalloc);
 
    if((bridge == NULL) || (strandCode == NULL) || (sheetCode == NULL))
@@ -2062,7 +2062,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
       if(bridge     != NULL)
          blFreeArray2D((char **)bridge,     5, seqlenMalloc);
       if(strandCode != NULL)
-         blFreeArray2D((char **)strandCode, 3, seqlenMalloc);
+         blFreeArray2D((char **)strandCode, 2, seqlenMalloc);
       if(sheetCode  != NULL)
          free(sheetCode);
 
@@ -2206,10 +2206,10 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    for(resCount = 0; resCount < seqlen; resCount++)
    {
       sheetCode[resCount]       = 0;
+      strandCode[0][resCount]   = 0;
       strandCode[1][resCount]   = 0;
-      strandCode[2][resCount]   = 0;
+      bridgePoints[0][resCount] = 0;
       bridgePoints[1][resCount] = 0;
-      bridgePoints[2][resCount] = 0;
    }
    strandNumber = 0;
 
@@ -2311,19 +2311,19 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                     SECSTR_SHEET_SMALL;
                               }
                               
-                              if(strandCode[bridgeIndex][resCount-1] == 0)
+                              if(strandCode[bridgeIndex-1][resCount-1] == 0)
                               {
                                  strandNumber++;
-                                 strandCode[bridgeIndex][resCount-1] = 
+                                 strandCode[bridgeIndex-1][resCount-1] = 
                                     strandNumber * bridgeDirection;
-                                 strandCode[bridgePoint][theBridge-1] = 
+                                 strandCode[bridgePoint-1][theBridge-1] = 
                                     strandNumber * bridgeDirection;
                               }
 
-                              strandCode[newBridgeIndex][resCountInSS-1] = 
-                                 strandCode[bridgeIndex][resCount-1];
-                              strandCode[newBridgePoint][theNewBridge-1] = 
-                                 strandCode[bridgePoint][theBridge-1];
+                              strandCode[newBridgeIndex-1][resCountInSS-1] = 
+                                 strandCode[bridgeIndex-1][resCount-1];
+                              strandCode[newBridgePoint-1][theNewBridge-1] = 
+                                 strandCode[bridgePoint-1][theBridge-1];
                               
                               /* Force break from both newBridgeIndex and 
                                  resCountInSS loops 
@@ -2374,13 +2374,13 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
       
       while(bestValue != 0)
       {
-         lastStrand = fabs(strandCode[newBridgeIndex][strandCount-1]);
+         lastStrand = fabs(strandCode[newBridgeIndex-1][strandCount-1]);
          charCode   = lastStrand%NUM_STRAND_CHARS;
 
          if(charCode == 0) 
             charCode = NUM_STRAND_CHARS;
 
-         if(strandCode[newBridgeIndex][strandCount-1] < 0)
+         if(strandCode[newBridgeIndex-1][strandCount-1] < 0)
          {
             strandChar = upperCaseLetters[charCode];
          }
@@ -2402,7 +2402,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
             {
                nextStrandOffset = 
                   FindNextCodeOccurrence(thisStrandOffset, endOfSheet,
-                                         strandCode[newBridgeIndex]
+                                         strandCode[newBridgeIndex-1]
                                                     [strandCount-1],
                                          strandCode);
                if(nextStrandOffset <= 0)
@@ -2420,7 +2420,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
          
          ssTable[strandCharOffset][strandCount-1] = strandChar;
 
-         bridgePoints[strandCharOffset-SECSTR_IDX_BRIDG1+1][strandCount-1] =
+         bridgePoints[strandCharOffset-SECSTR_IDX_BRIDG1][strandCount-1] =
             fabs(bridge[newBridgeIndex][strandCount-1]);
 
          thisStrandOffset = strandCount;
@@ -2429,7 +2429,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
          {
             nextStrandOffset = 
                FindNextCodeOccurrence(thisStrandOffset,endOfSheet,
-                                      strandCode[newBridgeIndex]
+                                      strandCode[newBridgeIndex-1]
                                                 [strandCount-1],
                                       strandCode);
 
@@ -2446,13 +2446,13 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
             ssTable[strandCharOffset][nextStrandOffset-1] = strandChar;
             strandOffset = 1;
 
-            if(strandCode[1][nextStrandOffset-1] != 
-                strandCode[newBridgeIndex][strandCount-1]) 
+            if(strandCode[0][nextStrandOffset-1] != 
+                strandCode[newBridgeIndex-1][strandCount-1]) 
             {
                strandOffset = 2;
             }
 
-            bridgePoints[strandCharOffset-SECSTR_IDX_BRIDG1+1]
+            bridgePoints[strandCharOffset-SECSTR_IDX_BRIDG1]
                         [nextStrandOffset-1] = 
                fabs(bridge[strandOffset][nextStrandOffset-1]);
 
@@ -2493,7 +2493,7 @@ have restarted\n",
       for(newBridgeIndex=1; newBridgeIndex<=2; newBridgeIndex++)
       {
          if((bridge[newBridgeIndex][resCount]      != 0) && 
-            (strandCode[newBridgeIndex][resCount]  == 0) && 
+            (strandCode[newBridgeIndex-1][resCount]  == 0) && 
             (fabs(bridge[newBridgeIndex][resCount]) >= resCount))
          {
             bridgeCount++;
@@ -2519,7 +2519,7 @@ have restarted\n",
 
             ssTable[bridgeArrayIndex][resCount] = bridgeChar;
 
-            bridgePoints[bridgeArrayIndex-SECSTR_IDX_BRIDG1+1][resCount] =
+            bridgePoints[bridgeArrayIndex-SECSTR_IDX_BRIDG1][resCount] =
                theBridgePoint;
 
             bridgeArrayIndex = SECSTR_IDX_BRIDG1;
@@ -2529,7 +2529,7 @@ have restarted\n",
 
             ssTable[bridgeArrayIndex][theBridgePoint-1] = bridgeChar;
 
-            bridgePoints[bridgeArrayIndex-SECSTR_IDX_BRIDG1+1]
+            bridgePoints[bridgeArrayIndex-SECSTR_IDX_BRIDG1]
                         [theBridgePoint-1] = resCount+1;
          }
       }
@@ -2545,7 +2545,7 @@ have restarted\n",
    if(bridge     != NULL)
       blFreeArray2D((char **)bridge, 5, seqlenMalloc);
    if(strandCode != NULL)
-      blFreeArray2D((char **)strandCode, 3, seqlenMalloc);
+      blFreeArray2D((char **)strandCode, 2, seqlenMalloc);
    if(sheetCode  != NULL)
       free(sheetCode);
 
@@ -2674,8 +2674,6 @@ static void LabelSheets(char **ssTable, int **bridgePoints,
       sheetCode[resCount] = 0;
    }
 
-/* DOING */
-
    sheetNum = 0;
    resCount = 1;
    
@@ -2692,7 +2690,7 @@ static void LabelSheets(char **ssTable, int **bridgePoints,
          {
             sheetCode[resCountInSheet-1] = sheetNum;
 
-            for(bridgeIndex = 1; bridgeIndex <= 2; bridgeIndex++)
+            for(bridgeIndex = 0; bridgeIndex < 2; bridgeIndex++)
             {
                if(bridgePoints[bridgeIndex][resCountInSheet-1] != 0)
                {
@@ -2753,18 +2751,17 @@ static int FindNextCodeOccurrence(int strandStart, int strandEnd,
 {
    int nxpl;
    
-   for(nxpl=strandStart+1; nxpl<=strandEnd; nxpl++)
+   for(nxpl=strandStart; nxpl<strandEnd; nxpl++)
    {
-      if((strandCode[1][nxpl-1] == code) ||
-         (strandCode[2][nxpl-1] == code))
+      if((strandCode[0][nxpl] == code) ||
+         (strandCode[1][nxpl] == code))
       {
-         return(nxpl);
+         return(nxpl+1);
       }
    }
    
    return(0);
 }
-
 
 /************************************************************************/
 /*>static void FindTurns(char **ssTable, char *detailSS, char *finalSS,
@@ -2792,84 +2789,89 @@ static void FindTurns(char **ssTable, char *detailSS,   char *finalSS,
         helixCount, 
         helixPri[NUM_HELIX_TYPE], 
         helixSize[NUM_HELIX_TYPE];
+
+
       
-   helixPri[1]  = SECSTR_IDX_ALPHAH;
-   helixPri[2]  = SECSTR_IDX_THRTNH;
-   helixPri[3]  = SECSTR_IDX_PIH;
-   helixSize[1] = HELIX_CHUNK_SIZE;
-   helixSize[2] = THREE_TEN_CHUNK_SIZE;
-   helixSize[3] = PIH_CHUNK_SIZE;
+   helixPri[0]  = SECSTR_IDX_ALPHAH;
+   helixPri[1]  = SECSTR_IDX_THRTNH;
+   helixPri[2]  = SECSTR_IDX_PIH;
+   helixSize[0] = HELIX_CHUNK_SIZE;
+   helixSize[1] = THREE_TEN_CHUNK_SIZE;
+   helixSize[2] = PIH_CHUNK_SIZE;
    
-   for(helixCount = 1; helixCount < NUM_HELIX_TYPE; helixCount++)
+   for(helixCount = 0; helixCount < NUM_HELIX_TYPE; helixCount++)
    {
-      if(ssTable[helixPri[helixCount]][1-1] == SECSTR_BEND_START &&
-         ssTable[helixPri[helixCount]][2-1] != SECSTR_BEND_START) 
+      if(ssTable[helixPri[helixCount]][0] == SECSTR_BEND_START &&
+         ssTable[helixPri[helixCount]][1] != SECSTR_BEND_START) 
       {
-         for(symbolCount = 2; 
-             symbolCount <= helixSize[helixCount]; 
+         for(symbolCount = 1; 
+             symbolCount < helixSize[helixCount]; 
              symbolCount++)
          {
-            if(detailSS[symbolCount-1] == SECSTR_COIL) 
+            if(detailSS[symbolCount] == SECSTR_COIL) 
             {
-               detailSS[symbolCount-1] = turnChar;
+               detailSS[symbolCount] = turnChar;
             }
 
-            if(finalSS[symbolCount-1] == SECSTR_COIL || 
-               finalSS[symbolCount-1] == altTurnChar) 
+            if(finalSS[symbolCount] == SECSTR_COIL || 
+               finalSS[symbolCount] == altTurnChar) 
             {
-               finalSS[symbolCount-1] = turnChar;
+               finalSS[symbolCount] = turnChar;
             }
          }
          
-         if(finalSS[1-1] == SECSTR_COIL) 
-            finalSS[1-1] = altTurnChar;
+         if(finalSS[0] == SECSTR_COIL) 
+            finalSS[0] = altTurnChar;
 
-         if(finalSS[helixSize[helixCount]+1-1] == SECSTR_COIL)
-            finalSS[helixSize[helixCount]+1-1] = altTurnChar;
+         if(finalSS[helixSize[helixCount]] == SECSTR_COIL)
+            finalSS[helixSize[helixCount]] = altTurnChar;
       }
       
-      for(resCount = 2; 
-          resCount <= seqlen - helixSize[helixCount]; 
+      for(resCount = 1; 
+          resCount < seqlen - helixSize[helixCount]; 
           resCount++)
       {
-         if((ssTable[helixPri[helixCount]][resCount-1] == 
+         if((ssTable[helixPri[helixCount]][resCount] == 
              SECSTR_BEND_START ||
-             ssTable[helixPri[helixCount]][resCount-1] == 
+             ssTable[helixPri[helixCount]][resCount] == 
              SECSTR_BEND_BOTH) &&
-            (ssTable[helixPri[helixCount]][resCount-1-1] != 
+            (ssTable[helixPri[helixCount]][resCount-1] != 
              SECSTR_BEND_START &&
-             ssTable[helixPri[helixCount]][resCount-1-1] != 
+             ssTable[helixPri[helixCount]][resCount-1] != 
              SECSTR_BEND_BOTH) &&
-            (ssTable[helixPri[helixCount]][resCount+1-1] != 
+            (ssTable[helixPri[helixCount]][resCount+1] != 
              SECSTR_BEND_START &&
-             ssTable[helixPri[helixCount]][resCount+1-1] != 
+             ssTable[helixPri[helixCount]][resCount+1] != 
              SECSTR_BEND_BOTH)) 
          {
             for(symbolCount = resCount + 1; 
-                symbolCount <= (resCount + helixSize[helixCount] - 1); 
+                symbolCount < (resCount + helixSize[helixCount]); 
                 symbolCount++)
             {
-               if(detailSS[symbolCount-1] == SECSTR_COIL) 
+               if(detailSS[symbolCount] == SECSTR_COIL) 
                {
-                  detailSS[symbolCount-1] = turnChar;
+                  detailSS[symbolCount] = turnChar;
                }
 
-               if(finalSS[symbolCount-1] == SECSTR_COIL || 
-                  finalSS[symbolCount-1] == altTurnChar) 
+               if(finalSS[symbolCount] == SECSTR_COIL || 
+                  finalSS[symbolCount] == altTurnChar) 
                {
-                  finalSS[symbolCount-1] = turnChar;
+                  finalSS[symbolCount] = turnChar;
                }
             }
 
-            if(finalSS[resCount-1] == SECSTR_COIL) 
-               finalSS[resCount-1] = altTurnChar;
+            if(finalSS[resCount] == SECSTR_COIL) 
+               finalSS[resCount] = altTurnChar;
 
-            if(finalSS[resCount+helixSize[helixCount]-1] == SECSTR_COIL)
-               finalSS[resCount+helixSize[helixCount]-1] = altTurnChar;
+            if(finalSS[resCount+helixSize[helixCount]] == SECSTR_COIL)
+               finalSS[resCount+helixSize[helixCount]] = altTurnChar;
          }
       }
    }
 }
+
+
+/* DOING */
 
 
 /************************************************************************/
@@ -2902,14 +2904,14 @@ static void FindNextStrand(int **strandCode, int sheetStart, int sheetEnd,
    
    for(nxstr=sheetStart; nxstr<=sheetEnd; nxstr++)
    {
-      for(nxpl=1; nxpl<=2; nxpl++)
+      for(nxpl=0; nxpl<2; nxpl++)
       {
          if(abs(strandCode[nxpl][nxstr]) > lastStrand)
          {
             if(*bestValue == 0)
             {
                *bestValue = abs(strandCode[nxpl][nxstr]);
-               *startIndex = nxpl;
+               *startIndex = nxpl+1;
                *startRes = nxstr+1;
             }
             else
@@ -2917,7 +2919,7 @@ static void FindNextStrand(int **strandCode, int sheetStart, int sheetEnd,
                if(abs(strandCode[nxpl][nxstr]) < *bestValue)
                {
                   *bestValue = abs(strandCode[nxpl][nxstr]);
-                  *startIndex = nxpl;
+                  *startIndex = nxpl+1;
                   *startRes = nxstr+1;
                }
             }
