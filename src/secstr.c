@@ -89,7 +89,7 @@
 #define COORD_DIM          3    /* number of coord dimensions: x, y, z  */
 #define NUM_STRAND_CHARS  26    /* number of available strand characters
                                    (the 26 letters of the alphabet)     */
-#define MAX_NUM_HBOND     (4+1) /* number of allowed H-bonds            */
+#define MAX_NUM_HBOND     4 /* number of allowed H-bonds            */
 #define MAX_NUM_CHN       200   /* number of allowed 'chains'; the way
                                    the code is used, it should be handled
                                    an individual chain, but it can also
@@ -147,8 +147,8 @@
 #define BULGE_SIZE_L          5
 #define BULGE_SIZE_S          2
 
-#define CST                   1 /* Offsets to store HBond energies      */
-#define NST                   3
+#define CST                   0 /* Offsets to store HBond energies      */
+#define NST                   2
 
 #define NUM_TURN_TYPE     (3+1) /* number of turn types                 */
 
@@ -1181,8 +1181,8 @@ Donor index: %4d; Acceptor index: %4d; Energy %6.2f\n",
          }
          rejectOffset = hbond[donorResIndex][NST+1];
          RejectHBond(donorResIndex+1,
-                     hbond[rejectOffset-1]+CST,
-                     hbondEnergy[rejectOffset-1]+CST);
+                     &(hbond[rejectOffset-1][CST]),
+                     &(hbondEnergy[rejectOffset-1][CST]));
          (*bondCount)--;
       }
 
@@ -1741,7 +1741,7 @@ static void MakeHBonds(REAL ***mcCoords, BOOL **gotAtom, int **hbond,
 
    for(resCount=0; resCount<seqlen; resCount++)
    {
-      for(i=1; i<MAX_NUM_HBOND; i++)
+      for(i=0; i<MAX_NUM_HBOND; i++)
       {
          hbond[resCount][i] = 0;
          hbondEnergy[resCount][i] = 0.0;
@@ -2059,13 +2059,12 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    
    firstChain = 1;
    
-/* DOING */
    for(resCount=0; resCount<seqlen; resCount++)
    {
       if(resCount >= chainEnd[firstChain]) 
          firstChain++;
       
-      for(bondCount=1; bondCount<=2; bondCount++)
+      for(bondCount=0; bondCount<2; bondCount++)
       {
          for(turnCount=1; turnCount<NUM_TURN_TYPE; turnCount++)
          {
@@ -2090,7 +2089,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                          [hbond[resCount][bondCount]-1] = SECSTR_BEND_END;
                   
                   for(i = resCount + 1; 
-                      i<= resCount + turnSize[turnCount] - 1; 
+                      i < resCount + turnSize[turnCount]; 
                       i++)
                   {
                      if(ssTable[turnIndex[turnCount]][i] == SECSTR_COIL)
@@ -2127,7 +2126,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
           resCount <= (seqlen + baseOffsets[ruleCount][2]); 
           resCount++)
       {
-         for(bond_i = 1; bond_i <= 2; bond_i++)
+         for(bond_i = 0; bond_i < 2; bond_i++)
          {
             bondPointer = hbond[resCount+baseOfSt[ruleCount][1]-1][bond_i];
 
@@ -2138,7 +2137,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                if((bondPointer > -baseOfSt[ruleCount][3]) && 
                   (abs(resCount - bridgePointer) > BRIDGE_SEP))
                {
-                  for(bond_j = 1; bond_j<= 2; bond_j++)
+                  for(bond_j = 0; bond_j < 2; bond_j++)
                   {
                      if(hbond[bondPointer+baseOfSt[ruleCount][3]-1]
                              [bond_j] == 
@@ -2177,9 +2176,14 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    {
       if(APPROXNE(mcAngles[DIHED_CHIRAL][resCount], NULLVAL)) 
       {
-         ssTable[SECSTR_IDX_CHISGN][resCount] = '+';
-         if(mcAngles[DIHED_CHIRAL][resCount] < 0.0) 
-            ssTable[SECSTR_IDX_CHISGN][resCount] =   '-';
+         if(mcAngles[DIHED_CHIRAL][resCount] < 0.0)
+         {
+            ssTable[SECSTR_IDX_CHISGN][resCount] = '-';
+         }
+         else
+         {
+            ssTable[SECSTR_IDX_CHISGN][resCount] = '+';
+         }
       }
    }
    
@@ -2193,21 +2197,22 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    }
    strandNumber = 0;
 
-   for(resCount=1; resCount<=seqlen; resCount++)
+/* DOING */
+   for(resCount=0; resCount<seqlen; resCount++)
    {
       for(bridgeIndex=1; bridgeIndex<=2; bridgeIndex++)
       {
-         if((bridge[bridgeIndex][resCount-1] != 0) && 
-            (abs(bridge[bridgeIndex][resCount-1]) > resCount))
+         if((bridge[bridgeIndex][resCount] != 0) && 
+            (abs(bridge[bridgeIndex][resCount]) >= resCount))
          {
-            theBridge = abs(bridge[bridgeIndex][resCount-1]);
-            bridgeDirection = bridge[bridgeIndex][resCount-1] / theBridge;
+            theBridge = abs(bridge[bridgeIndex][resCount]);
+            bridgeDirection = bridge[bridgeIndex][resCount] / theBridge;
             bridgePoint = 2;
 
-            if(abs(bridge[1][theBridge-1]) == resCount) 
+            if(abs(bridge[1][theBridge-1]) == resCount+1) 
                bridgePoint = 1;
 
-            for(resCountInSS = (resCount + 1); 
+            for(resCountInSS = (resCount + 2); 
                 resCountInSS <= MIN(seqlen,resCount+BULGE_SIZE_L); 
                 resCountInSS++)
             {
@@ -2227,10 +2232,10 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                             abs(theNewBridge-theBridge) == 
                             bridgeDirection)
                         {
-                           if((resCountInSS-resCount >  BULGE_SIZE_S && 
+                           if((resCountInSS-resCount-1 >  BULGE_SIZE_S && 
                                abs(theNewBridge-theBridge) <= 
                                BULGE_SIZE_S)  ||
-                              (resCountInSS-resCount <= BULGE_SIZE_S && 
+                              (resCountInSS-resCount-1 <= BULGE_SIZE_S && 
                                abs(theNewBridge-theBridge) <= 
                                BULGE_SIZE_L)) 
                            {
@@ -2241,7 +2246,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                  newBridgePoint = 1;
                               }
                               
-                              for(i = resCount; i<= resCountInSS; i++)
+                              for(i = resCount+1; i<= resCountInSS; i++)
                               {
                                  if(ssTable[SECSTR_IDX_SHEET][i-1] == 
                                     SECSTR_COIL)
@@ -2251,9 +2256,9 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                  }
                               }
 
-                              if(bridge[bridgeIndex+2][resCount-1] < 0)
+                              if(bridge[bridgeIndex+2][resCount] < 0)
                               {
-                                 ssTable[SECSTR_IDX_SHEET][resCount-1] = 
+                                 ssTable[SECSTR_IDX_SHEET][resCount] = 
                                     SECSTR_SHEET_SMALL;
                               }
                               
@@ -2291,17 +2296,17 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                     SECSTR_SHEET_SMALL;
                               }
                               
-                              if(strandCode[bridgeIndex-1][resCount-1] == 0)
+                              if(strandCode[bridgeIndex-1][resCount] == 0)
                               {
                                  strandNumber++;
-                                 strandCode[bridgeIndex-1][resCount-1] = 
+                                 strandCode[bridgeIndex-1][resCount] = 
                                     strandNumber * bridgeDirection;
                                  strandCode[bridgePoint-1][theBridge-1] = 
                                     strandNumber * bridgeDirection;
                               }
 
                               strandCode[newBridgeIndex-1][resCountInSS-1] = 
-                                 strandCode[bridgeIndex-1][resCount-1];
+                                 strandCode[bridgeIndex-1][resCount];
                               strandCode[newBridgePoint-1][theNewBridge-1] = 
                                  strandCode[bridgePoint-1][theBridge-1];
                               
@@ -2309,7 +2314,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                  resCountInSS loops 
                               */
                               resCountInSS = MAX(seqlen,
-                                                 resCount+BULGE_SIZE_L);
+                                                 resCount+1+BULGE_SIZE_L);
                               break;
                            }
                         }
@@ -2321,7 +2326,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
             ch = SECSTR_BRIDGE_FWD;
             if(bridgeDirection < 0) 
                ch = SECSTR_BRIDGE_BACKWD;
-            ssTable[SECSTR_IDX_BRIDGE][resCount-1]  = ch;
+            ssTable[SECSTR_IDX_BRIDGE][resCount]  = ch;
             ssTable[SECSTR_IDX_BRIDGE][theBridge-1] = ch;
          }
       }
