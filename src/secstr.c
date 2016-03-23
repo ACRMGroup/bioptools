@@ -1976,16 +1976,16 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    static int  bridgeOffsets[NRULES] = 
       {0, 1, -1, -1};
 
-/* DOING */
    static char upperCaseLetters[] = 
       " ABCDEFGHIJKLMNOPQRSTUVWXYZ";
    static char lowerCaseLetters[] = 
       " abcdefghijklmnopqrstuvwxyz";
    static char nstchp[] = 
       " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890";
-   static int bridgeRules[3][NRULES] = 
-      {{0,  0,  0,  0}, 
-       {0, -1,  1, -1}, 
+
+/* DOING */
+   static int bridgeRules[2][NRULES] = 
+      {{0, -1,  1, -1}, 
        {0,  1,  1, -1}
       };
    
@@ -2155,7 +2155,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                            bridgeOffsets[ruleCount] * bridgePointer;
 
                         bridge[bridgeIndex+2][resCount-1] = 
-                           bridgeRules[1][ruleCount];
+                           bridgeRules[0][ruleCount];
 
                         altBridgeIndex = 1;
 
@@ -2166,7 +2166,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                            bridgeOffsets[ruleCount] * resCount;
 
                         bridge[altBridgeIndex+2][bridgePointer-1] = 
-                           bridgeRules[2][ruleCount];
+                           bridgeRules[1][ruleCount];
                      }
                   }
                }
