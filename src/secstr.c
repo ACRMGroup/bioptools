@@ -99,7 +99,7 @@
                                    missing residues                     */
 
 /* Used by MakeTurnsAndBridges()                                        */
-#define NRULES 4
+#define NRULES 3
 #define PARLEL 1
 
 #define NUM_DIHED_DATA        3 /* number of dihedral data points       */
@@ -1198,8 +1198,8 @@ Donor index: %4d; Acceptor index: %4d; Energy %6.2f\n",
          }
          rejectOffset = hbond[acceptorResIndex][CST+1];
          RejectHBond(acceptorResIndex+1,
-                     hbond[rejectOffset-1]+NST,
-                     hbondEnergy[rejectOffset-1]+NST);
+                     &(hbond[rejectOffset-1][NST]),
+                     &(hbondEnergy[rejectOffset-1][NST]));
          (*bondCount)--;
       }
 
@@ -1221,8 +1221,8 @@ Donor index: %4d; Acceptor index: %4d; Energy %6.2f\n",
 
       hbond[acceptorResIndex][CST+acceptorOffset-1]       = donorResIndex+1;
       hbondEnergy[acceptorResIndex][CST+acceptorOffset-1] = energy;
-      hbond[donorResIndex][NST+donorOffset-1]       = acceptorResIndex+1;
-      hbondEnergy[donorResIndex][NST+donorOffset-1] = energy;
+      hbond[donorResIndex][NST+donorOffset-1]             = acceptorResIndex+1;
+      hbondEnergy[donorResIndex][NST+donorOffset-1]       = energy;
 
       (*bondCount)++;
    }
@@ -1962,19 +1962,17 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    static int  turnIndex[NUM_TURN_TYPE] =
       {0, SECSTR_IDX_THRTNH, SECSTR_IDX_ALPHAH, SECSTR_IDX_PIH};
    static int  baseOfSt[NRULES][5] =
-      {{0,  0,  0,  0,  0},
-       {0, -1,  0,  0,  1}, 
+      {{0, -1,  0,  0,  1}, 
        {0,  0,  0,  0,  0}, 
        {0, -1, -1, -2,  1}
       };
    static int  baseOffsets[NRULES][3] =
-      {{0,  0,  0},
-       {0,  2, -1}, 
+      {{0,  2, -1}, 
        {0,  1,  0}, 
        {0,  2, -1}
       };
    static int  bridgeOffsets[NRULES] = 
-      {0, 1, -1, -1};
+      {1, -1, -1};
 
    static char upperCaseLetters[] = 
       " ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -1983,10 +1981,9 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    static char nstchp[] = 
       " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890";
 
-/* DOING */
    static int bridgeRules[2][NRULES] = 
-      {{0, -1,  1, -1}, 
-       {0,  1,  1, -1}
+      {{-1,  1, -1}, 
+       { 1,  1, -1}
       };
    
    int  resCount, 
@@ -2062,6 +2059,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    
    firstChain = 1;
    
+/* DOING */
    for(resCount=0; resCount<seqlen; resCount++)
    {
       if(resCount >= chainEnd[firstChain]) 
@@ -2123,7 +2121,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
       }
    }
    
-   for(ruleCount = 1; ruleCount<NRULES; ruleCount++)
+   for(ruleCount = 0; ruleCount<NRULES; ruleCount++)
    {
       for(resCount = baseOffsets[ruleCount][1]; 
           resCount <= (seqlen + baseOffsets[ruleCount][2]); 
