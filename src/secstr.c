@@ -2038,6 +2038,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
 
    if((bridge == NULL) || (strandCode == NULL) || (sheetCode == NULL))
    {
+      /* DOING I don't know why this needs to be 5 - 4 should be OK but it doesn't work */
       if(bridge     != NULL)
          blFreeArray2D((char **)bridge,     5, seqlenMalloc);
       if(strandCode != NULL)
@@ -2116,7 +2117,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    {
       for(bondCount = 1; bondCount<= 4; bondCount++)
       {
-         bridge[bondCount][resCount] = 0;
+         bridge[bondCount-1][resCount] = 0;
       }
    }
    
@@ -2145,24 +2146,24 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                      {
                         bridgeIndex = 1;
 
-                        if(bridge[bridgeIndex][resCount-1] != 0) 
+                        if(bridge[bridgeIndex-1][resCount-1] != 0) 
                            bridgeIndex = 2;
 
-                        bridge[bridgeIndex][resCount-1] = 
+                        bridge[bridgeIndex-1][resCount-1] = 
                            bridgeOffsets[ruleCount] * bridgePointer;
 
-                        bridge[bridgeIndex+2][resCount-1] = 
+                        bridge[bridgeIndex+2-1][resCount-1] = 
                            bridgeRules[0][ruleCount];
 
                         altBridgeIndex = 1;
 
-                        if(bridge[altBridgeIndex][bridgePointer-1] != 0) 
+                        if(bridge[altBridgeIndex-1][bridgePointer-1] != 0) 
                            altBridgeIndex = 2;
 
-                        bridge[altBridgeIndex][bridgePointer-1] = 
+                        bridge[altBridgeIndex-1][bridgePointer-1] = 
                            bridgeOffsets[ruleCount] * resCount;
 
-                        bridge[altBridgeIndex+2][bridgePointer-1] = 
+                        bridge[altBridgeIndex+2-1][bridgePointer-1] = 
                            bridgeRules[1][ruleCount];
                      }
                   }
@@ -2202,14 +2203,14 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    {
       for(bridgeIndex=1; bridgeIndex<=2; bridgeIndex++)
       {
-         if((bridge[bridgeIndex][resCount] != 0) && 
-            (abs(bridge[bridgeIndex][resCount]) >= resCount))
+         if((bridge[bridgeIndex-1][resCount] != 0) && 
+            (abs(bridge[bridgeIndex-1][resCount]) >= resCount))
          {
-            theBridge = abs(bridge[bridgeIndex][resCount]);
-            bridgeDirection = bridge[bridgeIndex][resCount] / theBridge;
+            theBridge = abs(bridge[bridgeIndex-1][resCount]);
+            bridgeDirection = bridge[bridgeIndex-1][resCount] / theBridge;
             bridgePoint = 2;
 
-            if(abs(bridge[1][theBridge-1]) == resCount+1) 
+            if(abs(bridge[1-1][theBridge-1]) == resCount+1) 
                bridgePoint = 1;
 
             for(resCountInSS = (resCount + 2); 
@@ -2220,10 +2221,10 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                    newBridgeIndex <= 2; 
                    newBridgeIndex++)
                {
-                  if((bridge[newBridgeIndex][resCountInSS-1] * 
+                  if((bridge[newBridgeIndex-1][resCountInSS-1] * 
                       bridgeDirection) > 0)
                   {
-                     theNewBridge = abs(bridge[newBridgeIndex]
+                     theNewBridge = abs(bridge[newBridgeIndex-1]
                                               [resCountInSS-1]);
 
                      if(abs(theNewBridge-theBridge)!=0)
@@ -2240,7 +2241,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                BULGE_SIZE_L)) 
                            {
                               newBridgePoint = 2;
-                              if(abs(bridge[1][theNewBridge-1]) == 
+                              if(abs(bridge[1-1][theNewBridge-1]) == 
                                  resCountInSS) 
                               {
                                  newBridgePoint = 1;
@@ -2256,13 +2257,13 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                  }
                               }
 
-                              if(bridge[bridgeIndex+2][resCount] < 0)
+                              if(bridge[bridgeIndex+2-1][resCount] < 0)
                               {
                                  ssTable[SECSTR_IDX_SHEET][resCount] = 
                                     SECSTR_SHEET_SMALL;
                               }
                               
-                              if(bridge[newBridgeIndex+2][resCountInSS-1] <
+                              if(bridge[newBridgeIndex+2-1][resCountInSS-1] <
                                  0)
                               {
                                  ssTable[SECSTR_IDX_SHEET][resCountInSS-1] =
@@ -2283,13 +2284,13 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                  }
                               }
 
-                              if(bridge[bridgePoint+2][theBridge-1] < 0)
+                              if(bridge[bridgePoint+2-1][theBridge-1] < 0)
                               {
                                  ssTable[SECSTR_IDX_SHEET][theBridge-1] = 
                                     SECSTR_SHEET_SMALL;
                               }
 
-                              if(bridge[newBridgePoint+2][theNewBridge-1] <
+                              if(bridge[newBridgePoint+2-1][theNewBridge-1] <
                                  0)
                               {
                                  ssTable[SECSTR_IDX_SHEET][theNewBridge-1] =
@@ -2406,7 +2407,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
          ssTable[strandCharOffset][strandCount-1] = strandChar;
 
          bridgePoints[strandCharOffset-SECSTR_IDX_BRIDG1][strandCount-1] =
-            fabs(bridge[newBridgeIndex][strandCount-1]);
+            fabs(bridge[newBridgeIndex-1][strandCount-1]);
 
          thisStrandOffset = strandCount;
          
@@ -2439,7 +2440,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
 
             bridgePoints[strandCharOffset-SECSTR_IDX_BRIDG1]
                         [nextStrandOffset-1] = 
-               fabs(bridge[strandOffset][nextStrandOffset-1]);
+               fabs(bridge[strandOffset-1][nextStrandOffset-1]);
 
             thisStrandOffset = nextStrandOffset;
          }
@@ -2477,18 +2478,18 @@ have restarted\n",
    {
       for(newBridgeIndex=1; newBridgeIndex<=2; newBridgeIndex++)
       {
-         if((bridge[newBridgeIndex][resCount]      != 0) && 
+         if((bridge[newBridgeIndex-1][resCount]      != 0) && 
             (strandCode[newBridgeIndex-1][resCount]  == 0) && 
-            (fabs(bridge[newBridgeIndex][resCount]) >= resCount))
+            (fabs(bridge[newBridgeIndex-1][resCount]) >= resCount))
          {
             bridgeCount++;
-            theBridgePoint = fabs(bridge[newBridgeIndex][resCount]);
+            theBridgePoint = fabs(bridge[newBridgeIndex-1][resCount]);
             charCode       = bridgeCount%NUM_STRAND_CHARS;
 
             if(charCode == 0) 
                charCode = NUM_STRAND_CHARS;
 
-            if(bridge[newBridgeIndex][resCount] < 0)
+            if(bridge[newBridgeIndex-1][resCount] < 0)
             {
                bridgeChar = upperCaseLetters[charCode];
             }
@@ -2528,7 +2529,7 @@ have restarted\n",
    }
 
    if(bridge     != NULL)
-      blFreeArray2D((char **)bridge, 5, seqlenMalloc);
+      blFreeArray2D((char **)bridge,     5, seqlenMalloc);
    if(strandCode != NULL)
       blFreeArray2D((char **)strandCode, 2, seqlenMalloc);
    if(sheetCode  != NULL)
