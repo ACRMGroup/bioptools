@@ -264,7 +264,7 @@ static int FindNextCodeOccurrence(int strandStart, int strandEnd,
 static void MarkTurns(char **ssTable, char *detailSS, char *finalSS,
                       char turnChar, char altTurnChar, int seqlen);
 static void FindNextStrand(int **strandCode, int sheetStart, 
-                           int sheetEnd, int *startRes, 
+                           int sheetEnd, int *strandCount, 
                            int *startIndex, int lastStrand,
                            int *bestvalue);
 static void FindChainBreaks(REAL ***mcCoords, BOOL **gotAtom,
@@ -2198,39 +2198,40 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    }
    strandNumber = 0;
 
-/* DOING */
    for(resCount=0; resCount<seqlen; resCount++)
    {
-      for(bridgeIndex=1; bridgeIndex<=2; bridgeIndex++)
+      for(bridgeIndex=0; bridgeIndex<2; bridgeIndex++)
       {
-         if((bridge[bridgeIndex-1][resCount] != 0) && 
-            (abs(bridge[bridgeIndex-1][resCount]) >= resCount))
+         if((bridge[bridgeIndex][resCount] != 0) && 
+            (abs(bridge[bridgeIndex][resCount]) >= resCount))
          {
-            theBridge = abs(bridge[bridgeIndex-1][resCount]);
-            bridgeDirection = bridge[bridgeIndex-1][resCount] / theBridge;
-            bridgePoint = 2;
+            /* bridge[][] array contained the bridge number +1 */
+            theBridge = abs(bridge[bridgeIndex][resCount]) - 1; 
+            bridgeDirection = bridge[bridgeIndex][resCount] / (theBridge+1);
+            bridgePoint = 1;
 
-            if(abs(bridge[1-1][theBridge-1]) == resCount+1) 
-               bridgePoint = 1;
+            if(abs(bridge[0][theBridge]) == resCount+1) 
+               bridgePoint = 0;
 
             for(resCountInSS = (resCount + 2); 
                 resCountInSS <= MIN(seqlen,resCount+BULGE_SIZE_L); 
                 resCountInSS++)
             {
-               for(newBridgeIndex  = 1; 
-                   newBridgeIndex <= 2; 
+               for(newBridgeIndex = 0; 
+                   newBridgeIndex < 2; 
                    newBridgeIndex++)
                {
-                  if((bridge[newBridgeIndex-1][resCountInSS-1] * 
+                  if((bridge[newBridgeIndex][resCountInSS-1] * 
                       bridgeDirection) > 0)
                   {
-                     theNewBridge = abs(bridge[newBridgeIndex-1]
-                                              [resCountInSS-1]);
+                     /* bridge[][] array contained the bridge number +1 */
+                     theNewBridge = abs(bridge[newBridgeIndex]
+                                              [resCountInSS-1]) - 1;
 
                      if(abs(theNewBridge-theBridge)!=0)
                      {
                         if((theNewBridge-theBridge) /
-                            abs(theNewBridge-theBridge) == 
+                           abs(theNewBridge-theBridge) == 
                             bridgeDirection)
                         {
                            if((resCountInSS-resCount-1 >  BULGE_SIZE_S && 
@@ -2240,30 +2241,30 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                abs(theNewBridge-theBridge) <= 
                                BULGE_SIZE_L)) 
                            {
-                              newBridgePoint = 2;
-                              if(abs(bridge[1-1][theNewBridge-1]) == 
+                              newBridgePoint = 1;
+                              if(abs(bridge[0][theNewBridge]) == 
                                  resCountInSS) 
                               {
-                                 newBridgePoint = 1;
+                                 newBridgePoint = 0;
                               }
                               
-                              for(i = resCount+1; i<= resCountInSS; i++)
+                              for(i = resCount; i< resCountInSS; i++)
                               {
-                                 if(ssTable[SECSTR_IDX_SHEET][i-1] == 
+                                 if(ssTable[SECSTR_IDX_SHEET][i] == 
                                     SECSTR_COIL)
                                  {
-                                    ssTable[SECSTR_IDX_SHEET][i-1] = 
+                                    ssTable[SECSTR_IDX_SHEET][i] = 
                                        SECSTR_SHEET;
                                  }
                               }
 
-                              if(bridge[bridgeIndex+2-1][resCount] < 0)
+                              if(bridge[bridgeIndex+2][resCount] < 0)
                               {
                                  ssTable[SECSTR_IDX_SHEET][resCount] = 
                                     SECSTR_SHEET_SMALL;
                               }
                               
-                              if(bridge[newBridgeIndex+2-1][resCountInSS-1] <
+                              if(bridge[newBridgeIndex+2][resCountInSS-1] <
                                  0)
                               {
                                  ssTable[SECSTR_IDX_SHEET][resCountInSS-1] =
@@ -2276,40 +2277,40 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                      i<=theNewBridge; 
                                   i+=bridgeDirection)
                               {
-                                 if(ssTable[SECSTR_IDX_SHEET][i-1] == 
+                                 if(ssTable[SECSTR_IDX_SHEET][i] == 
                                     SECSTR_COIL)
                                  {
-                                    ssTable[SECSTR_IDX_SHEET][i-1] = 
+                                    ssTable[SECSTR_IDX_SHEET][i] = 
                                        SECSTR_SHEET;
                                  }
                               }
 
-                              if(bridge[bridgePoint+2-1][theBridge-1] < 0)
+                              if(bridge[bridgePoint+2][theBridge] < 0)
                               {
-                                 ssTable[SECSTR_IDX_SHEET][theBridge-1] = 
+                                 ssTable[SECSTR_IDX_SHEET][theBridge] = 
                                     SECSTR_SHEET_SMALL;
                               }
 
-                              if(bridge[newBridgePoint+2-1][theNewBridge-1] <
+                              if(bridge[newBridgePoint+2][theNewBridge] <
                                  0)
                               {
-                                 ssTable[SECSTR_IDX_SHEET][theNewBridge-1] =
+                                 ssTable[SECSTR_IDX_SHEET][theNewBridge] =
                                     SECSTR_SHEET_SMALL;
                               }
                               
-                              if(strandCode[bridgeIndex-1][resCount] == 0)
+                              if(strandCode[bridgeIndex][resCount] == 0)
                               {
                                  strandNumber++;
-                                 strandCode[bridgeIndex-1][resCount] = 
+                                 strandCode[bridgeIndex][resCount] = 
                                     strandNumber * bridgeDirection;
-                                 strandCode[bridgePoint-1][theBridge-1] = 
+                                 strandCode[bridgePoint][theBridge] = 
                                     strandNumber * bridgeDirection;
                               }
 
-                              strandCode[newBridgeIndex-1][resCountInSS-1] = 
-                                 strandCode[bridgeIndex-1][resCount];
-                              strandCode[newBridgePoint-1][theNewBridge-1] = 
-                                 strandCode[bridgePoint-1][theBridge-1];
+                              strandCode[newBridgeIndex][resCountInSS-1] = 
+                                 strandCode[bridgeIndex][resCount];
+                              strandCode[newBridgePoint][theNewBridge] = 
+                                 strandCode[bridgePoint][theBridge];
                               
                               /* Force break from both newBridgeIndex and 
                                  resCountInSS loops 
@@ -2328,10 +2329,13 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
             if(bridgeDirection < 0) 
                ch = SECSTR_BRIDGE_BACKWD;
             ssTable[SECSTR_IDX_BRIDGE][resCount]  = ch;
-            ssTable[SECSTR_IDX_BRIDGE][theBridge-1] = ch;
+            ssTable[SECSTR_IDX_BRIDGE][theBridge] = ch;
          }
       }
    }
+
+
+/*** DOING - sort out bridge[][] indices: nextStrandOffset  ***/
    
    resCount = 0;
    
@@ -2360,13 +2364,13 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
       
       while(bestValue != 0)
       {
-         lastStrand = fabs(strandCode[newBridgeIndex-1][strandCount-1]);
+         lastStrand = fabs(strandCode[newBridgeIndex][strandCount]);
          charCode   = lastStrand%NUM_STRAND_CHARS;
 
          if(charCode == 0) 
             charCode = NUM_STRAND_CHARS;
 
-         if(strandCode[newBridgeIndex-1][strandCount-1] < 0)
+         if(strandCode[newBridgeIndex][strandCount] < 0)
          {
             strandChar = upperCaseLetters[charCode];
          }
@@ -2377,19 +2381,19 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
 
          strandCharOffset = SECSTR_IDX_BRIDG1;
          
-         if(ssTable[SECSTR_IDX_BRIDG1][strandCount-1] != SECSTR_COIL) 
+         if(ssTable[SECSTR_IDX_BRIDG1][strandCount] != SECSTR_COIL) 
             strandCharOffset = SECSTR_IDX_BRIDG2;
          
          if(strandCharOffset != SECSTR_IDX_BRIDG2)
          {
-            thisStrandOffset = strandCount;
+            thisStrandOffset = strandCount+1;
 
             do
             {
                nextStrandOffset = 
                   FindNextCodeOccurrence(thisStrandOffset, endOfSheet,
-                                         strandCode[newBridgeIndex-1]
-                                                    [strandCount-1],
+                                         strandCode[newBridgeIndex]
+                                                    [strandCount],
                                          strandCode);
                if(nextStrandOffset <= 0)
                   break;
@@ -2404,43 +2408,43 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
             } while(strandCharOffset != SECSTR_IDX_BRIDG2);
          }
          
-         ssTable[strandCharOffset][strandCount-1] = strandChar;
+         ssTable[strandCharOffset][strandCount] = strandChar;
 
-         bridgePoints[strandCharOffset-SECSTR_IDX_BRIDG1][strandCount-1] =
-            fabs(bridge[newBridgeIndex-1][strandCount-1]);
+         bridgePoints[strandCharOffset-SECSTR_IDX_BRIDG1][strandCount] =
+            fabs(bridge[newBridgeIndex][strandCount]);
 
-         thisStrandOffset = strandCount;
+         thisStrandOffset = strandCount+1;
          
          for(;;)
          {
             nextStrandOffset = 
                FindNextCodeOccurrence(thisStrandOffset,endOfSheet,
-                                      strandCode[newBridgeIndex-1]
-                                                [strandCount-1],
+                                      strandCode[newBridgeIndex]
+                                                [strandCount],
                                       strandCode);
 
             if(nextStrandOffset <= 0)
                break;
 
-            for(bulgeCount =  (thisStrandOffset + 1); 
-                bulgeCount <= (nextStrandOffset - 1); 
+            for(bulgeCount =  thisStrandOffset; 
+                bulgeCount < (nextStrandOffset - 1); 
                 bulgeCount++)
             {
-               ssTable[strandCharOffset][bulgeCount-1] = SECSTR_BULGE;
+               ssTable[strandCharOffset][bulgeCount] = SECSTR_BULGE;
             }
 
             ssTable[strandCharOffset][nextStrandOffset-1] = strandChar;
-            strandOffset = 1;
+            strandOffset = 0;
 
             if(strandCode[0][nextStrandOffset-1] != 
-                strandCode[newBridgeIndex-1][strandCount-1]) 
+                strandCode[newBridgeIndex][strandCount]) 
             {
-               strandOffset = 2;
+               strandOffset = 1;
             }
 
             bridgePoints[strandCharOffset-SECSTR_IDX_BRIDG1]
                         [nextStrandOffset-1] = 
-               fabs(bridge[strandOffset-1][nextStrandOffset-1]);
+               fabs(bridge[strandOffset][nextStrandOffset-1]);
 
             thisStrandOffset = nextStrandOffset;
          }
@@ -2476,20 +2480,20 @@ have restarted\n",
 
    for(resCount=0; resCount<seqlen; resCount++)
    {
-      for(newBridgeIndex=1; newBridgeIndex<=2; newBridgeIndex++)
+      for(newBridgeIndex=0; newBridgeIndex<2; newBridgeIndex++)
       {
-         if((bridge[newBridgeIndex-1][resCount]      != 0) && 
-            (strandCode[newBridgeIndex-1][resCount]  == 0) && 
-            (fabs(bridge[newBridgeIndex-1][resCount]) >= resCount))
+         if((bridge[newBridgeIndex][resCount]      != 0) && 
+            (strandCode[newBridgeIndex][resCount]  == 0) && 
+            (fabs(bridge[newBridgeIndex][resCount]) >= resCount))
          {
             bridgeCount++;
-            theBridgePoint = fabs(bridge[newBridgeIndex-1][resCount]);
+            theBridgePoint = fabs(bridge[newBridgeIndex][resCount]);
             charCode       = bridgeCount%NUM_STRAND_CHARS;
 
             if(charCode == 0) 
                charCode = NUM_STRAND_CHARS;
 
-            if(bridge[newBridgeIndex-1][resCount] < 0)
+            if(bridge[newBridgeIndex][resCount] < 0)
             {
                bridgeChar = upperCaseLetters[charCode];
             }
@@ -2858,62 +2862,6 @@ static void MarkTurns(char **ssTable, char *detailSS,   char *finalSS,
 
 
 /************************************************************************/
-/*>static void FindNextStrand(int **strandCode, int sheetStart, 
-                              int sheetEnd, int *startRes, 
-                              int *startIndex, int lastStrand,
-                              int *bestValue)
-   ------------------------------------------------------------
-*//**
-   \param[in]  **strandCode Array of strand codes[bridge][strand]
-   \param[in]  sheetStart   Start of a sheet
-   \param[in]  sheetEnd     End of a sheet
-   \param[out] *startRes    The strand count
-   \param[out] *startIndex  The new bridge 
-   \param[in]  lastStrand   The last strand
-   \param[out] *bestValue   Best strand
-
-   Find where the next beta strand starts
-
--  19.05.99 Original   By: ACRM
--  13.07.15 Modified for BiopLib
-*/
-static void FindNextStrand(int **strandCode, int sheetStart, int sheetEnd,
-                           int *startRes, int *startIndex, int lastStrand,
-                           int *bestValue)
-{
-   int  nxstr, nxpl;
-   
-   *bestValue = 0;
-   
-   for(nxstr=sheetStart; nxstr<=sheetEnd; nxstr++)
-   {
-      for(nxpl=0; nxpl<2; nxpl++)
-      {
-         if(abs(strandCode[nxpl][nxstr]) > lastStrand)
-         {
-            if(*bestValue == 0)
-            {
-               *bestValue = abs(strandCode[nxpl][nxstr]);
-               *startIndex = nxpl+1;
-               *startRes = nxstr+1;
-            }
-            else
-            {
-               if(abs(strandCode[nxpl][nxstr]) < *bestValue)
-               {
-                  *bestValue = abs(strandCode[nxpl][nxstr]);
-                  *startIndex = nxpl+1;
-                  *startRes = nxstr+1;
-               }
-            }
-         }
-      }
-   }
-}
-
-
-
-/************************************************************************/
 static void MarkSheetsAndBridges(int seqlen, char **ssTable, char *detailSS, 
                                  char *finalSS, char *ssSymbols, char *altSSSymbols)
 {
@@ -2963,3 +2911,61 @@ static void MarkSheetsAndBridges(int seqlen, char **ssTable, char *detailSS,
       }
    }
 }
+
+
+/************************************************************************/
+/*>static void FindNextStrand(int **strandCode, int sheetStart, 
+                              int sheetEnd, int *strandCount, 
+                              int *startIndex, int lastStrand,
+                              int *bestValue)
+   ------------------------------------------------------------
+*//**
+   \param[in]  **strandCode Array of strand codes[bridge][strand]
+   \param[in]  sheetStart   Start of a sheet
+   \param[in]  sheetEnd     End of a sheet
+   \param[out] *strandCount The strand count
+   \param[out] *startIndex  The new bridge 
+   \param[in]  lastStrand   The last strand
+   \param[out] *bestValue   Best strand
+
+   Find where the next beta strand starts
+
+-  19.05.99 Original   By: ACRM
+-  13.07.15 Modified for BiopLib
+*/
+static void FindNextStrand(int **strandCode, int sheetStart, int sheetEnd,
+                           int *strandCount, int *startIndex, int lastStrand,
+                           int *bestValue)
+{
+   int  nxstr, nxpl;
+   
+   *bestValue = 0;
+   
+   for(nxstr=sheetStart; nxstr<=sheetEnd; nxstr++)
+   {
+      for(nxpl=0; nxpl<2; nxpl++)
+      {
+         if(abs(strandCode[nxpl][nxstr]) > lastStrand)
+         {
+            if(*bestValue == 0)
+            {
+               *bestValue = abs(strandCode[nxpl][nxstr]);
+               *startIndex = nxpl;
+               *strandCount = nxstr;
+            }
+            else
+            {
+               if(abs(strandCode[nxpl][nxstr]) < *bestValue)
+               {
+                  *bestValue = abs(strandCode[nxpl][nxstr]);
+                  *startIndex = nxpl;
+                  *strandCount = nxstr;
+               }
+            }
+         }
+      }
+   }
+}
+
+
+
