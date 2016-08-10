@@ -102,8 +102,6 @@
 #define NRULES                3
 #define PARLEL                1
 
-/* DOING I don't know why this needs to be 5 - 
-   4 should be OK but it doesn't work */
 #define MAX_BRIDGE            4 /* Max bridge index                     */
 
 #define NUM_DIHED_DATA        3 /* number of dihedral data points       */
@@ -1955,6 +1953,7 @@ static void MakeSummary(char **ssTable,
 -  27.05.99 Standard format for messages
 -  16.06.99 Initialise lastStrand to 0
 -  13.07.15 Modified for BiopLib
+-  09.08.16 Zero-basing
 */
 static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                 REAL **mcAngles, int **bridgePoints,
@@ -2207,12 +2206,10 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    {
       for(bridgeIndex=0; bridgeIndex<2; bridgeIndex++)
       {
-/* fprintf(stderr,"%d\n",bridgeIndex); */
          if((bridge[bridgeIndex][resCount] != 0) && 
             (abs(bridge[bridgeIndex][resCount]) >= resCount))
          {
-            /* bridge[][] array contained the bridge number +1 */
-/* fprintf(stderr,"%d\n",bridgeIndex); */
+            /* bridge[][] array contains the bridge number +1 */
             theBridge = abs(bridge[bridgeIndex][resCount]) - 1; 
             bridgeDirection = bridge[bridgeIndex][resCount] / (theBridge+1);
             bridgePoint = 1;
@@ -2228,12 +2225,10 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                    newBridgeIndex < 2; 
                    newBridgeIndex++)
                {
-/* fprintf(stderr,"%d\n",newBridgeIndex); */
                   if((bridge[newBridgeIndex][resCountInSS-1] * 
                       bridgeDirection) > 0)
                   {
-                     /* bridge[][] array contained the bridge number +1 */
-/* fprintf(stderr,"%d\n",newBridgeIndex); */
+                     /* bridge[][] array contains the bridge number +1 */
                      theNewBridge = abs(bridge[newBridgeIndex]
                                               [resCountInSS-1]) - 1;
 
@@ -2267,14 +2262,12 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                  }
                               }
 
-/* fprintf(stderr,"%d\n",bridgeIndex+2); */
                               if(bridge[bridgeIndex+2][resCount] < 0)
                               {
                                  ssTable[SECSTR_IDX_SHEET][resCount] = 
                                     SECSTR_SHEET_SMALL;
                               }
                               
-/* fprintf(stderr,"%d\n",newBridgeIndex+2); */
                               if(bridge[newBridgeIndex+2][resCountInSS-1] < 0)
                               {
                                  ssTable[SECSTR_IDX_SHEET][resCountInSS-1] =
@@ -2295,14 +2288,12 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                  }
                               }
 
-/* fprintf(stderr,"%d\n",bridgePoint+2); */
                               if(bridge[bridgePoint+2][theBridge] < 0)
                               {
                                  ssTable[SECSTR_IDX_SHEET][theBridge] = 
                                     SECSTR_SHEET_SMALL;
                               }
 
-/* fprintf(stderr,"%d\n",newBridgePoint+2); */
                               if(bridge[newBridgePoint+2][theNewBridge] <
                                  0)
                               {
@@ -2347,8 +2338,6 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    }
 
 
-/*** DOING - sort out bridge[][] indices: nextStrandOffset  ***/
-   
    resCount = 0;
    
    do{
@@ -2422,7 +2411,6 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
          
          ssTable[strandCharOffset][strandCount] = strandChar;
 
-/* fprintf(stderr,"%d\n",newBridgeIndex); */
          bridgePoints[strandCharOffset-SECSTR_IDX_BRIDG1][strandCount] =
             fabs(bridge[newBridgeIndex][strandCount]);
 
@@ -2455,7 +2443,6 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                strandOffset = 1;
             }
 
-/* fprintf(stderr,"%d\n",strandOffset); */
             bridgePoints[strandCharOffset-SECSTR_IDX_BRIDG1]
                         [nextStrandOffset-1] = 
                fabs(bridge[strandOffset][nextStrandOffset-1]);
@@ -2496,20 +2483,17 @@ have restarted\n",
    {
       for(newBridgeIndex=0; newBridgeIndex<2; newBridgeIndex++)
       {
-/* fprintf(stderr,"%d\n",newBridgeIndex); */
          if((bridge[newBridgeIndex][resCount]      != 0) && 
             (strandCode[newBridgeIndex][resCount]  == 0) && 
             (fabs(bridge[newBridgeIndex][resCount]) >= resCount))
          {
             bridgeCount++;
-/* fprintf(stderr,"%d\n",newBridgeIndex); */
             theBridgePoint = fabs(bridge[newBridgeIndex][resCount]);
             charCode       = bridgeCount%NUM_STRAND_CHARS;
 
             if(charCode == 0) 
                charCode = NUM_STRAND_CHARS;
 
-/* fprintf(stderr,"%d\n",newBridgeIndex); */
             if(bridge[newBridgeIndex][resCount] < 0)
             {
                bridgeChar = upperCaseLetters[charCode];
@@ -2797,8 +2781,6 @@ static void MarkTurns(char **ssTable, char *detailSS,   char *finalSS,
         helixPri[NUM_HELIX_TYPE], 
         helixSize[NUM_HELIX_TYPE];
 
-
-      
    helixPri[0]  = SECSTR_IDX_ALPHAH;
    helixPri[1]  = SECSTR_IDX_THRTNH;
    helixPri[2]  = SECSTR_IDX_PIH;
@@ -2879,8 +2861,27 @@ static void MarkTurns(char **ssTable, char *detailSS,   char *finalSS,
 
 
 /************************************************************************/
-static void MarkSheetsAndBridges(int seqlen, char **ssTable, char *detailSS, 
-                                 char *finalSS, char *ssSymbols, char *altSSSymbols)
+/*>static void MarkSheetsAndBridges(int seqlen, char **ssTable, 
+                                    char *detailSS, char *finalSS, 
+                                    char *ssSymbols, char *altSSSymbols)
+   ---------------------------------------------------------------------
+*//**
+   \param seqlen         The sequence length
+   \param **ssTable      The sec struc table [struc symbol][res]
+   \param *detailSS      detailed ss assignment array
+   \param *finalSS       final ss assignment array
+   \param *ssSymbols     array of symbols for secondary structures
+   \param *altSSSymbols  array of alternative symbols for sec strucs
+
+   Put in symbols for the secondary structure elements for sheets and
+   bridges.
+
+-  19.05.99 Original   By: ACRM
+-  13.07.15 Modified for BiopLib
+*/
+static void MarkSheetsAndBridges(int seqlen, char **ssTable, 
+                                 char *detailSS, char *finalSS, 
+                                 char *ssSymbols, char *altSSSymbols)
 {
    int resCount;
    
@@ -2929,6 +2930,7 @@ static void MarkSheetsAndBridges(int seqlen, char **ssTable, char *detailSS,
    }
 }
 
+/* HERE DOING */
 
 /************************************************************************/
 /*>static void FindNextStrand(int **strandCode, int sheetStart, 
