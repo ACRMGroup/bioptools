@@ -163,6 +163,10 @@ pdbrotate
 ---------
 Rotates a PDB file
 
+pdbsecstr
+---------
+Calculate secondary structure for a PDB file
+
 pdbselect
 ---------
 Allows the extraction of different occupancies and different models

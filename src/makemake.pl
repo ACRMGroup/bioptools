@@ -4,8 +4,8 @@
 #   Program:    makemake
 #   File:       makemake.pl
 #   
-#   Version:    V1.6
-#   Date:       15.02.16
+#   Version:    V1.6.2
+#   Date:       11.08.16
 #   Function:   Build the Makefile for BiopTools
 #   
 #   Copyright:  (c) Dr. Andrew C. R. Martin, UCL, 2014-2016
@@ -59,9 +59,10 @@
 #   V1.6    15.02.16  Makes the libsrc directory and bumped to BiopLib
 #                     V3.4.1
 #   V1.6.1  17.02.16  Bumped to require BiopLib V3.4.2
+#   V1.6.2  11.08.16  Bumped to require BiopLib V3.5
 #
 #*************************************************************************
-$::biopversion = "3.4.2";
+$::biopversion = "3.5.0";
 #*************************************************************************
 $::biopgit     = "https://github.com/ACRMGroup/bioplib/archive/V";
 $::biopext     = ".tar.gz";
