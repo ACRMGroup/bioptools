@@ -89,7 +89,7 @@
 #define COORD_DIM          3    /* number of coord dimensions: x, y, z  */
 #define NUM_STRAND_CHARS  26    /* number of available strand characters
                                    (the 26 letters of the alphabet)     */
-#define MAX_NUM_HBOND     4 /* number of allowed H-bonds            */
+#define MAX_NUM_HBOND      4    /* number of allowed H-bonds            */
 #define MAX_NUM_CHN       200   /* number of allowed 'chains'; the way
                                    the code is used, it should be handled
                                    an individual chain, but it can also
@@ -102,7 +102,9 @@
 #define NRULES                3
 #define PARLEL                1
 
-#define MAX_BRIDGE            4 /* Max bridge index                     */
+#define NUM_BRIDGE            4 /* Max bridge index                     */
+#define NUM_STRAND_PAIR       2 /* Paired strands                       */
+#define NUM_BRIDGE_PAIR       2 /* Paired strands for bridge            */
 
 #define NUM_DIHED_DATA        3 /* number of dihedral data points       */
 #define RESTYPE_PROLINE      15 /* residue type number for Proline - an
@@ -127,8 +129,8 @@
 #define DIHED_KAPPA           5
 #define DIHED_TCO             6
 
-#define NUM_STRUC_SYMS   (11)    /* number of structure symbols       */
-#define SECSTR_IDX_ALPHAH        0 /* Symbol indexes                    */
+#define NUM_STRUC_SYMS         (11) /* number of structure symbols      */
+#define SECSTR_IDX_ALPHAH        0  /* Symbol indexes                   */
 #define SECSTR_IDX_SHEET1        1
 #define SECSTR_IDX_SHEET         2
 #define SECSTR_IDX_BRIDGE        3
@@ -152,7 +154,7 @@
 #define CST                   0 /* Offsets to store HBond energies      */
 #define NST                   2
 
-#define NUM_TURN_TYPE     (3+1) /* number of turn types                 */
+#define NUM_TURN_TYPE         3 /* number of turn types                 */
 
 #define RADIAN (180.0/3.141592) /* constant to convert RADs to degrees  */
 #define NULLVAL           999.9 /* used as a NULL value                 */
@@ -172,12 +174,11 @@
 #define HBOND_F            332 
 
 /* Macros for approximate equality and inequality                       */
-#define ACURCY 0.0001
-#define APPROXEQ(x, y) (ABS((x)-(y)) < ACURCY)
-#define APPROXNE(x, y) (ABS((x)-(y)) >= ACURCY)
+#define ACCURACY 0.0001
+#define APPROXEQ(x, y) (ABS((x)-(y)) < ACCURACY)
+#define APPROXNE(x, y) (ABS((x)-(y)) >= ACCURACY)
 
 /* Macro to calculate atom distance                                     */
-/* 17.02.16 x,y,z for coordinates now count from 0 instead of 1         */
 #define ATDIST(a, b)                                                     \
    sqrt(((a)[0]-(b)[0])*((a)[0]-(b)[0]) +                                \
         ((a)[1]-(b)[1])*((a)[1]-(b)[1]) +                                \
@@ -190,26 +191,27 @@
 #define FREE_SECSTR_MEMORY                                               \
    do {                                                                  \
    if(gotAtom != NULL)                                                   \
-      blFreeArray2D((char **)gotAtom, NUM_MC_ATOM_TYPES, seqlenMalloc); \
+      blFreeArray2D((char **)gotAtom, NUM_MC_ATOM_TYPES, seqlenMalloc);  \
    if(mcCoords != NULL)                                                  \
       blFreeArray3D((char ***)mcCoords, NUM_MC_ATOM_TYPES, seqlenMalloc, \
                     COORD_DIM);                                          \
    if(hbondEnergy != NULL)                                               \
-      blFreeArray2D((char **)hbondEnergy, seqlenMalloc, MAX_NUM_HBOND); \
+      blFreeArray2D((char **)hbondEnergy, seqlenMalloc, MAX_NUM_HBOND);  \
    if(mcAngles != NULL)                                                  \
-      blFreeArray2D((char **)mcAngles, MAX_NUM_ANGLES, seqlenMalloc); \
+      blFreeArray2D((char **)mcAngles, MAX_NUM_ANGLES, seqlenMalloc);    \
    if(detailSS != NULL) free(detailSS);                                  \
    if(finalSS != NULL) free(finalSS);                                    \
    if(breakSymbol != NULL) free(breakSymbol);                            \
    if(ssTable != NULL)                                                   \
-      blFreeArray2D((char **)ssTable, NUM_STRUC_SYMS, seqlenMalloc); \
+      blFreeArray2D((char **)ssTable, NUM_STRUC_SYMS, seqlenMalloc);     \
    if(residueID != NULL)                                                 \
-      blFreeArray2D((char **)residueID, seqlenMalloc, 16);          \
+      blFreeArray2D((char **)residueID, seqlenMalloc, 16);               \
    if(residueTypes != NULL) free(residueTypes);                          \
    if(hbond != NULL)                                                     \
-      blFreeArray2D((char **)hbond, seqlenMalloc, MAX_NUM_HBOND);   \
+      blFreeArray2D((char **)hbond, seqlenMalloc, MAX_NUM_HBOND);        \
    if(bridgePoints != NULL)                                              \
-      blFreeArray2D((char **)bridgePoints, 2, seqlenMalloc);             \
+      blFreeArray2D((char **)bridgePoints, NUM_BRIDGE_PAIR,              \
+                    seqlenMalloc);                                       \
    } while(0)
 
 
@@ -308,7 +310,8 @@ static void SetBendResidues(REAL **mcAngles, char **ssTable, int seqlen);
 -  27.05.99 Standard format for messages
 -  09.06.99 Warning only issued if not quiet
 -  10.07.15 Modified for BiopLib
--  09.03.16 Completed zero-basing ???
+-  09.03.16 Zero-basing
+-  10.08.16 Completed zero-basing
 */
 int blCalcSecStrucPDB(PDB *pdbStart, PDB *pdbStop, BOOL verbose)
 {
@@ -360,7 +363,7 @@ LYSLEUMETASNXXXPROGLNARGSERTHRXXXVALTRPXXXTYRGLXUNKPCAINI";
                                      16);
    hbond        = (int  **)blArray2D(sizeof(int), seqlenMalloc, 
                                      MAX_NUM_HBOND);
-   bridgePoints = (int  **)blArray2D(sizeof(int), 2, 
+   bridgePoints = (int  **)blArray2D(sizeof(int), NUM_BRIDGE_PAIR,
                                      seqlenMalloc);
    mcCoords     = (REAL ***)blArray3D(sizeof(REAL), NUM_MC_ATOM_TYPES, 
                                       seqlenMalloc, COORD_DIM);
@@ -729,7 +732,7 @@ static void MarkBends(char **ssTable, char *detailSS, char *finalSS,
    \param[in]  **residueID    Residue ID            
    \param[in]  caOnly         Input flag            
    \param[in]  seqlen         Input seq length      
-   \param[in]  verbose        Print messages                                             
+   \param[in]  verbose        Print messages
    \param[out] *breakSymbol   Array indexed by residue number indicating
                               chain breaks
    \param[out] *chainSize     Array indexed by chain number indicating
@@ -1009,7 +1012,7 @@ static REAL CalcDihedral(int  angnum,
         cosAngle; 
    int  i, j, k;
 
-   /* It's a standard dihedral, call our normal bioplib routine   */
+   /* It's a standard dihedral, call our normal bioplib routine         */
    if((angnum <= NDIHED) || (angnum >= MAX_NUM_ANGLES))
    {
       return(RADIAN * blPhi(atoma[0], atoma[1], atoma[2],
@@ -1018,7 +1021,7 @@ static REAL CalcDihedral(int  angnum,
                             atomd[0], atomd[1], atomd[2]));
    }
 
-   /* A non-standard dihedral, use the special code */
+   /* A non-standard dihedral, use the special code                     */
    dihatm[0] = atoma;
    dihatm[1] = atomb;
    dihatm[2] = atomc;
@@ -1056,13 +1059,14 @@ static REAL CalcDihedral(int  angnum,
    {
       for(j=i+1; j<NUM_DIHED_DATA; j++)
       {
-         if(APPROXEQ(atomDistance[i], 0.0) || APPROXEQ(atomDistance[j], 0.0))
+         if(APPROXEQ(atomDistance[i], 0.0) || 
+            APPROXEQ(atomDistance[j], 0.0))
          {
             dotProduct[i][j] = 1.0;
          }
          else
          {
-            dotProduct[i][j] = dotProduct[i][j] / atomDistance[i] / 
+            dotProduct[i][j] = (dotProduct[i][j] / atomDistance[i]) / 
                atomDistance[j];
          }
       }
@@ -1221,10 +1225,14 @@ Donor index: %4d; Acceptor index: %4d; Energy %6.2f\n",
             hbondEnergy[donorResIndex][NST];
       }
 
-      hbond[acceptorResIndex][CST+acceptorOffset-1]       = donorResIndex+1;
-      hbondEnergy[acceptorResIndex][CST+acceptorOffset-1] = energy;
-      hbond[donorResIndex][NST+donorOffset-1]             = acceptorResIndex+1;
-      hbondEnergy[donorResIndex][NST+donorOffset-1]       = energy;
+      hbond[acceptorResIndex][CST+acceptorOffset-1]       = 
+         donorResIndex+1;
+      hbondEnergy[acceptorResIndex][CST+acceptorOffset-1] = 
+         energy;
+      hbond[donorResIndex][NST+donorOffset-1]             = 
+         acceptorResIndex+1;
+      hbondEnergy[donorResIndex][NST+donorOffset-1]       = 
+         energy;
 
       (*bondCount)++;
    }
@@ -1291,7 +1299,7 @@ static void FindNextPartialSheet(int  startPoint,
    for(resCount = startOfSheet; resCount <= endOfSheet; resCount++)
    {
       sheetCode[resCount] = sheetNum;
-      for(i=0; i<2; i++)
+      for(i=0; i<NUM_BRIDGE_PAIR; i++)
       {
          if(bridgePoints[i][resCount] != 0)
          {
@@ -1621,7 +1629,8 @@ static void CalcMCAngles(REAL ***mcCoords, REAL **mcAngles,
                                            angleOffsets[angleIndex][2]-1],
                                   mcCoords[angleAtoms[angleIndex][3]]
                                           [resCount+
-                                           angleOffsets[angleIndex][3]-1]);
+                                           angleOffsets[angleIndex][3]-1])
+                     ;
                }
                else
                {
@@ -1791,8 +1800,10 @@ static void MakeHBonds(REAL ***mcCoords, BOOL **gotAtom, int **hbond,
                         distCN = ATDIST(mcCoords[ATOM_C][otherRes],
                                         mcCoords[ATOM_N][resCount]);
 
-                        if(APPROXEQ(distON,0.0) || APPROXEQ(distOH,0.0) || 
-                           APPROXEQ(distCH,0.0) || APPROXEQ(distCN,0.0)) 
+                        if(APPROXEQ(distON,0.0) || 
+                           APPROXEQ(distOH,0.0) ||
+                           APPROXEQ(distCH,0.0) || 
+                           APPROXEQ(distCN,0.0)) 
                         {
                            if(verbose)
                            {
@@ -1886,17 +1897,17 @@ static void MakeSummary(char **ssTable,
    MarkSheetsAndBridges(seqlen, ssTable, detailSS, finalSS, ssSymbols, 
                         altSSSymbols);
 
-   /* 3_10 helices                                                     */
+   /* 3_10 helices                                                      */
    MarkHelices(ssTable, detailSS, finalSS, SECSTR_IDX_THRTNH, 
               THREE_TEN_CHUNK_SIZE, ssSymbols[SECSTR_IDX_THRTNH], 
               altSSSymbols[SECSTR_IDX_THRTNH], seqlen);
 
-   /* Pi helices                                                     */
-   MarkHelices(ssTable, detailSS, finalSS, SECSTR_IDX_PIH, PIH_CHUNK_SIZE, 
-              ssSymbols[SECSTR_IDX_PIH], altSSSymbols[SECSTR_IDX_PIH], 
-              seqlen);
+   /* Pi helices                                                        */
+   MarkHelices(ssTable, detailSS, finalSS, SECSTR_IDX_PIH, PIH_CHUNK_SIZE,
+               ssSymbols[SECSTR_IDX_PIH], altSSSymbols[SECSTR_IDX_PIH], 
+               seqlen);
 
-   /* Move to summary information                                     */
+   /* Move to summary information                                       */
    MarkHelicesInSummary(detailSS, ssSymbols[SECSTR_IDX_THRTNH], 
                      altSSSymbols[SECSTR_IDX_THRTNH], 
                      ssSymbols[SECSTR_IDX_TURN], 
@@ -1918,11 +1929,11 @@ static void MakeSummary(char **ssTable,
                      altSSSymbols[SECSTR_IDX_TURN], PIH_CHUNK_SIZE, 
                      seqlen);
 
-   /* Turns                                                           */
+   /* Turns                                                             */
    MarkTurns(ssTable, detailSS, finalSS, ssSymbols[SECSTR_IDX_TURN], 
              altSSSymbols[SECSTR_IDX_TURN], seqlen);
 
-   /* Bends                                                           */
+   /* Bends                                                             */
    MarkBends(ssTable, detailSS, finalSS, seqlen);
 }
 
@@ -1960,19 +1971,20 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                 int *chainEnd, int seqlen,
                                 BOOL verbose)
 {
-   static int  turnSize[NUM_TURN_TYPE]  = {0, 3, 4, 5};
-   static char turnChar[NUM_TURN_TYPE]  = {'\0', '3', '4', '5'};
-   static int  turnIndex[NUM_TURN_TYPE] =
-      {0, SECSTR_IDX_THRTNH, SECSTR_IDX_ALPHAH, SECSTR_IDX_PIH};
-   static int  baseOfSt[NRULES][5] =
-      {{0, -1,  0,  0,  1}, 
-       {0,  0,  0,  0,  0}, 
-       {0, -1, -1, -2,  1}
+   static int  turnSize[NUM_TURN_TYPE]  = {3, 4, 5};
+   static char turnChar[NUM_TURN_TYPE]  = {'3', '4', '5'};
+   static int  turnIndex[NUM_TURN_TYPE] = {SECSTR_IDX_THRTNH, 
+                                           SECSTR_IDX_ALPHAH, 
+                                           SECSTR_IDX_PIH};
+   static int  baseOfSt[NRULES][4] =
+      {{-1,  0,  0,  1}, 
+       { 0,  0,  0,  0}, 
+       {-1, -1, -2,  1}
       };
-   static int  baseOffsets[NRULES][3] =
-      {{0,  2, -1}, 
-       {0,  1,  0}, 
-       {0,  2, -1}
+   static int  baseOffsets[NRULES][2] =
+      {{2, -1}, 
+       {1,  0}, 
+       {2, -1}
       };
    static int  bridgeOffsets[NRULES] = 
       {1, -1, -1};
@@ -2031,16 +2043,18 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    /* Allocate memory for arrays                                        */
    seqlenMalloc = seqlen;
 
-   bridge     = (int **)blArray2D(sizeof(int), MAX_BRIDGE, seqlenMalloc);
-   strandCode = (int **)blArray2D(sizeof(int), 2, seqlenMalloc);
+   bridge     = (int **)blArray2D(sizeof(int), NUM_BRIDGE, seqlenMalloc);
+   strandCode = (int **)blArray2D(sizeof(int), NUM_STRAND_PAIR, 
+                                  seqlenMalloc);
    sheetCode  = (int *)malloc(sizeof(int) * seqlenMalloc);
 
    if((bridge == NULL) || (strandCode == NULL) || (sheetCode == NULL))
    {
       if(bridge     != NULL)
-         blFreeArray2D((char **)bridge,     MAX_BRIDGE, seqlenMalloc);
+         blFreeArray2D((char **)bridge,     NUM_BRIDGE, seqlenMalloc);
       if(strandCode != NULL)
-         blFreeArray2D((char **)strandCode, 2, seqlenMalloc);
+         blFreeArray2D((char **)strandCode, NUM_STRAND_PAIR, 
+                       seqlenMalloc);
       if(sheetCode  != NULL)
          free(sheetCode);
 
@@ -2065,7 +2079,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
       
       for(bondCount=0; bondCount<2; bondCount++)
       {
-         for(turnCount=1; turnCount<NUM_TURN_TYPE; turnCount++)
+         for(turnCount=0; turnCount<NUM_TURN_TYPE; turnCount++)
          {
             if(hbond[resCount][bondCount] != 0) 
             {
@@ -2121,30 +2135,31 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
    
    for(ruleCount = 0; ruleCount<NRULES; ruleCount++)
    {
-      for(resCount = baseOffsets[ruleCount][1]; 
-          resCount <= (seqlen + baseOffsets[ruleCount][2]); 
+      for(resCount = baseOffsets[ruleCount][0]; 
+          resCount <= (seqlen + baseOffsets[ruleCount][1]); 
           resCount++)
       {
          int bond_i;
          
          for(bond_i = 0; bond_i < 2; bond_i++)
          {
-            bondPointer = hbond[resCount+baseOfSt[ruleCount][1]-1][bond_i];
+            bondPointer =
+               hbond[resCount+baseOfSt[ruleCount][0]-1][bond_i];
 
             if((ruleCount <= PARLEL) || (bondPointer > resCount))
             {
-               bridgePointer = bondPointer + baseOfSt[ruleCount][2];
+               bridgePointer = bondPointer + baseOfSt[ruleCount][1];
 
-               if((bondPointer > -baseOfSt[ruleCount][3]) && 
+               if((bondPointer > -baseOfSt[ruleCount][2]) && 
                   (abs(resCount - bridgePointer) > BRIDGE_SEP))
                {
                   int bond_j;
                   
                   for(bond_j = 0; bond_j < 2; bond_j++)
                   {
-                     if(hbond[bondPointer+baseOfSt[ruleCount][3]-1]
+                     if(hbond[bondPointer+baseOfSt[ruleCount][2]-1]
                              [bond_j] == 
-                        resCount+baseOfSt[ruleCount][4])
+                        resCount+baseOfSt[ruleCount][3])
                      {
                         int altBridgeIndex;
 
@@ -2161,7 +2176,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
 
                         altBridgeIndex = 1;
 
-                        if(bridge[altBridgeIndex-1][bridgePointer-1] != 0) 
+                        if(bridge[altBridgeIndex-1][bridgePointer-1] !=0) 
                            altBridgeIndex = 2;
 
                         bridge[altBridgeIndex-1][bridgePointer-1] = 
@@ -2209,9 +2224,10 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
          if((bridge[bridgeIndex][resCount] != 0) && 
             (abs(bridge[bridgeIndex][resCount]) >= resCount))
          {
-            /* bridge[][] array contains the bridge number +1 */
+            /* bridge[][] array contains the bridge number +1           */
             theBridge = abs(bridge[bridgeIndex][resCount]) - 1; 
-            bridgeDirection = bridge[bridgeIndex][resCount] / (theBridge+1);
+            bridgeDirection = bridge[bridgeIndex][resCount] / 
+               (theBridge+1);
             bridgePoint = 1;
 
             if(abs(bridge[0][theBridge]) == resCount+1) 
@@ -2222,7 +2238,7 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                 resCountInSS++)
             {
                for(newBridgeIndex = 0; 
-                   newBridgeIndex < 2; 
+                   newBridgeIndex < NUM_STRAND_PAIR; 
                    newBridgeIndex++)
                {
                   if((bridge[newBridgeIndex][resCountInSS-1] * 
@@ -2268,7 +2284,8 @@ static BOOL MakeTurnsAndBridges(int **hbond, char **ssTable,
                                     SECSTR_SHEET_SMALL;
                               }
                               
-                              if(bridge[newBridgeIndex+2][resCountInSS-1] < 0)
+                              if(bridge[newBridgeIndex+2][resCountInSS-1] 
+                                 < 0)
                               {
                                  ssTable[SECSTR_IDX_SHEET][resCountInSS-1] =
                                     SECSTR_SHEET_SMALL;
@@ -2481,7 +2498,9 @@ have restarted\n",
 
    for(resCount=0; resCount<seqlen; resCount++)
    {
-      for(newBridgeIndex=0; newBridgeIndex<2; newBridgeIndex++)
+      for(newBridgeIndex=0; 
+          newBridgeIndex<NUM_STRAND_PAIR; 
+          newBridgeIndex++)
       {
          if((bridge[newBridgeIndex][resCount]      != 0) && 
             (strandCode[newBridgeIndex][resCount]  == 0) && 
@@ -2515,7 +2534,8 @@ have restarted\n",
 
             bridgeArrayIndex = SECSTR_IDX_BRIDG1;
 
-            if(ssTable[SECSTR_IDX_BRIDG1][theBridgePoint-1] != SECSTR_COIL) 
+            if(ssTable[SECSTR_IDX_BRIDG1][theBridgePoint-1] != 
+               SECSTR_COIL) 
                bridgeArrayIndex = SECSTR_IDX_BRIDG2;
 
             ssTable[bridgeArrayIndex][theBridgePoint-1] = bridgeChar;
@@ -2534,9 +2554,9 @@ have restarted\n",
    }
 
    if(bridge     != NULL)
-      blFreeArray2D((char **)bridge,     MAX_BRIDGE, seqlenMalloc);
+      blFreeArray2D((char **)bridge,     NUM_BRIDGE, seqlenMalloc);
    if(strandCode != NULL)
-      blFreeArray2D((char **)strandCode, 2, seqlenMalloc);
+      blFreeArray2D((char **)strandCode, NUM_STRAND_PAIR, seqlenMalloc);
    if(sheetCode  != NULL)
       free(sheetCode);
 
@@ -2681,7 +2701,9 @@ static void LabelSheets(char **ssTable, int **bridgePoints,
          {
             sheetCode[resCountInSheet-1] = sheetNum;
 
-            for(bridgeIndex = 0; bridgeIndex < 2; bridgeIndex++)
+            for(bridgeIndex = 0; 
+                bridgeIndex < NUM_BRIDGE_PAIR; 
+                bridgeIndex++)
             {
                if(bridgePoints[bridgeIndex][resCountInSheet-1] != 0)
                {
@@ -2930,7 +2952,6 @@ static void MarkSheetsAndBridges(int seqlen, char **ssTable,
    }
 }
 
-/* HERE DOING */
 
 /************************************************************************/
 /*>static void FindNextStrand(int **strandCode, int sheetStart, 
@@ -2953,8 +2974,8 @@ static void MarkSheetsAndBridges(int seqlen, char **ssTable,
 -  13.07.15 Modified for BiopLib
 */
 static void FindNextStrand(int **strandCode, int sheetStart, int sheetEnd,
-                           int *strandCount, int *startIndex, int lastStrand,
-                           int *bestValue)
+                           int *strandCount, int *startIndex, 
+                           int lastStrand, int *bestValue)
 {
    int  nxstr, nxpl;
    
@@ -2962,7 +2983,7 @@ static void FindNextStrand(int **strandCode, int sheetStart, int sheetEnd,
    
    for(nxstr=sheetStart; nxstr<=sheetEnd; nxstr++)
    {
-      for(nxpl=0; nxpl<2; nxpl++)
+      for(nxpl=0; nxpl<NUM_STRAND_PAIR; nxpl++)
       {
          if(abs(strandCode[nxpl][nxstr]) > lastStrand)
          {
