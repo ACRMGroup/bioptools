@@ -1,31 +1,35 @@
-/*************************************************************************
+/************************************************************************/
+/**
 
-   Program:    ss
-   File:       main.c
+   \File       pdbsecstr.c
    
-   Version:    V1.0
-   Date:       19.05.99
-   Function:   Main program for secondary structure calculation
+   \version    V1.1
+   \date       11.08.16
+   \brief      Secondary structure calculation program
    
-   Copyright:  (c) Inpharmatica, Ltd. 1999
-   Author:     Dr. Andrew C.R. Martin
-   Address:    60 Charlotte Street,
-               London W1P 2AX
-   Phone:      +44 (0) 171 631 4644
-   EMail:      cvs@inpharmatica.co.uk
+   \copyright  (c) Dr. Andrew C. R. Martin, UCL, 1999-2016
+   \author     Dr. Andrew C. R. Martin
+   \par
+               Institute of Structural & Molecular Biology,
+               University College London,
+               Gower Street,
+               London.
+               WC1E 6BT.
+   \par
+               andrew@bioinf.org.uk
+               andrew.martin@ucl.ac.uk
                
 **************************************************************************
- 
-   CVS Tags:
-   =========
- 
-   Last modified by:    $Author: andrew $
-   Tag:                 $Name:  $
-   Revision:            $Revision: 1.3 $
- 
-**************************************************************************
 
-   This program is copyright. Any copying without permission is illegal.
+   This code is NOT IN THE PUBLIC DOMAIN, but it may be copied
+   according to the conditions laid out in the accompanying file
+   COPYING.DOC.
+
+   The code may be modified as required, but any modifications must be
+   documented so that the person responsible can be identified.
+
+   The code may not be sold commercially or included as part of a 
+   commercial product except as described in the file COPYING.DOC.
 
 **************************************************************************
 
@@ -42,7 +46,9 @@
 
    Revision History:
    =================
-   V1.0   19.05.99 Original   By: ACRM
+   V1.0   19.05.99 Original, written while at Inpharmatica   By: ACRM
+   V1.1   11.08.16 Rewritten to use PDB files rather than XMAS files
+                   and to use blCalcSecStrucPDB() in Bioplib
 
 *************************************************************************/
 /* Includes
@@ -71,10 +77,8 @@ BOOL sNewChain = FALSE;
 */
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  BOOL *verbose, BOOL *summary);
+                  BOOL *debug);
 void Usage(void);
-void WriteSummary(FILE *out, PDB *pdbStart, PDB *pdbStop);
-
 void WriteResults(FILE *out, PDB *pdbStart, PDB *pdbStop);
 
 
@@ -82,8 +86,13 @@ void WriteResults(FILE *out, PDB *pdbStart, PDB *pdbStop);
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
-   19.05.99 Original   By: ACRM
-   27.05.99 Added error return if blCalcSS out of memory
+*//**
+
+   Main program for secondary structure calculation.
+
+-  19.05.99 Original   By: ACRM
+-  27.05.99 Added error return if blCalcSS out of memory
+-  11.08.16 Updated for using Bioplib
 */
 int main(int argc, char **argv)
 {
@@ -93,11 +102,10 @@ int main(int argc, char **argv)
         *out = stdout;
    PDB  *pdb;
    int  natoms;
-   BOOL verbose = FALSE,
-        summary = FALSE;
+   BOOL debug = FALSE;
    
    
-   if(!ParseCmdLine(argc, argv, infile, outfile, &verbose, &summary))
+   if(!ParseCmdLine(argc, argv, infile, outfile, &debug))
    {
       Usage();
       return(0);
@@ -114,22 +122,18 @@ int main(int argc, char **argv)
             {
                stop=blFindNextChain(start);
 
-               if(blCalcSecStrucPDB(start, stop, verbose) != 0)
+               if(blCalcSecStrucPDB(start, stop, debug) != 0)
                {
                   return(1);
                }
             
-               if(summary)
-               {
-                  WriteSummary(out, start, stop);
-               }
-               else
-               {
-                  WriteResults(out, start, stop);
-               }
+               WriteResults(out, start, stop);
             }
             
             FREELIST(pdb, PDB);
+
+            if(in  != stdin)  fclose(in);
+            if(out != stdout) fclose(out);
          }
       }
       else
@@ -144,29 +148,29 @@ int main(int argc, char **argv)
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                     BOOL *verbose, BOOL *summary)
+                     BOOL *debug)
    ---------------------------------------------------------------------
-   Input:   int    argc              Argument count
-            char   **argv            Argument array
-   Output:  char   *infile           Input filename (or blank string)
-            char   *outfile          Output filename (or blank string)
-            BOOL   *verbose            Verbose?
-            BOOL   *summary          Display summary rather than XMAS?
-   Returns: BOOL                     Success
+*//**
+   \param[in]   argc              Argument count
+   \param[in]   **argv            Argument array
+   \param[out]  *infile           Input filename (or blank string)
+   \param[out]  *outfile          Output filename (or blank string)
+   \param[out]  *debug            Debug?
+   \return                        Success
 
    Parse the command line
 
-   19.05.99 Original    By: ACRM
-   21.05.99 Added summary
+-   19.05.99 Original    By: ACRM
+-   11.08.16 Updated for PDB version
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  BOOL *verbose, BOOL *summary)
+                  BOOL *debug)
 {
    argc--;
    argv++;
    
    infile[0] = outfile[0] = '\0';
-   *verbose = *summary = FALSE;
+   *debug    = FALSE;
    
    while(argc)
    {
@@ -174,11 +178,8 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
       {
          switch(argv[0][1])
          {
-         case 'v':
-            *verbose = TRUE;
-            break;
-         case 's':
-            *summary = TRUE;
+         case 'd':
+            *debug = TRUE;
             break;
          default:
             return(FALSE);
@@ -215,53 +216,60 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 /*>void Usage(void)
    ----------------
-   19.05.99 Original   By: ACRM
-   21.05.99 Added flags
+*//**
+
+   Print a usage message
+
+-  19.05.99 Original   By: ACRM
+-  21.05.99 Added flags
+-  11.08.16 Updated for non-xmas version
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nss V1.0 (c) 1999, Inpharmatica, Ltd.\n");
+   fprintf(stderr,"\npdbsecstr V1.1 (c) 1999-2015, UCL, \
+Dr. Andrew C.R. Martin\n");
 
-   fprintf(stderr,"\nUsage: ss [-v][-s] [in.xmas [out.xmas]]\n");
-   fprintf(stderr,"          -v Verbose mode - report dropped \
-3rd Hbonds, etc.\n");
-   fprintf(stderr,"          -s Summary - write a simple summary file \
-rather than XMAS\n");
+   fprintf(stderr,"\nUsage: pdbsecstr [-d] [in.xmas [out.xmas]]\n");
+   fprintf(stderr,"          -d Debug mode - reports information on\
+dropped 3rd Hbonds, etc.\n");
 
    fprintf(stderr,"\nCalculates secondary structure assignments \
 according to the method of\n");
-   fprintf(stderr,"Kabsch and Sander. Reads and writes XMAS format \
-files. Input/output is\n");
-   fprintf(stderr,"to standard input/output if files are not \
-specified.\n\n");
+   fprintf(stderr,"Kabsch and Sander. Reads a PDB file and writes \
+a simple summary text\n");
+   fprintf(stderr,"file.\n");
+   fprintf(stderr,"\nInput/output is to standard input/output if \
+files are not specified.\n\n");
 }
 
 
 /************************************************************************/
-/*>void WriteSummary(FILE *out, PDB *pdb)
-   --------------------------------------
+/*>void WriteResults(FILE *out, PDB *pdbStart, PDB *pdbStop)
+   ---------------------------------------------------------
+*//**
+   \param[in]   *out        Output file pointer
+   \param[in]   *pdbStart   Start of PDB linked list
+   \param[in]   *pdbStop    End of PDB linked list (points to the item
+                            after the stop point)
+
    Write a summary file with the residue names and secondary structure
 
    21.05.99 Original   By: ACRM
+   11.08.16 Changed to use blBuildResSpec()
 */
-void WriteSummary(FILE *out, PDB *pdbStart, PDB *pdbStop)
+void WriteResults(FILE *out, PDB *pdbStart, PDB *pdbStop)
 {
    PDB *p;
    
    for(p=pdbStart; p!=pdbStop; p=blFindNextResidue(p))
    {
-      fprintf(out, "%s%d%s %s %c\n",
-              p->chain,
-              p->resnum,
-              p->insert,
+      char resspec[24];
+      blBuildResSpec(p, resspec);
+
+      fprintf(out, "%-6s %s %c\n",
+              resspec,
               p->resnam,
               p->secstr);
    }
-}
-
-
-void WriteResults(FILE *out, PDB *pdbStart, PDB *pdbStop)
-{
-   WriteSummary(out, pdbStart, pdbStop);
 }
 
