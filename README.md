@@ -7,6 +7,10 @@ Tools making use of BiopLib
 See INSTALL.md for installation instructions!
 
 
+chaincontacts
+-------------
+Calculates contacts between chains at the atom and residue level. You
+can get all contacts or contacts between specified chains.
 
 naccess2bval
 ------------
