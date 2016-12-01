@@ -1,14 +1,14 @@
 /*************************************************************************
 
-   Program:    distancematric
-   File:       distancematrix.c
+   Program:    distmat
+   File:       distmat.c
    
-   Version:    V1.0
+   Version:    V2.0
    Date:       01.12.16
    Function:   Calculate inter-CA distances on a set of common-labelled
                PDB files
    
-   Copyright:  (c) UCL, Dr. Andrew C. R. Martin 2016
+   Copyright:  (c) UCL, Dr. Andrew C. R. Martin 2009-2016
    Author:     Dr. Andrew C. R. Martin
    Address:    Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -36,12 +36,12 @@
 
    Description:
    ============
-   This is a very crude and simple program for calculating means and 
-   standard deviations for inter residue distances from a set of PDB files
-   having common numbering (e.g. antibodies). The program is *slow* as it
-   doesn't do anything clever with the list of residue pair labels - it
-   simply stores them in an array and searches that array every time to
-   find a label. This really should be replaced by a hash function!
+
+   This is a simple program for calculating means and standard
+   deviations for inter residue distances from a set of PDB files
+   having common numbering (e.g. antibodies). Input is either a single
+   PDB file or a 'file of files' - i.e. a file containing a list of
+   PDB files to be processed.
 
 **************************************************************************
 
@@ -52,7 +52,13 @@
 
    Revision History:
    =================
-   V1.0   01.12.16  Original - Based loosely on distmat.c
+   V1.0   01.04.09  Original
+   V1.1   06.04.09  Added -n and -m options
+   V1.2   30.11.16  Minor cleanup for bioptools - Added option to take
+                    a single PDB file as input rather than a set (-p)
+   V2.0   01.12.16  Rewrite to use hashes. Removed -n and -m since these
+                    are't needed any more - everything is dynamically
+                    allocated.
 
 *************************************************************************/
 /* #define DEBUG 1 */
@@ -68,47 +74,49 @@
 #include "bioplib/general.h"
 #include "bioplib/macros.h"
 #include "bioplib/MathUtil.h"
+#include "bioplib/hash.h"
 
 /************************************************************************/
 /* Defines and macros
 */
-#define MAXBUFF          160
-#define DEF_MAXRES       300     /* Max residues pairs to handle        */
-#define MAXLABEL         16      /* ResidueLabel_ResidueLabel size      */
-#define DEF_NCHAINS      2       /* Number of chains to keep            */
+#define MAXBUFF     160
+#define DEF_MAXRES  300     /* Approximate number of residues in a file.
+                               This is simply used to initialize the hash
+                               table. Increasing it will increase 
+                               efficiency for large structures, but waste
+                               memory for small ones
+                            */
+#define MAXLABEL    16      /* ResidueLabel size                        */
+#define ATOMS_CA    0       /* Selection types                          */
+#define ATOMS_ALL   1
+#define ATOMS_SC    2
+
+typedef struct respair
+{
+   REAL sx;
+   REAL sxsq;
+   int  nval;
+}  RESPAIR;
+   
 
 /************************************************************************/
 /* Globals
 */
-REAL *gSx       = NULL, 
-     *gSxSq     = NULL;
-int  *gNVal     = NULL,
-     gNStrings  = 0;
-char **gStrings = NULL;
 
 /************************************************************************/
 /* Prototypes
 */
-int  main(int argc, char **argv);
+int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  int *nchains, int *maxrespairs, BOOL *singleFile);
-BOOL HandleInput(FILE *in, FILE *out, int nrespairs, int maxchain,
-                 BOOL singleFile);
-PDB *GetPDB(char *filename, int maxchain);
-PDB *GetPDBFp(FILE *fp, int maxchain);
-BOOL AllocateMemory(int nrespairs);
-void FreeMemory(int nrespairs);
-BOOL ProcessPDB(PDB *pdb, int nrespairs);
-void DisplayResults(FILE *out);
+                  BOOL *singleFile, int *atomTypes);
+BOOL HandleInput(FILE *in, FILE *out, BOOL singleFile, 
+                 HASHTABLE *hashTable, int atomTypes);
+void ProcessFile(FILE *fp, HASHTABLE *hashTable, int atomTypes);
+void ProcessPDB(PDB *pdb, HASHTABLE *hashTable);
+void StoreData(HASHTABLE *hashTable, PDB *res1, PDB *res2, REAL dist);
+PDB *ReduceAtomList(PDB *pdb, int atomTypes);
+void DisplayResults(FILE *out, HASHTABLE *hashTable);
 void Usage(void);
-BOOL StoreData(char chain1, int res1, char ins1,
-               char chain2, int res2, char ins2,
-               REAL d, int nrespairs);
-int  LookUpString(char *string, int tablesize);
-
-#define ATOMS_CA  0
-#define ATOMS_ALL 1
-#define ATOMS_SC  2
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -127,13 +135,14 @@ int main(int argc, char **argv)
    BOOL  singleFile  = FALSE;
    ULONG hashSize    = DEF_MAXRES * DEF_MAXRES;
    int   atomTypes   = ATOMS_CA;
+   HASHTABLE *hashTable = NULL;
    
 
    if(ParseCmdLine(argc, argv, infile, outfile, &singleFile, &atomTypes))
    {
-      if(OpenStdFiles(infile, outfile, &in, &out))
+      if(blOpenStdFiles(infile, outfile, &in, &out))
       {
-         if(hashTable = blInitializeHash(hashSize))
+         if((hashTable = blInitializeHash(hashSize))!=NULL)
          {
             if(HandleInput(in, out, singleFile, hashTable, atomTypes))
             {
@@ -199,13 +208,13 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             *singleFile = TRUE;
             break;
          case 'c':
-            *atomTypes = ATOMTYPES_CA;
+            *atomTypes = ATOMS_CA;
             break;
          case 'a':
-            *atomTypes = ATOMTYPES_ALL;
+            *atomTypes = ATOMS_ALL;
             break;
          case 's':
-            *atomTypes = ATOMTYPES_SC;
+            *atomTypes = ATOMS_SC;
             break;
          default:
             return(FALSE);
@@ -238,8 +247,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
 
 /************************************************************************/
-/*>BOOL HandleInput(FILE *in, FILE *out, BOOL singleFile, HASHTABLE *hashTable)
-   ------------------------------------------------------------------
+/*>BOOL HandleInput(FILE *in, FILE *out, BOOL singleFile, 
+                    HASHTABLE *hashTable, int atomTypes)
+   ------------------------------------------------------
    Handle the input file - extract the PDB filenames and process each 
    in turn
 
@@ -247,11 +257,10 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    06.04.09 Handles maxchain
    30.11.16 Added singleFile
 */
-BOOL HandleInput(FILE *in, FILE *out, BOOL singleFile, HASHTABLE *hashTable, int atomTypes)
+BOOL HandleInput(FILE *in, FILE *out, BOOL singleFile, 
+                 HASHTABLE *hashTable, int atomTypes)
 {
    char filename[MAXBUFF];
-   
-   PDB  *pdb;
    
    if(singleFile)
    {
@@ -265,15 +274,16 @@ BOOL HandleInput(FILE *in, FILE *out, BOOL singleFile, HASHTABLE *hashTable, int
          
          TERMINATE(filename);
          
-         if(fp = fopen(filename,"r"))
+         if((fp = fopen(filename,"r"))!=NULL)
          {
             fprintf(stderr,"INFO: Processing file: %s\n",filename);
-            ProcessFile(fp, hashTable);
+            ProcessFile(fp, hashTable, atomTypes);
             fclose(fp);
          }
          else
          {
-            fprintf(stderr,"WARNING: Unable to read file: %s\n", filename);
+            fprintf(stderr,"WARNING: Unable to read file: %s\n", 
+                    filename);
          }
       }
    }
@@ -281,6 +291,8 @@ BOOL HandleInput(FILE *in, FILE *out, BOOL singleFile, HASHTABLE *hashTable, int
    return(TRUE);
 }
 
+
+/************************************************************************/
 void ProcessFile(FILE *fp, HASHTABLE *hashTable, int atomTypes)
 {
    PDB *pdb;
@@ -299,39 +311,111 @@ void ProcessFile(FILE *fp, HASHTABLE *hashTable, int atomTypes)
    }
 }
 
-void ProcessPDB(PDB *pdb, HASHTABLE hashTable)
+
+/************************************************************************/
+void ProcessPDB(PDB *pdb, HASHTABLE *hashTable)
 {
-   PDB *p, *q;
-   for(p=pdb; p!=NULL; NEXT(p))
+   PDB *atom1, *atom2, 
+       *res1,  *res1Next, 
+       *res2,  *res2Next;
+   REAL minDistSq = (REAL)0.0;
+
+   /* Step through a residue at a time                                  */
+   for(res1=pdb; res1!=NULL; res1=res1Next)
    {
-      for(q=pdb; q!=NULL; NEXT(q))
+      /* Find the start of the next residue                             */
+      res1Next = blFindNextResidue(res1);
+      
+      /* Step through again a residue at a time                         */
+      for(res2=pdb; res2!=NULL; res2=res2Next)
       {
-         
+         /* Find the start of the next residue                          */
+         res2Next = blFindNextResidue(res2);
+
+         /* Initialize minimum distance between the residues            */
+         minDistSq = DISTSQ(res1, res2);
+
+         /* Step through atoms in first residue                         */
+         for(atom1=res1; atom1!=res1Next; NEXT(atom1))
+         {
+            /* Step through atoms in second residue to find 
+               the minimum distance between the two residues
+            */
+            for(atom2=res2; atom2!=res2Next; NEXT(atom2))
+            {
+               REAL dSq = DISTSQ(atom1, atom2);
+               if(dSq < minDistSq)
+               {
+                  minDistSq = dSq;
+               }
+            }
+         }
+
+         StoreData(hashTable, res1, res2, sqrt(minDistSq));
       }
    }
-   
 }
 
 
+/************************************************************************/
+void StoreData(HASHTABLE *hashTable, PDB *res1, PDB *res2, REAL dist)
+{
+   RESPAIR *rp = NULL;
+   char resID1[MAXLABEL], resID2[MAXLABEL], resPair[MAXLABEL*2];
+   
+   MAKERESID(resID1, res1);
+   MAKERESID(resID2, res2);
+   sprintf(resPair, "%s-%s", resID1, resID2);
+   
+   /* This key not in the hash so create it */
+   if(!blHashKeyDefined(hashTable, resPair))
+   {
+      if((rp = (RESPAIR *)malloc(sizeof(RESPAIR))) == NULL)
+      {
+         fprintf(stderr, "Error: no memory for RESPAIR data\n");
+         exit(1);
+      }
 
+      rp->sx   = 0.0;
+      rp->sxsq = 0.0;
+      rp->nval = 0;
+
+      blSetHashValuePointer(hashTable, resPair, (BPTR)rp);
+   }
+   else
+   {
+      rp = (RESPAIR *)blGetHashValuePointer(hashTable, resPair);
+      if(rp == NULL)
+      {
+         fprintf(stderr, "Error: internal Hash confused!\n");
+         exit(1);
+      }
+   }
+   
+   blCalcExtSD(dist, 0, &(rp->sx), &(rp->sxsq), &(rp->nval), NULL, NULL);
+}
+
+
+/************************************************************************/
 PDB *ReduceAtomList(PDB *pdb, int atomTypes)
 {
    PDB  *reduced;
    char *sel[40];
+   int  natoms;
    
    switch(atomTypes)
    {
-   case ATOMTYPES_ALL:
+   case ATOMS_ALL:
       return(pdb);
       break;
-   case ATOMTYPES_CA:
+   case ATOMS_CA:
       SELECT(sel[0],"CA  ");
       if(sel[0] == NULL) return(NULL);
-      reduced = SelectAtomsPDB(pdb, 1, sel, &natoms);
+      reduced = blSelectAtomsPDBAsCopy(pdb, 1, sel, &natoms);
       FREELIST(pdb, PDB);
       return(reduced);
       break;
-   case ATOMTYPES_SC:
+   case ATOMS_SC:
       SELECT(sel[0], "CB  ");
       SELECT(sel[1], "CD  ");
       SELECT(sel[2], "CD1 ");
@@ -365,7 +449,7 @@ PDB *ReduceAtomList(PDB *pdb, int atomTypes)
       SELECT(sel[30],"SD  ");
       SELECT(sel[31],"SG  ");
       if(sel[31] == NULL) return(NULL);
-      reduced = SelectAtomsPDB(pdb, 32, sel, &natoms);
+      reduced = blSelectAtomsPDBAsCopy(pdb, 32, sel, &natoms);
       FREELIST(pdb, PDB);
       return(reduced);
       break;
@@ -378,143 +462,43 @@ PDB *ReduceAtomList(PDB *pdb, int atomTypes)
 
 
 
-
 /************************************************************************/
-/*>BOOL ProcessPDB(PDB *pdb, int nrespairs)
-   ----------------------------------------
-   Does the main work of handling a PDB linked list and getting the
-   distances then calling the code ro store them.
-
-   01.04.09 Original   By: ACRM
-*/
-BOOL ProcessPDB(PDB *pdb, int nrespairs)
-{
-   REAL d;
-   PDB *p, *q;
-   
-   for(p=pdb; p!=NULL; NEXT(p))
-   {
-      for(q=pdb; q!=NULL; NEXT(q))
-      {
-         
-         if(p==q)
-         {
-            d = (REAL)0.0;
-         }
-         else
-         {
-            d = DIST(p, q);
-         }
-         if(!StoreData(p->chain[0], p->resnum, p->insert[0],
-                       q->chain[0], q->resnum, q->insert[0],
-                       d, nrespairs))
-         {
-            return(FALSE);
-         }
-      }
-   }
-   return(TRUE);
-}
-
-
-/************************************************************************/
-/*>BOOL StoreData(char chain1, int res1, char ins1,
-                  char chain2, int res2, char ins2,
-                  REAL d, int nrespairs)
-   ------------------------------------------------
-   Takes two residue specifications. Calls the routine to find an index
-   by which to store the data for mean and SD calculation and then stores 
-   it.
-
-   01.04.09 Original   By: ACRM
-*/
-BOOL StoreData(char chain1, int res1, char ins1,
-               char chain2, int res2, char ins2,
-               REAL d, int nrespairs)
-{
-   char resids[32];
-   int  i;
-   
-   sprintf(resids, "%c%d%c %c%d%c", 
-           chain1, res1, ins1,
-           chain2, res2, ins2);
-   i = LookUpString(resids, nrespairs);
-   if(i==(-1))
-   {
-      return(FALSE);
-   }
-   
-   CalcExtSD(d, 0, &gSx[i], &gSxSq[i], &gNVal[i], NULL, NULL);
-   return(TRUE);
-}
-
-
-/************************************************************************/
-/*>int LookUpString(char *string, int tablesize)
-   ---------------------------------------------
-   A very-crude string indexing function. Simply looks in the table of
-   strings to see if it is there already - if so returns the index for
-   the string. If not, then it adds it onto the end of the table and
-   returns its index.
-
-   Really this should be replaced by some sensible and clever hashing
-   function!
-
-   01.04.09 Original   By: ACRM
-*/
-int LookUpString(char *string, int tablesize)
-{
-   int i;
-   int l;
-   l = strlen(string);
-   
-   /* See if string is already in the table                             */
-   for(i=0; i<gNStrings; i++)
-   {
-      if(!strncmp(gStrings[i], string, l))
-      {
-#ifdef DEBUG
-         fprintf(stderr,"DEBUG: Found in table: '%s' (%d)\n", string, i);
-#endif
-         return(i);
-      }
-   }
-   /* If not, then add it to the table                                  */
-   if(gNStrings < tablesize)
-   {
-      i=gNStrings++;
-#ifdef DEBUG
-      fprintf(stderr,"DEBUG: Added to table: '%s' (%d)\n", string, i);
-#endif
-      strncpy(gStrings[i], string, l+1);
-      return(i);
-   }
-   
-   return(-1);
-}
-
-
-/************************************************************************/
-/*>void DisplayResults(FILE *out)
-   ------------------------------
+/*>void DisplayResults(FILE *out, HASHTABLE *hashTable)
+   -----------------------------------------------------
    Display the results. Run through each indexed location and calculate 
    the mean and standard deviation then print the residue IDs with these
    values.
 
    01.04.09 Original   By: ACRM
 */
-void DisplayResults(FILE *out)
+void DisplayResults(FILE *out, HASHTABLE *hashTable)
 {
+   char **keys = NULL;
    int  i;
    REAL mean, 
         sd;
 
-   for(i=0; i<gNStrings; i++)
+
+   keys = blGetHashKeyList(hashTable);
+   
+   for(i=0; keys[i] != NULL; i++)
    {
-      CalcExtSD((REAL)0.0, 1, 
-                &gSx[i], &gSxSq[i], &gNVal[i], &mean, &sd);
-      fprintf(out,"%s %6.3f %6.3f\n", 
-              gStrings[i], mean, sd);
+      RESPAIR *rp;
+      char    res1[MAXLABEL],
+              res2[MAXLABEL],
+              *chp;
+      
+      rp = (RESPAIR *)blGetHashValuePointer(hashTable, keys[i]);
+
+      strncpy(res1, keys[i], MAXLABEL);
+      TERMAT(res1, '-');
+      chp = strchr(keys[i], '-');
+      strncpy(res2, chp+1, MAXLABEL);
+      
+      blCalcExtSD((REAL)0.0, 1, 
+                  &(rp->sx), &(rp->sxsq), &(rp->nval), &mean, &sd);
+      fprintf(out,"%s %s %6.3f %6.3f\n", 
+              res1, res2, mean, sd);
    }            
 }
 
@@ -527,28 +511,26 @@ void DisplayResults(FILE *out)
    01.04.09 Original   By: ACRM
    06.04.09 V1.1
    30.11.16 V1.2
+   01.12.16 V2.0
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nDistMat V1.2 (c) 2009, Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"\nDistMat V2.0 (c) 2009-2016, Dr. Andrew C.R. Martin, \
 UCL\n");
 
-   fprintf(stderr,"\nUsage: distmat [-n numchain] [-m numres] \
-[input [output]]\n");
-   fprintf(stderr,"       -n Specify max number of chains to keep \
-(default: %d)\n", DEF_NCHAINS);
-   fprintf(stderr,"       -m Specify max number of residues in PDB file \
-(default: %d)\n", DEF_MAXRES);
-   fprintf(stderr,"I/O Through stdin/stdout if not specified\n");
+   fprintf(stderr,"\nUsage: distmat [-p][-c][-a][-s] [input [output]]\n");
+   fprintf(stderr,"       -p Input is a single PDB file instead \
+of a file of files\n");
+   fprintf(stderr,"       -c Only look at CAs (default)\n");
+   fprintf(stderr,"       -a Look at all atoms\n");
+   fprintf(stderr,"       -s Look at sidechain atoms\n");
+   fprintf(stderr,"\nI/O Through stdin/stdout if not specified\n");
 
-   fprintf(stderr,"\nDistMat analyses inter-CA distances in the first \
-'numchain' chains\n");
-   fprintf(stderr,"(default %d) of a PDB file containing at most \
-'numres' residues\n", DEF_MAXRES);
-   fprintf(stderr,"(default %d) in total across the chains. Defaults \
-are designed for\n", DEF_NCHAINS);
-   fprintf(stderr,"analyzing antibodies.\n");
+   fprintf(stderr,"\nDistMat analyses inter-CA distances in one or \
+more PDB files\n");
 
-   fprintf(stderr,"\nThe input file simply contains a list of the PDB \
-files to be processed.\n\n");
+   fprintf(stderr,"\nThe default input file simply contains a list of \
+the PDB files to be processed.\n");
+   fprintf(stderr,"If -p is specified the input is a single PDB \
+file.\n\n");
 }
