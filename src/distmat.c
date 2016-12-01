@@ -1,14 +1,14 @@
 /*************************************************************************
 
-   Program:    DistMat
-   File:       distmat.c
+   Program:    distancematric
+   File:       distancematrix.c
    
-   Version:    V1.2
-   Date:       30.11.16
+   Version:    V1.0
+   Date:       01.12.16
    Function:   Calculate inter-CA distances on a set of common-labelled
                PDB files
    
-   Copyright:  (c) UCL, Dr. Andrew C. R. Martin 2009-2016
+   Copyright:  (c) UCL, Dr. Andrew C. R. Martin 2016
    Author:     Dr. Andrew C. R. Martin
    Address:    Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -52,10 +52,7 @@
 
    Revision History:
    =================
-   V1.0   01.04.09  Original
-   V1.1   06.04.09  Added -n and -m options
-   V1.2   30.11.16  Minor cleanup for bioptools - Added option to take
-                    a single PDB file as input rather than a set (-p)
+   V1.0   01.12.16  Original - Based loosely on distmat.c
 
 *************************************************************************/
 /* #define DEBUG 1 */
@@ -109,6 +106,9 @@ BOOL StoreData(char chain1, int res1, char ins1,
                REAL d, int nrespairs);
 int  LookUpString(char *string, int tablesize);
 
+#define ATOMS_CA  0
+#define ATOMS_ALL 1
+#define ATOMS_SC  2
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -120,34 +120,36 @@ int  LookUpString(char *string, int tablesize);
 */
 int main(int argc, char **argv)
 {
-   char infile[MAXBUFF],
-        outfile[MAXBUFF];
-   FILE *in  = stdin,
-        *out = stdout;
-   int  nchains     = DEF_NCHAINS;
-   int  maxrespairs = DEF_MAXRES * DEF_MAXRES;
-   BOOL singleFile  = FALSE;
+   char  infile[MAXBUFF],
+         outfile[MAXBUFF];
+   FILE  *in  = stdin,
+         *out = stdout;
+   BOOL  singleFile  = FALSE;
+   ULONG hashSize    = DEF_MAXRES * DEF_MAXRES;
+   int   atomTypes   = ATOMS_CA;
+   
 
-   if(ParseCmdLine(argc, argv, infile, outfile, &nchains, &maxrespairs,
-                   &singleFile))
+   if(ParseCmdLine(argc, argv, infile, outfile, &singleFile, &atomTypes))
    {
       if(OpenStdFiles(infile, outfile, &in, &out))
       {
-         if(AllocateMemory(maxrespairs))
+         if(hashTable = blInitializeHash(hashSize))
          {
-            if(HandleInput(in, out, maxrespairs, nchains, singleFile))
+            if(HandleInput(in, out, singleFile, hashTable, atomTypes))
             {
-               DisplayResults(out);
+               DisplayResults(out, hashTable);
             }
-            FreeMemory(maxrespairs);
          }
          else
          {
-            /* Since Allocate may have partially succeed                */
-            FreeMemory(maxrespairs);
-            fprintf(stderr,"ERROR: Unable to allocate memory.\n");
+            fprintf(stderr,"ERROR: Unable to initialize hash table.\n");
             return(1);
          }
+      }
+      else
+      {
+         fprintf(stderr,"ERROR: Unable to open files.\n");
+         return(1);
       }
    }
    else
@@ -161,14 +163,12 @@ int main(int argc, char **argv)
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                     int *nchains, int *maxrespairs, BOOL *singleFile)
+                     BOOL *singleFile, int *atomTypes)
    ---------------------------------------------------------------------
    Input:   int    argc         Argument count
             char   **argv       Argument array
    Output:  char   *infile      Input file (or blank string)
             char   *outfile     Output file (or blank string)
-            int    *nchains     Number of chains to keep
-            int    *maxrespairs Max number of res pairs to handle
             BOOL   *singleFile  Input is a single PDB file instead of
                                 a list
    Returns: BOOL                Success?
@@ -180,14 +180,12 @@ int main(int argc, char **argv)
    30.11.16 Added -p
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  int *nchains, int *maxrespairs, BOOL *singleFile)
+                  BOOL *singleFile, int *atomTypes)
 {
    argc--;
    argv++;
 
    infile[0]    = outfile[0] = '\0';
-   *nchains     = DEF_NCHAINS;
-   *maxrespairs = DEF_MAXRES * DEF_MAXRES;
    *singleFile  = FALSE;
    
    
@@ -197,25 +195,17 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
       {
          switch(argv[0][1])
          {
-         case 'n':
-            argv++;
-            argc--;
-            if((argc < 0) || (!sscanf(argv[0], "%d", nchains)))
-            {
-               return(FALSE);
-            }
-            break;
-         case 'm':
-            argv++;
-            argc--;
-            if((argc < 0) || (!sscanf(argv[0], "%d", maxrespairs)))
-            {
-               return(FALSE);
-            }
-            *maxrespairs = (*maxrespairs)*(*maxrespairs);
-            break;
          case 'p':
             *singleFile = TRUE;
+            break;
+         case 'c':
+            *atomTypes = ATOMTYPES_CA;
+            break;
+         case 'a':
+            *atomTypes = ATOMTYPES_ALL;
+            break;
+         case 's':
+            *atomTypes = ATOMTYPES_SC;
             break;
          default:
             return(FALSE);
@@ -248,8 +238,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
 
 /************************************************************************/
-/*>BOOL HandleInput(FILE *in, FILE *out, int nrespairs, int maxchain,
-                    BOOL singleFile)
+/*>BOOL HandleInput(FILE *in, FILE *out, BOOL singleFile, HASHTABLE *hashTable)
    ------------------------------------------------------------------
    Handle the input file - extract the PDB filenames and process each 
    in turn
@@ -258,8 +247,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    06.04.09 Handles maxchain
    30.11.16 Added singleFile
 */
-BOOL HandleInput(FILE *in, FILE *out, int nrespairs, int maxchain,
-                 BOOL singleFile)
+BOOL HandleInput(FILE *in, FILE *out, BOOL singleFile, HASHTABLE *hashTable, int atomTypes)
 {
    char filename[MAXBUFF];
    
@@ -267,45 +255,25 @@ BOOL HandleInput(FILE *in, FILE *out, int nrespairs, int maxchain,
    
    if(singleFile)
    {
-      if((pdb = GetPDBFp(in, maxchain))==NULL)
-      {
-         fprintf(stderr,"WARNING: Unable to read structure\n");
-      }
-      else
-      {
-         if(!ProcessPDB(pdb, nrespairs))
-         {
-            fprintf(stderr,"ERROR: Unable to store all residue label pairs. \
-Use -m to increase maxres\n");
-            return(FALSE);
-         }
-         
-         FREELIST(pdb, PDB);
-      }
-
+      ProcessFile(in, hashTable, atomTypes);
    }
    else
    {
       while(fgets(filename,MAXBUFF,in))
       {
+         FILE *fp;
+         
          TERMINATE(filename);
          
-         fprintf(stderr,"INFO: Processing file: %s\n",filename);
-         
-         if((pdb = GetPDB(filename, maxchain))==NULL)
+         if(fp = fopen(filename,"r"))
          {
-            fprintf(stderr,"WARNING: Unable to read structure\n");
+            fprintf(stderr,"INFO: Processing file: %s\n",filename);
+            ProcessFile(fp, hashTable);
+            fclose(fp);
          }
          else
          {
-            if(!ProcessPDB(pdb, nrespairs))
-            {
-               fprintf(stderr,"ERROR: Unable to store all residue label pairs. \
-Use -m to increase maxres\n");
-               return(FALSE);
-            }
-            
-            FREELIST(pdb, PDB);
+            fprintf(stderr,"WARNING: Unable to read file: %s\n", filename);
          }
       }
    }
@@ -313,194 +281,102 @@ Use -m to increase maxres\n");
    return(TRUE);
 }
 
-
-/************************************************************************/
-/*>PDB *GetPDB(char *filename, int maxchain)
-   -----------------------------------------
-   Returns a PDB linked list for a PDB file of specified name. The 
-   resulting linked list contains only the CAs of the first maxchain 
-   chains
-
-   01.04.09 Original    By: ACRM
-   03.04.09 Rejects light or heavy chain dimers
-   06.04.09 maxchain now a parameter
-   
-*/
-PDB *GetPDB(char *filename, int maxchain)
+void ProcessFile(FILE *fp, HASHTABLE *hashTable, int atomTypes)
 {
-   PDB  *pdb;
-   FILE *fp;
+   PDB *pdb;
+   int natoms;
    
-   if((fp=fopen(filename,"r"))==NULL)
+   if((pdb = blReadPDBAtoms(fp, &natoms))!=NULL)
    {
-      return(NULL);
+      pdb = ReduceAtomList(pdb, atomTypes);
+      ProcessPDB(pdb, hashTable);
+      FREELIST(pdb, PDB);
+   }
+   else
+   {
+      fprintf(stderr,"Error: No memory to read PDB file\n");
+      exit(1);
+   }
+}
+
+void ProcessPDB(PDB *pdb, HASHTABLE hashTable)
+{
+   PDB *p, *q;
+   for(p=pdb; p!=NULL; NEXT(p))
+   {
+      for(q=pdb; q!=NULL; NEXT(q))
+      {
+         
+      }
    }
    
-   pdb = GetPDBFp(fp, maxchain);
-   fclose(fp);
+}
+
+
+
+PDB *ReduceAtomList(PDB *pdb, int atomTypes)
+{
+   PDB  *reduced;
+   char *sel[40];
+   
+   switch(atomTypes)
+   {
+   case ATOMTYPES_ALL:
+      return(pdb);
+      break;
+   case ATOMTYPES_CA:
+      SELECT(sel[0],"CA  ");
+      if(sel[0] == NULL) return(NULL);
+      reduced = SelectAtomsPDB(pdb, 1, sel, &natoms);
+      FREELIST(pdb, PDB);
+      return(reduced);
+      break;
+   case ATOMTYPES_SC:
+      SELECT(sel[0], "CB  ");
+      SELECT(sel[1], "CD  ");
+      SELECT(sel[2], "CD1 ");
+      SELECT(sel[3], "CD2 ");
+      SELECT(sel[4], "CE  ");
+      SELECT(sel[5], "CE1 ");
+      SELECT(sel[6], "CE2 ");
+      SELECT(sel[7], "CE3 ");
+      SELECT(sel[8], "CG  ");
+      SELECT(sel[9], "CG1 ");
+      SELECT(sel[10],"CG2 ");
+      SELECT(sel[11],"CH2 ");
+      SELECT(sel[12],"CZ  ");
+      SELECT(sel[13],"CZ2 ");
+      SELECT(sel[14],"CZ3 ");
+      SELECT(sel[15],"ND1 ");
+      SELECT(sel[16],"ND2 ");
+      SELECT(sel[17],"NE  ");
+      SELECT(sel[18],"NE1 ");
+      SELECT(sel[19],"NE2 ");
+      SELECT(sel[20],"NH1 ");
+      SELECT(sel[21],"NH2 ");
+      SELECT(sel[22],"NZ  ");
+      SELECT(sel[23],"OD1 ");
+      SELECT(sel[24],"OD2 ");
+      SELECT(sel[25],"OE1 ");
+      SELECT(sel[26],"OE2 ");
+      SELECT(sel[27],"OG  ");
+      SELECT(sel[28],"OG1 ");
+      SELECT(sel[29],"OH  ");
+      SELECT(sel[30],"SD  ");
+      SELECT(sel[31],"SG  ");
+      if(sel[31] == NULL) return(NULL);
+      reduced = SelectAtomsPDB(pdb, 32, sel, &natoms);
+      FREELIST(pdb, PDB);
+      return(reduced);
+      break;
+   }
    return(pdb);
 }
 
 
-/************************************************************************/
-/*>PDB *GetPDBFp(FILE *fp, int maxchain)
-   -------------------------------------
-   Returns a PDB linked list for a PDB file from its file pointer. The 
-   resulting linked list contains only the first maxchain chains
-
-   01.04.09 Original    By: ACRM
-   03.04.09 Rejects light or heavy chain dimers
-   06.04.09 maxchain now a parameter
-   30.11.16 Refactored from GetPDB()
-*/
-PDB *GetPDBFp(FILE *fp, int maxchain)
-{
-   PDB  *pdb, *capdb, *prev, *p;
-   int  natoms;
-   char *sel[2];
-   int  nchain, lastresnum;
-   char lastchain;
-   
-   if((pdb=ReadPDBAtoms(fp,&natoms))==NULL)
-   {
-      return(NULL);
-   }
-
-   /* Select out only the CAs                                           */
-   SELECT(sel[0],"CA  ");
-   if(sel[0] == NULL)
-      return(NULL);
-
-   /* capdb will be NULL if routine fails                               */
-   capdb = SelectAtomsPDB(pdb, 1, sel, &natoms);
-   FREELIST(pdb, PDB);
-   if(capdb == NULL)
-   {
-      return(NULL);
-   }
-
-   /* See if there are two identically labelled chains following eachother
-      as in a light chain dimer
-   */
-   lastresnum = capdb->resnum;
-   lastchain  = capdb->chain[0];
-   for(p=capdb; p!=NULL; NEXT(p))
-   {
-      if((p->resnum < lastresnum) && (p->chain[0] == lastchain))
-      {
-         fprintf(stderr,"WARNING: File discarded as it has two \
-identically labelled chains\n");
-         FREELIST(capdb, PDB);
-         return(NULL);
-      }
-      
-      lastresnum = p->resnum;
-      lastchain  = p->chain[0];
-   }
-   
-
-   /* If the file contains more than one pair of light and heavy chains,
-      terminate after the first pair
-   */
-   nchain = 1;
-   lastchain = capdb->chain[0];
-   prev = NULL;
-   for(p=capdb; p!=NULL; NEXT(p))
-   {
-      if(p->chain[0] != lastchain)
-      {
-         if(++nchain > maxchain)
-         {
-            fprintf(stderr, "WARNING: Discarded additional chains\n");
-            if(prev!=NULL)
-            {
-               prev->next = NULL;
-            }
-            FREELIST(p, PDB);
-            return(capdb);
-         }
-         lastchain = p->chain[0];
-      }
-      prev = p;
-   }
-
-   return(capdb);
-}
 
 
-/************************************************************************/
-/*>BOOL AllocateMemory(int nrespairs)
-   ----------------------------------
-   Allocates global memory depending on the number of residue pairs which
-   have been requested.
 
-   01.04.09 Original    By: ACRM
-*/
-BOOL AllocateMemory(int nrespairs)
-{
-   int i;
-   
-   /* Allocate space for storing the `constraints' and pointers         */
-   if((gSx=(REAL *)malloc(nrespairs * sizeof(REAL)))==NULL)
-      return(FALSE);
-   for(i=0; i<nrespairs; i++)
-      gSx[i] = (REAL)0.0;
-   
-   if((gSxSq=(REAL *)malloc(nrespairs * sizeof(REAL)))==NULL)
-      return(FALSE);
-   for(i=0; i<nrespairs; i++)
-      gSxSq[i] = (REAL)0.0;
-
-   if((gNVal=(int *)malloc(nrespairs * sizeof(int)))==NULL)
-      return(FALSE);
-   for(i=0; i<nrespairs; i++)
-      gNVal[i] = (REAL)0.0;
-
-   if((gStrings=(char **)malloc(nrespairs * sizeof(char *)))==NULL)
-      return(FALSE);
-   for(i=0; i<nrespairs; i++)
-   {
-      gStrings[i] = NULL;
-   }
-   for(i=0; i<nrespairs; i++)
-   {
-      /* Allocate strings for each                                      */
-      if((gStrings[i]=(char *)malloc(MAXLABEL * sizeof(char)))==NULL)
-         return(FALSE);
-   }
-
-   return(TRUE);
-}
-
-
-/************************************************************************/
-/*>void FreeMemory(void)
-   ---------------------
-   Free all globally allocated memory
-
-   01.04.09 Original    By: ACRM
-*/
-void FreeMemory(int nrespairs)
-{
-   int i;
-   
-   if(gSx!=NULL)   free(gSx);
-   if(gSxSq!=NULL) free(gSxSq);
-   if(gNVal!=NULL) free(gNVal);
-   if(gStrings!=NULL)
-   {
-      for(i=0; i<nrespairs; i++)
-      {
-         if(gStrings[i]!=NULL) free(gStrings[i]);
-         gStrings[i] = NULL;
-      }
-      free(gStrings);
-   }
-   gSx=NULL;
-   gSxSq=NULL;
-   gNVal=NULL;
-   gStrings=NULL;
-}
 
 
 /************************************************************************/
