@@ -3,12 +3,12 @@
    Program:    DistMat
    File:       distmat.c
    
-   Version:    V1.1
-   Date:       06.04.09
+   Version:    V1.2
+   Date:       30.11.16
    Function:   Calculate inter-CA distances on a set of common-labelled
-               antibody PDB files
+               PDB files
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 2009, UCL
+   Copyright:  (c) UCL, Dr. Andrew C. R. Martin 2009-2016
    Author:     Dr. Andrew C. R. Martin
    Address:    Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -54,6 +54,8 @@
    =================
    V1.0   01.04.09  Original
    V1.1   06.04.09  Added -n and -m options
+   V1.2   30.11.16  Minor cleanup for bioptools - Added option to take
+                    a single PDB file as input rather than a set (-p)
 
 *************************************************************************/
 /* #define DEBUG 1 */
@@ -92,9 +94,11 @@ char **gStrings = NULL;
 */
 int  main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  int *nchains, int *maxrespairs);
-BOOL HandleInput(FILE *in, FILE *out, int nrespairs, int maxchain);
+                  int *nchains, int *maxrespairs, BOOL *singleFile);
+BOOL HandleInput(FILE *in, FILE *out, int nrespairs, int maxchain,
+                 BOOL singleFile);
 PDB *GetPDB(char *filename, int maxchain);
+PDB *GetPDBFp(FILE *fp, int maxchain);
 BOOL AllocateMemory(int nrespairs);
 void FreeMemory(int nrespairs);
 BOOL ProcessPDB(PDB *pdb, int nrespairs);
@@ -120,17 +124,18 @@ int main(int argc, char **argv)
         outfile[MAXBUFF];
    FILE *in  = stdin,
         *out = stdout;
-   int  nchains = DEF_NCHAINS;
+   int  nchains     = DEF_NCHAINS;
    int  maxrespairs = DEF_MAXRES * DEF_MAXRES;
+   BOOL singleFile  = FALSE;
 
-
-   if(ParseCmdLine(argc, argv, infile, outfile, &nchains, &maxrespairs))
+   if(ParseCmdLine(argc, argv, infile, outfile, &nchains, &maxrespairs,
+                   &singleFile))
    {
       if(OpenStdFiles(infile, outfile, &in, &out))
       {
          if(AllocateMemory(maxrespairs))
          {
-            if(HandleInput(in, out, maxrespairs, nchains))
+            if(HandleInput(in, out, maxrespairs, nchains, singleFile))
             {
                DisplayResults(out);
             }
@@ -156,7 +161,7 @@ int main(int argc, char **argv)
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                     int *nchains, int *maxrespairs)
+                     int *nchains, int *maxrespairs, BOOL *singleFile)
    ---------------------------------------------------------------------
    Input:   int    argc         Argument count
             char   **argv       Argument array
@@ -164,22 +169,27 @@ int main(int argc, char **argv)
             char   *outfile     Output file (or blank string)
             int    *nchains     Number of chains to keep
             int    *maxrespairs Max number of res pairs to handle
+            BOOL   *singleFile  Input is a single PDB file instead of
+                                a list
    Returns: BOOL                Success?
 
    Parse the command line
 
    01.04.09 Original    By: ACRM
    06.04.09 Added -n and -m and their parameters
+   30.11.16 Added -p
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  int *nchains, int *maxrespairs)
+                  int *nchains, int *maxrespairs, BOOL *singleFile)
 {
    argc--;
    argv++;
 
-   infile[0] = outfile[0] = '\0';
-   *nchains = DEF_NCHAINS;
+   infile[0]    = outfile[0] = '\0';
+   *nchains     = DEF_NCHAINS;
    *maxrespairs = DEF_MAXRES * DEF_MAXRES;
+   *singleFile  = FALSE;
+   
    
    while(argc)
    {
@@ -203,6 +213,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                return(FALSE);
             }
             *maxrespairs = (*maxrespairs)*(*maxrespairs);
+            break;
+         case 'p':
+            *singleFile = TRUE;
             break;
          default:
             return(FALSE);
@@ -235,30 +248,26 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
 
 /************************************************************************/
-/*>BOOL HandleInput(FILE *in, FILE *out, int nrespairs, int maxchain)
+/*>BOOL HandleInput(FILE *in, FILE *out, int nrespairs, int maxchain,
+                    BOOL singleFile)
    ------------------------------------------------------------------
    Handle the input file - extract the PDB filenames and process each 
    in turn
 
    01.04.09 Original   By: ACRM
    06.04.09 Handles maxchain
+   30.11.16 Added singleFile
 */
-BOOL HandleInput(FILE *in, FILE *out, int nrespairs, int maxchain)
+BOOL HandleInput(FILE *in, FILE *out, int nrespairs, int maxchain,
+                 BOOL singleFile)
 {
    char filename[MAXBUFF];
    
    PDB  *pdb;
-   BOOL InLoop;
    
-   InLoop = TRUE;
-   
-   while(fgets(filename,MAXBUFF,in))
+   if(singleFile)
    {
-      TERMINATE(filename);
-
-      fprintf(stderr,"INFO: Processing file: %s\n",filename);
-      
-      if((pdb = GetPDB(filename, maxchain))==NULL)
+      if((pdb = GetPDBFp(in, maxchain))==NULL)
       {
          fprintf(stderr,"WARNING: Unable to read structure\n");
       }
@@ -273,7 +282,34 @@ Use -m to increase maxres\n");
          
          FREELIST(pdb, PDB);
       }
+
    }
+   else
+   {
+      while(fgets(filename,MAXBUFF,in))
+      {
+         TERMINATE(filename);
+         
+         fprintf(stderr,"INFO: Processing file: %s\n",filename);
+         
+         if((pdb = GetPDB(filename, maxchain))==NULL)
+         {
+            fprintf(stderr,"WARNING: Unable to read structure\n");
+         }
+         else
+         {
+            if(!ProcessPDB(pdb, nrespairs))
+            {
+               fprintf(stderr,"ERROR: Unable to store all residue label pairs. \
+Use -m to increase maxres\n");
+               return(FALSE);
+            }
+            
+            FREELIST(pdb, PDB);
+         }
+      }
+   }
+   
    return(TRUE);
 }
 
@@ -288,28 +324,47 @@ Use -m to increase maxres\n");
    01.04.09 Original    By: ACRM
    03.04.09 Rejects light or heavy chain dimers
    06.04.09 maxchain now a parameter
+   
 */
 PDB *GetPDB(char *filename, int maxchain)
 {
-   PDB  *pdb, *capdb, *prev, *p;
+   PDB  *pdb;
    FILE *fp;
-   int  natoms;
-   char *sel[2];
-   int  nchain, lastresnum;
-   char lastchain;
    
    if((fp=fopen(filename,"r"))==NULL)
    {
       return(NULL);
    }
    
+   pdb = GetPDBFp(fp, maxchain);
+   fclose(fp);
+   return(pdb);
+}
+
+
+/************************************************************************/
+/*>PDB *GetPDBFp(FILE *fp, int maxchain)
+   -------------------------------------
+   Returns a PDB linked list for a PDB file from its file pointer. The 
+   resulting linked list contains only the first maxchain chains
+
+   01.04.09 Original    By: ACRM
+   03.04.09 Rejects light or heavy chain dimers
+   06.04.09 maxchain now a parameter
+   30.11.16 Refactored from GetPDB()
+*/
+PDB *GetPDBFp(FILE *fp, int maxchain)
+{
+   PDB  *pdb, *capdb, *prev, *p;
+   int  natoms;
+   char *sel[2];
+   int  nchain, lastresnum;
+   char lastchain;
+   
    if((pdb=ReadPDBAtoms(fp,&natoms))==NULL)
    {
-      fclose(fp);
       return(NULL);
    }
-
-   fclose(fp);
 
    /* Select out only the CAs                                           */
    SELECT(sel[0],"CA  ");
@@ -595,10 +650,11 @@ void DisplayResults(FILE *out)
 
    01.04.09 Original   By: ACRM
    06.04.09 V1.1
+   30.11.16 V1.2
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nDistMat V1.1 (c) 2009, Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"\nDistMat V1.2 (c) 2009, Dr. Andrew C.R. Martin, \
 UCL\n");
 
    fprintf(stderr,"\nUsage: distmat [-n numchain] [-m numres] \
