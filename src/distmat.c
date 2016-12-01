@@ -79,17 +79,18 @@
 /************************************************************************/
 /* Defines and macros
 */
-#define MAXBUFF     160
-#define DEF_MAXRES  300     /* Approximate number of residues in a file.
+#define MAXCHAINLABEL 8
+#define MAXBUFF       160
+#define DEF_MAXRES    300   /* Approximate number of residues in a file.
                                This is simply used to initialize the hash
                                table. Increasing it will increase 
                                efficiency for large structures, but waste
                                memory for small ones
                             */
-#define MAXLABEL    16      /* ResidueLabel size                        */
-#define ATOMS_CA    0       /* Selection types                          */
-#define ATOMS_ALL   1
-#define ATOMS_SC    2
+#define MAXLABEL      16    /* ResidueLabel size                        */
+#define ATOMS_CA      0     /* Selection types                          */
+#define ATOMS_ALL     1
+#define ATOMS_SC      2
 
 typedef struct respair
 {
@@ -108,23 +109,28 @@ typedef struct respair
 */
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  BOOL *singleFile, int *atomTypes);
-BOOL HandleInput(FILE *in, FILE *out, BOOL singleFile, 
-                 HASHTABLE *hashTable, int atomTypes);
-void ProcessFile(FILE *fp, HASHTABLE *hashTable, int atomTypes);
+                  BOOL *singleFile, int *atomTypes, char *chains);
+void HandleInput(FILE *in, FILE *out, BOOL singleFile, 
+                 HASHTABLE *hashTable, int atomTypes, char *chains);
+void ProcessFile(FILE *fp, HASHTABLE *hashTable, int atomTypes,
+                 char **chainList);
 void ProcessPDB(PDB *pdb, HASHTABLE *hashTable);
 void StoreData(HASHTABLE *hashTable, PDB *res1, PDB *res2, REAL dist);
 PDB *ReduceAtomList(PDB *pdb, int atomTypes);
 void DisplayResults(FILE *out, HASHTABLE *hashTable);
+PDB *FindEndOfChain(PDB *chain);
+BOOL ValidChain(PDB *pdb, char **chains);
+PDB *SelectPDBChains(PDB *pdb, char **chains);
 void Usage(void);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
    -------------------------------
+*//**
    Main program for distance analysis
 
-   01.04.09 Original   By: ACRM
-   06.04.09 Added -n and -m parameters
+-  01.04.09 Original   By: ACRM
+-  06.04.09 Added -n and -m parameters
 */
 int main(int argc, char **argv)
 {
@@ -136,18 +142,19 @@ int main(int argc, char **argv)
    ULONG hashSize    = DEF_MAXRES * DEF_MAXRES;
    int   atomTypes   = ATOMS_CA;
    HASHTABLE *hashTable = NULL;
-   
+   char      chains[MAXBUFF];
 
-   if(ParseCmdLine(argc, argv, infile, outfile, &singleFile, &atomTypes))
+   chains[0] = '\0';
+
+   if(ParseCmdLine(argc, argv, infile, outfile, &singleFile, &atomTypes,
+                   chains))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
          if((hashTable = blInitializeHash(hashSize))!=NULL)
          {
-            if(HandleInput(in, out, singleFile, hashTable, atomTypes))
-            {
-               DisplayResults(out, hashTable);
-            }
+            HandleInput(in, out, singleFile, hashTable, atomTypes, chains);
+            DisplayResults(out, hashTable);
          }
          else
          {
@@ -172,7 +179,7 @@ int main(int argc, char **argv)
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                     BOOL *singleFile, int *atomTypes)
+                     BOOL *singleFile, int *atomTypes, char *chains)
    ---------------------------------------------------------------------
    Input:   int    argc         Argument count
             char   **argv       Argument array
@@ -180,16 +187,17 @@ int main(int argc, char **argv)
             char   *outfile     Output file (or blank string)
             BOOL   *singleFile  Input is a single PDB file instead of
                                 a list
+            char   *chains      Comma-separated list of chains to keep
    Returns: BOOL                Success?
 
    Parse the command line
 
-   01.04.09 Original    By: ACRM
-   06.04.09 Added -n and -m and their parameters
-   30.11.16 Added -p
+-  01.04.09 Original    By: ACRM
+-  06.04.09 Added -n and -m and their parameters
+-  30.11.16 Added -p
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  BOOL *singleFile, int *atomTypes)
+                  BOOL *singleFile, int *atomTypes, char *chains)
 {
    argc--;
    argv++;
@@ -208,7 +216,10 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             *singleFile = TRUE;
             break;
          case 'c':
-            *atomTypes = ATOMS_CA;
+            argc--;
+            argv++;
+            if(!argc) return(FALSE);
+            strncpy(chains, argv[0], MAXBUFF);
             break;
          case 'a':
             *atomTypes = ATOMS_ALL;
@@ -247,24 +258,46 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
 
 /************************************************************************/
-/*>BOOL HandleInput(FILE *in, FILE *out, BOOL singleFile, 
-                    HASHTABLE *hashTable, int atomTypes)
-   ------------------------------------------------------
-   Handle the input file - extract the PDB filenames and process each 
-   in turn
+/*>void HandleInput(FILE *in, FILE *out, BOOL singleFile, 
+                    HASHTABLE *hashTable, int atomTypes, char *chains)
+   -------------------------------------------------------------------
+*//**
+   \input[in]     in          Input file pointer
+   \input[in]     out         Output file pointer
+   \input[in]     singleFile  Input is a PDB file rather than a file of
+                              files
+   \input[in,out] hashTable   Analysis data for each residue pair
+   \input[in]     atomTypes   Atom types to include
+   \input[in]     chains      Comma separated list of chain names 
+                              (or blank)
 
-   01.04.09 Original   By: ACRM
-   06.04.09 Handles maxchain
-   30.11.16 Added singleFile
+   Handle the input file - extract the PDB filenames and process each 
+   in turn, or just the one file if singleFile is set.
+
+-  01.04.09 Original   By: ACRM
+-  06.04.09 Handles maxchain
+-  30.11.16 Added singleFile
+-  01.12.16 Major rewrite
 */
-BOOL HandleInput(FILE *in, FILE *out, BOOL singleFile, 
-                 HASHTABLE *hashTable, int atomTypes)
+void HandleInput(FILE *in, FILE *out, BOOL singleFile, 
+                 HASHTABLE *hashTable, int atomTypes, char *chains)
 {
    char filename[MAXBUFF];
+   char **chainList = NULL;
    
+   if(chains[0])
+   {
+      if((chainList = blSplitStringOnCommas(chains, MAXCHAINLABEL))==NULL)
+      {
+         fprintf(stderr,"No memory for storing chain labels: %s\n",
+                 chains);
+         exit(1);
+      }
+   }
+
    if(singleFile)
    {
-      ProcessFile(in, hashTable, atomTypes);
+      ProcessFile(in, hashTable, atomTypes, chainList);
    }
    else
    {
@@ -277,7 +310,7 @@ BOOL HandleInput(FILE *in, FILE *out, BOOL singleFile,
          if((fp = fopen(filename,"r"))!=NULL)
          {
             fprintf(stderr,"INFO: Processing file: %s\n",filename);
-            ProcessFile(fp, hashTable, atomTypes);
+            ProcessFile(fp, hashTable, atomTypes, chainList);
             fclose(fp);
          }
          else
@@ -287,13 +320,26 @@ BOOL HandleInput(FILE *in, FILE *out, BOOL singleFile,
          }
       }
    }
-   
-   return(TRUE);
 }
 
 
 /************************************************************************/
-void ProcessFile(FILE *fp, HASHTABLE *hashTable, int atomTypes)
+/*>void ProcessFile(FILE *fp, HASHTABLE *hashTable, int atomTypes, 
+                    char **chainList)
+   ---------------------------------------------------------------
+*//**
+   \param[in]      fp          File pointer for input file
+   \input[in,out]  hashTable   Analysis data for each residue pair
+   \param[in]      atomTypes   Atom types to keep
+   \param[in]      chainList   List of chains to keep (Keep all if NULL)
+
+   Processes an individual PDB file, selecting required atoms and
+   chains if necessary 
+
+-  01.12.16 Original - Complete new version   By: ACRM  
+*/
+void ProcessFile(FILE *fp, HASHTABLE *hashTable, int atomTypes, 
+                 char **chainList)
 {
    PDB *pdb;
    int natoms;
@@ -301,7 +347,12 @@ void ProcessFile(FILE *fp, HASHTABLE *hashTable, int atomTypes)
    if((pdb = blReadPDBAtoms(fp, &natoms))!=NULL)
    {
       pdb = ReduceAtomList(pdb, atomTypes);
-      ProcessPDB(pdb, hashTable);
+      if(chainList)
+      {
+         pdb = SelectPDBChains(pdb, chainList);
+      }
+      if(pdb!=NULL)
+         ProcessPDB(pdb, hashTable);
       FREELIST(pdb, PDB);
    }
    else
@@ -313,6 +364,16 @@ void ProcessFile(FILE *fp, HASHTABLE *hashTable, int atomTypes)
 
 
 /************************************************************************/
+/*>void ProcessPDB(PDB *pdb, HASHTABLE *hashTable)
+   -----------------------------------------------
+*//**
+   \input[in]      pdb        PDB linked list
+   \input[in,out]  hashTable  Analysis data for each residue pair
+
+   Does the actual analysis of a PDB linked list
+
+-  01.12.16 Original - Complete new version   By: ACRM  
+*/
 void ProcessPDB(PDB *pdb, HASHTABLE *hashTable)
 {
    PDB *atom1, *atom2, 
@@ -336,12 +397,16 @@ void ProcessPDB(PDB *pdb, HASHTABLE *hashTable)
          minDistSq = DISTSQ(res1, res2);
 
          /* Step through atoms in first residue                         */
-         for(atom1=res1; atom1!=res1Next; NEXT(atom1))
+         for(atom1=res1;
+             ((atom1!=NULL)&&(atom1!=res1Next));
+             NEXT(atom1))
          {
             /* Step through atoms in second residue to find 
                the minimum distance between the two residues
             */
-            for(atom2=res2; atom2!=res2Next; NEXT(atom2))
+            for(atom2=res2; 
+                ((atom2!=NULL)&&(atom2!=res2Next));
+                 NEXT(atom2))
             {
                REAL dSq = DISTSQ(atom1, atom2);
                if(dSq < minDistSq)
@@ -358,6 +423,20 @@ void ProcessPDB(PDB *pdb, HASHTABLE *hashTable)
 
 
 /************************************************************************/
+/*>void StoreData(HASHTABLE *hashTable, PDB *res1, PDB *res2, REAL dist)
+   ---------------------------------------------------------------------
+*//**
+   \input[in,out]  hashTable   Analysis data for each residue pair
+   \input[in]      res1        First residue PDB pointer
+   \input[in]      res2        Second residue PDB pointer
+   \input[in]      dist        Distance between residues
+
+   Creates a hash key from the two residues, allocates memory for data
+   for this residue pair if needed and store the data in the hash keyed
+   by the residue pair.
+
+-  01.12.16 Original - Complete new version   By: ACRM  
+*/
 void StoreData(HASHTABLE *hashTable, PDB *res1, PDB *res2, REAL dist)
 {
    RESPAIR *rp = NULL;
@@ -384,8 +463,7 @@ void StoreData(HASHTABLE *hashTable, PDB *res1, PDB *res2, REAL dist)
    }
    else
    {
-      rp = (RESPAIR *)blGetHashValuePointer(hashTable, resPair);
-      if(rp == NULL)
+      if((rp=(RESPAIR *)blGetHashValuePointer(hashTable, resPair))==NULL)
       {
          fprintf(stderr, "Error: internal Hash confused!\n");
          exit(1);
@@ -397,6 +475,18 @@ void StoreData(HASHTABLE *hashTable, PDB *res1, PDB *res2, REAL dist)
 
 
 /************************************************************************/
+/*>PDB *ReduceAtomList(PDB *pdb, int atomTypes)
+   --------------------------------------------
+*//**
+   \input[in]   pdb        PDB linked list
+   \input[in]   atomTypes  Atom types to keep
+   \return                 New PDB linked list
+
+   Removes atoms not being analyzed from the linked list. atomTypes is 
+   one of ATOMS_ALL, ATOMS_CA or ATOMS_SC
+
+-  01.12.16 Original - Complete new version   By: ACRM  
+*/
 PDB *ReduceAtomList(PDB *pdb, int atomTypes)
 {
    PDB  *reduced;
@@ -458,18 +548,18 @@ PDB *ReduceAtomList(PDB *pdb, int atomTypes)
 }
 
 
-
-
-
-
 /************************************************************************/
 /*>void DisplayResults(FILE *out, HASHTABLE *hashTable)
    -----------------------------------------------------
+   \input[in]      out         Output file pointer
+   \input[in,out]  hashTable   Analysis data for each residue pair
+
    Display the results. Run through each indexed location and calculate 
    the mean and standard deviation then print the residue IDs with these
    values.
 
-   01.04.09 Original   By: ACRM
+-  01.04.09 Original   By: ACRM
+-  01.12.16 Major rewrite
 */
 void DisplayResults(FILE *out, HASHTABLE *hashTable)
 {
@@ -479,51 +569,158 @@ void DisplayResults(FILE *out, HASHTABLE *hashTable)
         sd;
 
 
-   keys = blGetHashKeyList(hashTable);
-   
-   for(i=0; keys[i] != NULL; i++)
+   if((keys = blGetHashKeyList(hashTable))!=NULL)
    {
-      RESPAIR *rp;
-      char    res1[MAXLABEL],
-              res2[MAXLABEL],
-              *chp;
+      for(i=0; keys[i] != NULL; i++)
+      {
+         RESPAIR *rp;
+         char    res1[MAXLABEL],
+                 res2[MAXLABEL],
+                 *chp;
       
-      rp = (RESPAIR *)blGetHashValuePointer(hashTable, keys[i]);
+         if((rp=(RESPAIR *)blGetHashValuePointer(hashTable,keys[i]))==NULL)
+         {
+            fprintf(stderr, "Error: internal Hash confused!\n");
+            exit(1);
+         }
 
-      strncpy(res1, keys[i], MAXLABEL);
-      TERMAT(res1, '-');
-      chp = strchr(keys[i], '-');
-      strncpy(res2, chp+1, MAXLABEL);
+         strncpy(res1, keys[i], MAXLABEL);
+         TERMAT(res1, '-');
+         chp = strchr(keys[i], '-');
+         strncpy(res2, chp+1, MAXLABEL);
       
-      blCalcExtSD((REAL)0.0, 1, 
-                  &(rp->sx), &(rp->sxsq), &(rp->nval), &mean, &sd);
-      fprintf(out,"%s %s %6.3f %6.3f\n", 
-              res1, res2, mean, sd);
+         blCalcExtSD((REAL)0.0, 1, 
+                     &(rp->sx), &(rp->sxsq), &(rp->nval), &mean, &sd);
+         fprintf(out,"%s %s %6.3f %6.3f\n", 
+                 res1, res2, mean, sd);
+      }
+      blFreeHashKeyList(keys);
    }            
+}
+
+
+
+/************************************************************************/
+/*>PDB *SelectPDBChains(PDB *pdb, char **chains)
+   ---------------------------------------------
+*//**
+   \input[in]   pdb      PDB linked list
+   \input[in]   chain    Array of chains to keep
+   \return               Reduced PDB linked list
+
+   Selects the specified chains from the PDB linked list
+
+-  01.12.16 Original - based on code in pdbgetchains   By: ACRM  
+*/
+PDB *SelectPDBChains(PDB *pdb, char **chains)
+{
+   PDB  *chainStart    = NULL,
+        *endOfChain    = NULL,
+        *nextChain     = NULL,
+        *keptChainsEnd = NULL;
+   
+   if(chains == NULL)
+      return(pdb);
+
+   for(chainStart=pdb; chainStart!=NULL; chainStart=nextChain)
+   {
+      endOfChain       = FindEndOfChain(chainStart);
+      nextChain        = endOfChain->next;
+      endOfChain->next = NULL;
+
+      if(ValidChain(chainStart, chains))
+      {
+         if(keptChainsEnd!=NULL)
+            keptChainsEnd->next = chainStart;
+         keptChainsEnd = endOfChain;
+      }
+      else
+      {
+         if(chainStart == pdb)
+            pdb = nextChain;
+
+         FREELIST(chainStart, PDB);
+      }
+   }
+
+   return(pdb);
+}
+
+/************************************************************************/
+/*>BOOL ValidChain(PDB *pdb, char **chains)
+   ----------------------------------------
+*//**
+   \input[in]   pdb     PDB item
+   \input[in]   chains  Array of chain labels
+   \return              Is it a valid chain?
+
+   Tests whether the chain specified in pdb appears in the list of chains
+
+-  01.12.16 Original - based on code in pdbgetchains   By: ACRM  
+*/
+BOOL ValidChain(PDB *pdb, char **chains)
+{
+   int i;
+
+   for(i=0; ((chains[i] != NULL) && (chains[i][0] != '\0')); i++)
+   {
+      if(CHAINMATCH(pdb->chain, chains[i]))
+         return(TRUE);
+   }
+   
+   return(FALSE);
+}
+
+/************************************************************************/
+/*>PDB *FindEndOfChain(PDB *chain)
+   -------------------------------
+*//**
+   \input[in]   chain    PDB linked list
+   \return               Pointer to the last item in the current chain
+
+   Finds the last atom in the current chain (not the start of the next
+   chain!)
+
+-  01.12.16 Original - based on code in pdbgetchains   By: ACRM  
+*/
+PDB *FindEndOfChain(PDB *chain)
+{
+   PDB *p;
+   if(chain==NULL)
+      return(NULL);
+   
+   for(p=chain; 
+       ((p->next !=NULL) && CHAINMATCH(p->chain, p->next->chain));
+       NEXT(p))
+   {
+      continue;
+   }
+   return(p);
 }
 
 
 /************************************************************************/
 /*>void Usage(void)
    ----------------
+*//**
    Prints a usage message
 
-   01.04.09 Original   By: ACRM
-   06.04.09 V1.1
-   30.11.16 V1.2
-   01.12.16 V2.0
+-  01.04.09 Original   By: ACRM
+-  06.04.09 V1.1
+-  30.11.16 V1.2
+-  01.12.16 V2.0
 */
 void Usage(void)
 {
    fprintf(stderr,"\nDistMat V2.0 (c) 2009-2016, Dr. Andrew C.R. Martin, \
 UCL\n");
 
-   fprintf(stderr,"\nUsage: distmat [-p][-c][-a][-s] [input [output]]\n");
+   fprintf(stderr,"\nUsage: distmat [-p][-c chains][-a | -s] [input [output]]\n");
    fprintf(stderr,"       -p Input is a single PDB file instead \
 of a file of files\n");
-   fprintf(stderr,"       -c Only look at CAs (default)\n");
-   fprintf(stderr,"       -a Look at all atoms\n");
-   fprintf(stderr,"       -s Look at sidechain atoms\n");
+   fprintf(stderr,"       -c chains Only look at specified chaind\n");
+   fprintf(stderr,"       -a Look at all atoms rather than CAs\n");
+   fprintf(stderr,"       -s Look at sidechain atoms rather than CAs\n");
    fprintf(stderr,"\nI/O Through stdin/stdout if not specified\n");
 
    fprintf(stderr,"\nDistMat analyses inter-CA distances in one or \
@@ -532,5 +729,9 @@ more PDB files\n");
    fprintf(stderr,"\nThe default input file simply contains a list of \
 the PDB files to be processed.\n");
    fprintf(stderr,"If -p is specified the input is a single PDB \
-file.\n\n");
+file.\n");
+
+   fprintf(stderr,"\nIf -c is specified it is followed by a comma-separated \
+list if chain names to analyze.\n\n");
 }
+
