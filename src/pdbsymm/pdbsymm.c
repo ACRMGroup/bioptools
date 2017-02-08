@@ -37,6 +37,11 @@
 
    Description:
    ============
+   Note this code currently ends up with PDB files that are not fully
+   valid:
+   - the headers don't reflect the additional chains
+   - there is no MASTER or CONECT record
+   - HETATMs are not all moved to the end of the file
 
 **************************************************************************
 
@@ -63,6 +68,7 @@
 #include "bioplib/pdb.h"
 #include "bioplib/macros.h"
 #include "bioplib/fsscanf.h"
+#include "bioplib/general.h"
 
 #define MAXCHAINS 61
 
@@ -85,12 +91,7 @@ BOOL IsIdentityMatrix(REAL matrix[3][3], REAL trans[3]);
 char GetNextChainLabel(char chainLabel);
 void ApplyMatrixAndWriteCopy(FILE *out, PDB *pdb, char oldChain[8], char newChain[8],
                              REAL matrix[3][3], REAL trans[3]);
-
-
-
-
-
-
+char FindLastChainLabel(PDB *pdb);
 
 
 /************************************************************************/
@@ -195,6 +196,22 @@ int main(int argc, char **argv)
 }
 
 
+char FindLastChainLabel(PDB *pdb)
+{
+   char *permittedChains = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz";
+   int  lastIdx          = -1;
+   PDB  *p;
+   
+   for(p=pdb; p!=NULL; NEXT(p))
+   {
+      int  idx;
+      idx = blChindex(permittedChains, p->chain[0]);
+      if(idx > lastIdx)
+         lastIdx = idx;
+   }
+
+   return(permittedChains[lastIdx]);
+}
 
 
 void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb)
@@ -203,14 +220,14 @@ void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb)
    char  chains[MAXCHAINS][8];
    int   nchains;
    REAL  trans[3];
-   char  lastChainLabel = 'Z';  /* TODO */
+   char  lastChainLabel;
    char  chainLabel;
    PDB   *pdb;
 
-   chainLabel = GetNextChainLabel(lastChainLabel);
-
-
    pdb=wpdb->pdb;
+
+   lastChainLabel = FindLastChainLabel(pdb);
+   chainLabel     = GetNextChainLabel(lastChainLabel);
 
    while((nchains=ReadSymmetryData(wpdb, matrix, trans, chains))!=0)
    {
