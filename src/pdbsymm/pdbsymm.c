@@ -62,6 +62,7 @@
 #include "bioplib/matrix.h"
 #include "bioplib/pdb.h"
 #include "bioplib/macros.h"
+#include "bioplib/fsscanf.h"
 
 #define MAXCHAINS 61
 
@@ -77,10 +78,19 @@
 /* Prototypes
 */
 int main(int argc, char **argv);
-void DoRotations(PDB *pdb, ROTLIST *rotlist);
-BOOL BuildRotInstruct(ROTLIST **pRotList, char direction, char *amount);
 void Usage(void);
-BOOL SetupMatrix(int argc, char **argv, REAL matrix[3][3]);
+void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb);
+int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], char chains[MAXCHAINS][8]);
+BOOL IsIdentityMatrix(REAL matrix[3][3], REAL trans[3]);
+char GetNextChainLabel(char chainLabel);
+void ApplyMatrixAndWriteCopy(FILE *out, PDB *pdb, char oldChain[8], char newChain[8],
+                             REAL matrix[3][3], REAL trans[3]);
+
+
+
+
+
+
 
 
 /************************************************************************/
@@ -101,17 +111,17 @@ int main(int argc, char **argv)
    FILE     *in      = stdin,
             *out     = stdout;
    WHOLEPDB *wpdb;
-   PDB      *pdb;
-   BOOL     GotMatrix = FALSE,
-            GotRot    = FALSE,
-            DoCentre  = TRUE;
-   REAL     matrix[3][3];
+
+
+
+
+
 
    argc--;
    argv++;
 
-   GotMatrix = TRUE;
-   DoCentre = FALSE;
+
+
 
 
    /* Handle all switches                                               */
@@ -190,12 +200,12 @@ int main(int argc, char **argv)
 void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb)
 {
    REAL  matrix[3][3];
-   char  chains[MAXCHAIN][8];
+   char  chains[MAXCHAINS][8];
    int   nchains;
-   VEC3F trans;
-   char  lastChainLabel = 'Z';
+   REAL  trans[3];
+   char  lastChainLabel = 'Z';  /* TODO */
    char  chainLabel;
-   
+   PDB   *pdb;
 
    chainLabel = GetNextChainLabel(lastChainLabel);
 
@@ -209,7 +219,12 @@ void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb)
          int chainNum;
          for(chainNum=0; chainNum<nchains; chainNum++)
          {
-            ApplyMatrixAndWriteCopy(out, pdb, chains[chainNum], chainLabel, matrix, trans);
+            char chainLabelString[8];
+            chainLabelString[0] = chainLabel;
+            chainLabelString[1] = '\0';
+
+            /*                                OldLabel          NewLabel */
+            ApplyMatrixAndWriteCopy(out, pdb, chains[chainNum], chainLabelString, matrix, trans);
             chainLabel = GetNextChainLabel(chainLabel);
          }
       }
@@ -222,48 +237,63 @@ REMARK 350   BIOMT1   1  1.000000  0.000000  0.000000        0.00000
 12345612341231234511234123456789012345678901234567890123451234567890
 %6s   %4d %3x%5s%1d%4d %10.6f    %10.6f    %10.6f    %5x  %10.6f
 */
-int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], VEC3F trans, char *chains[MAXCHAINS][8])
+int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], char chains[MAXCHAINS][8])
 {
    static STRINGLIST *sSymOp = NULL;
    static BOOL       called  = FALSE;
-   static sChains[MAXCHAINS][8];
-   
+   static char       sChains[MAXCHAINS][8];
+   static int        sNChains = 0;
+   int               i;
+
    /* First call - step to the start of the symmertry operators */
    if((sSymOp == NULL) && !called)
    {
       called = TRUE;
-      
-      for(sSymOp = wpdb->header; sSymOp != NULL; NEXT(sSymOp))
-      {
-         if((sSymOp->string != NULL) && 
-            !strncmp(sSymOp->string, "REMARK 350 APPLY THE FOLLOWING TO CHAINS:", 41))
-         {
-            /* We are now pointing to the first symmetry operator */
-            break;
-         }
-      }
+
+      sSymOp = wpdb->header;
    }
+   
+   /* Not first call and we have run out of records */
    if(sSymOp == NULL)
       return(0);
 
-   /* This is the normal start point for parsing the symmertry operators - we should be
-      pointing to a 'REMARK 350 APPLY THE FOLLOWING TO CHAINS:' or to a 'REMARK 350   BIOMT1'
-   */
+   /* Step on until the next 'APPLY' or the next 'BIOMT1'  */
+   while((sSymOp != NULL) &&
+         (sSymOp->string != NULL) &&
+         strncmp(sSymOp->string, "REMARK 350 APPLY THE FOLLOWING TO CHAINS:", 41) &&
+         strncmp(sSymOp->string, "REMARK 350   BIOMT1", 19))
+   {
+      NEXT(sSymOp);
+   }
    
-   if(sSymOp->string == NULL)
+   /* The list has ended */
+   if((sSymOp == NULL) || (sSymOp->string == NULL))
       return(0);
+
+   /* We are now pointing to the first symmetry operator */
    
    if(!strncmp(sSymOp->string, "REMARK 350 APPLY THE FOLLOWING TO CHAINS:", 41))
    {
+      char *chp;
+      
       /* Populate the static list of chains */
       chp = sSymOp->string + 41;
-      KILLLEADSPACES(chp);
-      for(nchains=0; nchains<MAXCHAINS; nchains++)
-      {
-         if((chp = blGetWord(chp, sChains[nchains], 8)) == NULL)
+      TERMINATE(chp);
+      KILLTRAILSPACES(chp);
+      KILLLEADSPACES(chp, chp);
+      for(sNChains=0; sNChains<MAXCHAINS; sNChains++)
+      { 
+         if(chp == NULL)
             break;
+         
+         chp = blGetWord(chp, sChains[sNChains], 8);
       }
       NEXT(sSymOp);
+   }
+
+   for(i=0; i<sNChains; i++)
+   {
+      strcpy(chains[i], sChains[i]);
    }
    
    if((sSymOp != NULL) && (sSymOp->string != NULL))
@@ -273,7 +303,6 @@ int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], VEC3F trans, char *chain
       {
          return(0);
       }
-
       /* Read the three REMARK 350 BIOMTx lines */
       for(i=0; i<3; i++)
       {
@@ -285,8 +314,8 @@ int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], VEC3F trans, char *chain
                  subTypeNum,
                  instanceNum;
             REAL x,y,z,t;
-            
-            fsscanf(sSymOp->string, "%6s%4d%3x%5s%1d%4d%10.6f%10.6f%10.6f%5x%10.6f",
+
+            fsscanf(sSymOp->string, "%6s%4d%3x%5s%1d%4d%10lf%10lf%10lf%5x%10lf",
                     recordType, &recordNum, subType, &subTypeNum,
                     &instanceNum, &x, &y, &z, &t);
             if(!strncmp(recordType, "REMARK", 6) &&
@@ -307,17 +336,21 @@ int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], VEC3F trans, char *chain
          NEXT(sSymOp);
       }
    }
-
-   while(strncmp(sSymOp->string, "xxxxx)
-   
-
-   
-   
+   /* HERE TODO This is wrong - we would skip over a second set of BIOMTs */
+/*
+   while((sSymOp != NULL) &&
+         (sSymOp->string != NULL) &&
+         strncmp(sSymOp->string, "REMARK 350 APPLY", 16))
+   {
+      NEXT(sSymOp);
+   }
+*/   
+   return(sNChains);
 }
 
 
 
-BOOL IsIdentityMatrix(REAL matrix[3][3], VEC3F trans)
+BOOL IsIdentityMatrix(REAL matrix[3][3], REAL trans[3])
 {
    int i, j;
    
@@ -330,7 +363,7 @@ BOOL IsIdentityMatrix(REAL matrix[3][3], VEC3F trans)
          {
             return(FALSE);
          }
-         else if(matrix[i][j] != (REAL)0.0)         /* Off-diagonal not 0,0 */
+         else if((i!=j) && (matrix[i][j] != (REAL)0.0))         /* Off-diagonal not 0,0 */
          {
             return(FALSE);
          }
@@ -375,7 +408,7 @@ char GetNextChainLabel(char chainLabel)
    else
    {
       chainLabel = 'A';
-      printf(stderr, "Warning (pdbsymm): More than 61 chains so reusing chain names!\n");
+      fprintf(stderr, "Warning (pdbsymm): More than 61 chains so reusing chain names!\n");
    }
    
    return(chainLabel);
@@ -383,17 +416,30 @@ char GetNextChainLabel(char chainLabel)
 
 
 
-void ApplyMatrixAndWriteCopy(FILE *out, PDB *pdb, char chain[8], REAL matrix[3][3], VEC3F trans)
+void ApplyMatrixAndWriteCopy(FILE *out, PDB *pdb, char oldChain[8], char newChain[8], REAL matrix[3][3], REAL trans[3])
 {
    PDB *pdb2;
    
-   if((pdb2 = blGetPDBChainAsCopy(pdb, chain))!=NULL)
+   if((pdb2 = blGetPDBChainAsCopy(pdb, oldChain))!=NULL)
    {
+      VEC3F transVec;
+      PDB   *p;
+      
+      transVec.x = trans[0];
+      transVec.y = trans[1];
+      transVec.z = trans[2];
+      
       /* Apply the rotations                                               */
       blApplyMatrixPDB(pdb2, matrix);
       /* And the translation                                               */
-      blTranslatePDB(pdb2, trans);
+      blTranslatePDB(pdb2, transVec);
       
+      /* Reset the chain label                                             */
+      for(p=pdb2; p!=NULL; NEXT(p))
+      {
+         strcpy(p->chain, newChain);
+      }
+
       /* Write the new PDB file                                            */
       blWritePDB(out,pdb2);
 
