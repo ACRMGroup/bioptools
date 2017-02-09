@@ -195,6 +195,12 @@ pdbsumbval
 Sums the b-values over each residue and places the summed values in the
 b-value column. Can also calculate averages.
 
+pdbsymm
+-------
+Applies non-cystollographic symmetry operations specified in REMARK 350
+records to a PDB file. Note that this program has certain limitations.
+Run pdbsymm -h for details.
+
 pdbtorsions
 -----------
 Generates a set of backbone torsions from a PDB file.
