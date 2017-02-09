@@ -37,11 +37,14 @@
 
    Description:
    ============
-   Note this code currently ends up with PDB files that are not fully
+   Note 1: this code currently ends up with PDB files that are not fully
    valid:
    - the headers don't reflect the additional chains
    - there is no MASTER or CONECT record
    - HETATMs are not all moved to the end of the file
+
+   Note 2: this code only works with single character chain names. It 
+   needs updating to deal with multi-character names!
 
 **************************************************************************
 
@@ -70,7 +73,7 @@
 #include "bioplib/fsscanf.h"
 #include "bioplib/general.h"
 
-#define MAXCHAINS 61
+#define MAXCHAINS 62
 
 /************************************************************************/
 /* Defines and macros
@@ -86,10 +89,12 @@
 int main(int argc, char **argv);
 void Usage(void);
 void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb);
-int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], char chains[MAXCHAINS][8]);
+int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], 
+                     char chains[MAXCHAINS][8]);
 BOOL IsIdentityMatrix(REAL matrix[3][3], REAL trans[3]);
 char GetNextChainLabel(char chainLabel);
-void ApplyMatrixAndWriteCopy(FILE *out, PDB *pdb, char oldChain[8], char newChain[8],
+void ApplyMatrixAndWriteCopy(FILE *out, PDB *pdb, char oldChain[8], 
+                             char newChain[8],
                              REAL matrix[3][3], REAL trans[3]);
 char FindLastChainLabel(PDB *pdb);
 
@@ -99,13 +104,9 @@ char FindLastChainLabel(PDB *pdb);
    -------------------------------
 *//**
 
-   Main program for PDB rotation
+   Main program for applying non-crystallographic symmertry operators
 
--  17.06.94 Original    By: ACRM
--  21.07.95 Added -m
--  29.09.97 Added -n
--  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
--  13.02.15 Added whole PDB support   By: ACRM
+-  09.02.17 Original    By: ACRM
 */
 int main(int argc, char **argv)
 {
@@ -113,17 +114,8 @@ int main(int argc, char **argv)
             *out     = stdout;
    WHOLEPDB *wpdb;
 
-
-
-
-
-
    argc--;
    argv++;
-
-
-
-
 
    /* Handle all switches                                               */
    while(argc)
@@ -190,15 +182,29 @@ int main(int argc, char **argv)
    /* Need to build everything into one PDB linked list and rebuild conect
       data to do this properly
    */
-   /* blWriteWholePDBTrailer(out, wpdb); */ 
+   /* blWriteWholePDBTrailer(out, wpdb);                                */ 
 
    return(0);
 }
 
 
+/************************************************************************/
+/*>char FindLastChainLabel(PDB *pdb)
+   ---------------------------------
+*//**
+   \param[in]    *pdb   PDB linked list
+   \return              The last chain label used
+
+   Identifies the 'alphabetically' last chain used given that the order
+   used by the PDB is capital letters, digits 1...0 and lower case
+   letters.
+
+-  09.02.17  Original   By: ACRM
+*/
 char FindLastChainLabel(PDB *pdb)
 {
-   char *permittedChains = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz";
+   char *permittedChains =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz";
    int  lastIdx          = -1;
    PDB  *p;
    
@@ -214,6 +220,18 @@ char FindLastChainLabel(PDB *pdb)
 }
 
 
+/************************************************************************/
+/*>void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb)
+   ---------------------------------------------------
+*//**
+   \param[in]    *out   Output file pointer
+   \param[in]    *wpdb  Pointer to WHOLEPDB structure
+
+   Does the work of writing non-crystallographic symmetry related copies
+   of the structure.
+
+-  09.02.17  Original   By: ACRM
+*/
 void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb)
 {
    REAL  matrix[3][3];
@@ -240,8 +258,10 @@ void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb)
             chainLabelString[0] = chainLabel;
             chainLabelString[1] = '\0';
 
-            /*                                OldLabel          NewLabel */
-            ApplyMatrixAndWriteCopy(out, pdb, chains[chainNum], chainLabelString, matrix, trans);
+            ApplyMatrixAndWriteCopy(out, pdb, 
+                                    chains[chainNum], /* Old label      */
+                                    chainLabelString, /* New label      */
+                                    matrix, trans);
             chainLabel = GetNextChainLabel(chainLabel);
          }
       }
@@ -249,12 +269,37 @@ void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb)
 }
 
 
-/*
-REMARK 350   BIOMT1   1  1.000000  0.000000  0.000000        0.00000            
-12345612341231234511234123456789012345678901234567890123451234567890
-%6s   %4d %3x%5s%1d%4d %10.6f    %10.6f    %10.6f    %5x  %10.6f
+/************************************************************************/
+/*>int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], 
+                        char chains[MAXCHAINS][8])
+   -----------------------------------------------------------------------
+*//**
+   \param[in]    *wpdb      Pointer to WHOLEPDB structure
+   \param[out]   matrix[][] 3x3 rotation matrix
+   \param[out]   trans[]    translation vector
+   \param[out]   chains[][] Chain labels to which the symmetry operators
+                            are applied  
+   \return                  The number of chains to which the operators
+                            are applied (0 = no more NC symmetry records)
+
+   Reads the symmetry data from
+   REMARK 350 APPLY THE FOLLOWING TO CHAINS:
+   records which give a comma separated list of chains to which the
+   operations must be applied and from
+   REMARK 350   BIOMT1   1  1.000000  0.000000  0.000000        0.00000            
+   12345612341231234511234123456789012345678901234567890123451234567890
+   %6s   %4d %3x%5s%1d%4d %10.6f    %10.6f    %10.6f    %5x  %10.6f
+   records which specify the rotatation matrix and translation vector.
+
+   A static variable is used to keep track of where we are in the header
+   data. Successive calls will give the next set of operations. The 
+   routine returns the number of chains affected or zero when there are
+   no more NC symmetry records.
+ 
+-  09.02.17  Original   By: ACRM
 */
-int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], char chains[MAXCHAINS][8])
+int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], 
+                     char chains[MAXCHAINS][8])
 {
    static STRINGLIST *sSymOp = NULL;
    static BOOL       called  = FALSE;
@@ -262,7 +307,7 @@ int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], char chai
    static int        sNChains = 0;
    int               i;
 
-   /* First call - step to the start of the symmertry operators */
+   /* First call - step to the start of the symmertry operators         */
    if((sSymOp == NULL) && !called)
    {
       called = TRUE;
@@ -270,30 +315,32 @@ int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], char chai
       sSymOp = wpdb->header;
    }
    
-   /* Not first call and we have run out of records */
+   /* Not first call and we have run out of records                     */
    if(sSymOp == NULL)
       return(0);
 
-   /* Step on until the next 'APPLY' or the next 'BIOMT1'  */
+   /* Step on until the next 'APPLY' or the next 'BIOMT1'               */
    while((sSymOp != NULL) &&
          (sSymOp->string != NULL) &&
-         strncmp(sSymOp->string, "REMARK 350 APPLY THE FOLLOWING TO CHAINS:", 41) &&
+         strncmp(sSymOp->string, 
+                 "REMARK 350 APPLY THE FOLLOWING TO CHAINS:", 41) &&
          strncmp(sSymOp->string, "REMARK 350   BIOMT1", 19))
    {
       NEXT(sSymOp);
    }
    
-   /* The list has ended */
+   /* The list has ended                                                */
    if((sSymOp == NULL) || (sSymOp->string == NULL))
       return(0);
 
-   /* We are now pointing to the first symmetry operator */
+   /* We are now pointing to the first symmetry operator                */
    
-   if(!strncmp(sSymOp->string, "REMARK 350 APPLY THE FOLLOWING TO CHAINS:", 41))
+   if(!strncmp(sSymOp->string, 
+               "REMARK 350 APPLY THE FOLLOWING TO CHAINS:", 41))
    {
       char *chp;
       
-      /* Populate the static list of chains */
+      /* Populate the static list of chains                             */
       chp = sSymOp->string + 41;
       TERMINATE(chp);
       KILLTRAILSPACES(chp);
@@ -315,12 +362,11 @@ int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], char chai
    
    if((sSymOp != NULL) && (sSymOp->string != NULL))
    {
-      /* This should not happen! */
+      /* This should not happen!                                        */
       if(strncmp(sSymOp->string, "REMARK 350   BIOMT1", 19))
-      {
          return(0);
-      }
-      /* Read the three REMARK 350 BIOMTx lines */
+
+      /* Read the three REMARK 350 BIOMTx lines                         */
       for(i=0; i<3; i++)
       {
          if((sSymOp != NULL) && (sSymOp->string != NULL))
@@ -353,41 +399,46 @@ int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], char chai
          NEXT(sSymOp);
       }
    }
-   /* HERE TODO This is wrong - we would skip over a second set of BIOMTs */
-/*
-   while((sSymOp != NULL) &&
-         (sSymOp->string != NULL) &&
-         strncmp(sSymOp->string, "REMARK 350 APPLY", 16))
-   {
-      NEXT(sSymOp);
-   }
-*/   
+
    return(sNChains);
 }
 
 
+/************************************************************************/
+/*>BOOL IsIdentityMatrix(REAL matrix[3][3], REAL trans[3])
+   -------------------------------------------------------
+*//**
+   \param[in]    matrix[][]   A 3x3 rotation matrix
+   \param[in]    trans[3]     A translation vector
+   \return                    True if it's an identity matrix with a
+                              0,0,0 translation vector; False otherwise
 
+   Determines whether this is an identity matrix with no translation -
+   i.e. the matrix and vector would have no effect on the structure.
+
+-  09.02.17  Original   By: ACRM
+*/
 BOOL IsIdentityMatrix(REAL matrix[3][3], REAL trans[3])
 {
    int i, j;
    
-   /* Test the matrix */
+   /* Test the matrix                                                   */
    for(i=0; i<3; i++)
    {
       for(j=0; j<3; j++)
       {
-         if((i==j) && (matrix[i][j] != (REAL)1.0))  /* Diagonal not 1.0 */
-         {
+         if((i==j) && (matrix[i][j] != (REAL)1.0))  
+         {  /* Diagonal not 1.0                                         */
             return(FALSE);
          }
-         else if((i!=j) && (matrix[i][j] != (REAL)0.0))         /* Off-diagonal not 0,0 */
-         {
+         else if((i!=j) && (matrix[i][j] != (REAL)0.0))
+         {  /* Off-diagonal not 0.0                                     */
             return(FALSE);
          }
       }
    }
 
-   /* Test the translation vector */
+   /* Test the translation vector                                       */
    for(i=0; i<3; i++)
    {
       if(trans[i] != (REAL)0.0)
@@ -400,6 +451,18 @@ BOOL IsIdentityMatrix(REAL matrix[3][3], REAL trans[3])
 }
 
 
+/************************************************************************/
+/*>char GetNextChainLabel(char chainLabel)
+   ---------------------------------------
+*//**
+   \param[in]    chainlabel   A chain label (single character!)
+   \return                    A new chain label (single character!)
+
+   Bumps the chain label using the standard PDB order of capitals,
+   digits 1...0 and lower case letters.
+
+-  09.02.17  Original   By: ACRM
+*/
 char GetNextChainLabel(char chainLabel)
 {
    if((chainLabel >= 'A') && (chainLabel < 'Z'))
@@ -415,6 +478,10 @@ char GetNextChainLabel(char chainLabel)
       chainLabel++;
    }
    else if(chainLabel == '9')
+   {
+      chainLabel = '0';
+   }
+   else if(chainLabel == '0')
    {
       chainLabel = 'a';
    }
@@ -433,7 +500,28 @@ char GetNextChainLabel(char chainLabel)
 
 
 
-void ApplyMatrixAndWriteCopy(FILE *out, PDB *pdb, char oldChain[8], char newChain[8], REAL matrix[3][3], REAL trans[3])
+/************************************************************************/
+/*>void ApplyMatrixAndWriteCopy(FILE *out, PDB *pdb, char oldChain[8], 
+                                char newChain[8], REAL matrix[3][3], 
+                                REAL trans[3])
+   --------------------------------------------------------------------
+*//**
+   \param[in]    *out       Output file pointer
+   \param[in]    *pdb       PDB linked list
+   \param[in]    oldChain   The name of the chain that we are moving and 
+                            writing
+   \param[in]    newChain   The name that we will use for the new chain
+   \param[in]    matrix[][] The rotation matrix
+   \param[in]    trans[]    The translation vector
+
+   Applies the rotation matrix followed by the translation vector to the
+   specified chain writing it out with the new chain label.
+
+-  09.02.17  Original   By: ACRM
+*/
+void ApplyMatrixAndWriteCopy(FILE *out, PDB *pdb, char oldChain[8], 
+                             char newChain[8], REAL matrix[3][3], 
+                             REAL trans[3])
 {
    PDB *pdb2;
    
@@ -446,23 +534,22 @@ void ApplyMatrixAndWriteCopy(FILE *out, PDB *pdb, char oldChain[8], char newChai
       transVec.y = trans[1];
       transVec.z = trans[2];
       
-      /* Apply the rotations                                               */
+      /* Apply the rotations                                            */
       blApplyMatrixPDB(pdb2, matrix);
-      /* And the translation                                               */
+      /* And the translation                                            */
       blTranslatePDB(pdb2, transVec);
       
-      /* Reset the chain label                                             */
+      /* Reset the chain label                                          */
       for(p=pdb2; p!=NULL; NEXT(p))
       {
          strcpy(p->chain, newChain);
       }
 
-      /* Write the new PDB file                                            */
+      /* Write the new PDB file                                         */
       blWritePDB(out,pdb2);
 
       FREELIST(pdb2, PDB);
    }
-   
 }
 
    
@@ -470,36 +557,33 @@ void ApplyMatrixAndWriteCopy(FILE *out, PDB *pdb, char oldChain[8], char newChai
 /*>void Usage(void)
    ----------------
 *//**
+   Prints a usage message
 
--  06.02.17 Original    By: ACRM
+-  09.02.17 Original    By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbrotate V1.5 (c) 1994-2015 Andrew C.R. \
+   fprintf(stderr,"\npdbsymm V1.0 (c) 2017 Andrew C.R. \
 Martin, UCL\n");
-   fprintf(stderr,"Freely distributable if no profit is made\n\n");
-   fprintf(stderr,"Usage: pdbrotate [-m 11 12 13 21 22 23 31 32 33] \
-[-h]\n");
-   fprintf(stderr,"              [-n] [input.pdb [output.pdb]]\n");
-   fprintf(stderr,"       --or--\n");
-   fprintf(stderr,"       pdbrotate [-x ang] [-y ang] [-z ang] \
-[-h]\n");
-   fprintf(stderr,"              [input.pdb [output.pdb]]\n\n");
-   fprintf(stderr,"       -m           Specify rotation matrix\n");
-   fprintf(stderr,"       -n           Do not move to CofG before \
-applying\
- matrix\n");
-   fprintf(stderr,"       -x, -y, -z   Specify rotations (in degrees)\n");
-   fprintf(stderr,"       -h           This help message\n");
-   fprintf(stderr,"I/O is to stdin/stdout if not specified\n\n");
-   fprintf(stderr,"Rotates a PDB file using the given rotation matrix \
-or using the sequence\n");
-   fprintf(stderr,"of specified rotations. All rotations are performed \
-around the centre\n");
-   fprintf(stderr,"of geometry of the molecule. -x, -y and -z rotations \
-are applied in\n");
-   fprintf(stderr,"sequence and as many rotations are are required may \
-be given.\n\n");
+   fprintf(stderr,"Usage: pdbsymm [in.pdb [out.pdb]]\n");
+
+   fprintf(stderr,"\nI/O is to stdin/stdout if not specified\n\n");
+   fprintf(stderr,"Applies non crystollographic symmetry to a PDB file \
+given REMARK 350\n");
+   fprintf(stderr,"(BIOMT) records in the PDB file.\n");
+   fprintf(stderr,"\n");
+   fprintf(stderr,"Note 1: this code currently ends up with PDB files \
+that are not fully\n");
+   fprintf(stderr,"valid:\n");
+   fprintf(stderr,"- the headers don't reflect the additional chains\n");
+   fprintf(stderr,"- there is no MASTER or CONECT record\n");
+   fprintf(stderr,"- HETATMs are not all moved to the end of the \
+file\n");
+   fprintf(stderr,"\n");
+   fprintf(stderr,"Note 2: this code only works with single character \
+chain names. It \n");
+   fprintf(stderr,"needs updating to deal with multi-character names!\n");
+   fprintf(stderr,"\n");
 }
 
 
