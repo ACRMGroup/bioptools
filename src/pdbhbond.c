@@ -7,11 +7,11 @@ Handle PGP file in data directory
 
    \file       pdbhbond.c
    
-   \version    V2.0
-   \date       20.07.15
+   \version    V2.1
+   \date       08.09.17
    \brief      List hydrogen bonds
    
-   \copyright  (c) UCL, Dr. Andrew C.R. Martin, 2014-2015
+   \copyright  (c) UCL, Dr. Andrew C.R. Martin, 2014-2017
    \author     Dr. Andrew C.R. Martin
    \par
                Institute of Structural & Molecular Biology,
@@ -138,6 +138,7 @@ Handle PGP file in data directory
                    rather than based on XMAS. Now uses internal PDB 
                    CONECT information rather than keeping its own version
                    of the CONECT data
+-   V2.1  08.09.17 Changed comment in output and spacing of fields
 
 *************************************************************************/
 /* Includes
@@ -690,6 +691,7 @@ HBLIST *FindProtProtHBonds(PDB *pdb)
 -  12.05.99 Added 'relaxed' handling
 -  22.07.15 Modified to use PDB files and standard BiopLib structures
             and functions. Changed output format.
+-  08.09.17 Changed comment in output and spacing of fields
 */
 void PrintHBList(FILE *out, HBLIST *hblist, char *type, BOOL relaxed)
 {
@@ -699,8 +701,21 @@ void PrintHBList(FILE *out, HBLIST *hblist, char *type, BOOL relaxed)
    if(hblist != NULL)
    {
       fprintf(out, "TYPE: %s\n", type);
-      fprintf(out, "# AtnumD  AtnumA Donor_______________ Acceptor____________\n");
-      
+      if(!strcmp(type, "pphbonds")||
+         !strcmp(type, "pseudohbonds"))
+      {
+         fprintf(out, "#  datom   aatom dresnam dresid  datnam aresnam aresid  aatnam\n");
+      }
+      else if(!strcmp(type, "plhbonds")||
+            !strcmp(type, "llhbonds"))
+      {
+         fprintf(out, "#  datom   aatom dresnam dresid  datnam aresnam aresid  aatnam relaxed\n");
+      }
+      else if(!strcmp(type, "nonbonds"))
+      {
+         fprintf(out, "#  atom1   atom2 resnam1 resid1  atnam1 resnam2 resid2  atnam2\n");
+      }
+
       for(h=hblist; h!=NULL; NEXT(h))
       {
          char donResID[24],
@@ -708,7 +723,7 @@ void PrintHBList(FILE *out, HBLIST *hblist, char *type, BOOL relaxed)
          MAKERESID(donResID, h->donor);
          MAKERESID(accResID, h->acceptor);
          
-         fprintf(out," %7d %7d %-5s %-9s %4s %-5s %-9s %4s",
+         fprintf(out," %7d %7d %-5s   %-7s %4s   %-5s   %-7s %4s",
                  PDBEXTRASPTR(h->donor, PDBEXTRAS)->origAtnum,
                  PDBEXTRASPTR(h->acceptor, PDBEXTRAS)->origAtnum,
                  h->donor->resnam,
@@ -721,7 +736,7 @@ void PrintHBList(FILE *out, HBLIST *hblist, char *type, BOOL relaxed)
          if(relaxed)
          {
             /* 12.05.00 ACRM - print the relaxed field if required      */
-            fprintf(out," %s", (h->relaxed?"RELAXED":""));
+            fprintf(out,"   %s", (h->relaxed?"RELAXED":""));
          }
 
          fprintf(out,"\n");
