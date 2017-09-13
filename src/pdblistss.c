@@ -60,7 +60,6 @@
 #include "bioplib/macros.h"
 #include "bioplib/SysDefs.h"
 #include "bioplib/pdb.h"
-#include "bioplib/access.h"
 
 /************************************************************************/
 /* Defines and macros
@@ -86,7 +85,7 @@ void ListDisulphides(FILE *out, PDB *pdb);
 /*>int main(int argc, char **argv)
    -------------------------------
 *//** 
-   Main program for solvent accessibility calculations
+   Main program for finding disulphides
 
 -  20.07.15 Original   By: ACRM
 */
