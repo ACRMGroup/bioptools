@@ -22,7 +22,8 @@ LFILES = bioplib/BuildConect.o     \
          bioplib/GetWord.o         \
          bioplib/array2.o 	   \
          bioplib/throne.o 	   \
-	 bioplib/ParseRes.o
+	 bioplib/ParseRes.o        \
+	 bioplib/KillPDB.o
 
 
 pdbpatchnumbering : pdbpatchnumbering.o $(LFILES)

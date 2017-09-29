@@ -3,12 +3,12 @@
 
    \file       pdbpatchnumbering.c
    
-   \version    V1.8
-   \date       12.03.15
+   \version    V1.9
+   \date       30.09.17
    \brief      Patch the numbering of a PDB file from a file of numbers
                and sequence (as created by KabatSeq, etc)
    
-   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1995-2015
+   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1995-2017
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -60,6 +60,9 @@
 -  V1.7  13.02.15 Added whole PDB support
 -  V1.8  12.03.15 Changed to allow multi-character chain names and
                   three-letter code in patch file
+-  V1.9  30.09.17 Now allows the patch file to skip the first few residues.
+                  i.e. if there is an N-terminal extension to the known
+                  numbering, this will be removed from the file.
 
 *************************************************************************/
 /* Includes
@@ -102,7 +105,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   char *patchfile);
 PATCH *ReadPatchFile(FILE *fp);
 void Usage(void);
-BOOL ApplyPatches(PDB *pdb, PATCH *patches);
+BOOL ApplyPatches(PDB **pPDB, PATCH *patches);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -147,8 +150,9 @@ file\n");
          if((wpdb = blReadWholePDB(in)) != NULL)
          {
             pdb=wpdb->pdb;
-            if(ApplyPatches(pdb, patches))
+            if(ApplyPatches(&pdb, patches))
             {
+               wpdb->pdb = pdb;
                blWriteWholePDB(out, wpdb);
             }
             else
@@ -352,10 +356,11 @@ PATCH *ReadPatchFile(FILE *fp)
 -  07.11.14 V1.6 By: ACRM
 -  13.02.15 V1.7 By: ACRM
 -  12.03.15 V1.8
+-  30.09.17 V1.9
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbpatchnumbering V1.8 (c) 1995-2015, Dr. Andrew \
+   fprintf(stderr,"\npdbpatchnumbering V1.9 (c) 1995-2017, Dr. Andrew \
 C.R. Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: pdbpatchnumbering patchfile [in.pdb \
@@ -386,8 +391,8 @@ abynum which applies\n");
 
 
 /************************************************************************/
-/*>BOOL ApplyPatches(PDB *pdb, PATCH *patches)
-   -------------------------------------------
+/*>BOOL ApplyPatches(PDB **pPDB, PATCH *patches)
+   --------------------------------------------
 *//**
 
    Does the real work of applying the sequence numbering patches and
@@ -404,19 +409,25 @@ abynum which applies\n");
             (prevchain was set from r which was not initialised)
 -  12.03.15 Changed to allow multi-character chain names
 */
-BOOL ApplyPatches(PDB *pdb, PATCH *patches)
+BOOL ApplyPatches(PDB **pPDB, PATCH *patches)
 {
    PDB   *p,                      /* Start of a residue                 */
          *q,                      /* Start of next residue              */
          *r = NULL,               /* For stepping through a residue     */
          *pp,                     /* Previous record to r               */
-         *prev = NULL;            /* Previous record to p               */
+         *prev = NULL,            /* Previous record to p               */
+         *pdb  = NULL;            /* Derefernced from pPDB              */
    PATCH *a;                      /* Step through patches               */
    char  patchchain[8],           /* Current patch chain                */
          pdbchain[8],             /* Current pdb chain                  */
          prevchain[8];            /* PDB chain before renaming          */
-   BOOL  NewPatchChain = FALSE;   /* Indicates new chain in patch list  */
-   int   resnum;                  /* Current patch residue number       */
+   BOOL  NewPatchChain = FALSE,   /* Indicates new chain in patch list  */
+         NewPDBChain   = TRUE;    /* Indicates new chain in PDB file    */
+   int   resnum,                  /* Current patch residue number       */
+         skippedResidues = 0,     /* Count Nter skipped residues        */
+         maxSkippedResidues = 5;  /* Max Nter residues to skip          */
+   
+   pdb = *pPDB;
 
    if((patches != NULL) && (pdb != NULL))
    {
@@ -465,7 +476,9 @@ BOOL ApplyPatches(PDB *pdb, PATCH *patches)
                   }
                }
                
-               NewPatchChain = TRUE;
+               skippedResidues = 0;
+               NewPDBChain     = TRUE;
+               NewPatchChain   = TRUE;
                strncpy(patchchain, a->chain, 8);
                strncpy(pdbchain,   p->chain, 8);
             }
@@ -483,7 +496,20 @@ for patches\n",pdbchain);
                }
             }
 
-            /* Check the AA code is correct                             */
+            /* 30.09.17 Skip up to the first maxSkippedResidues if the 
+               amino acids don't match
+            */
+            while(NewPDBChain && blThrone(p->resnam) != a->aacode)
+            {
+               if(skippedResidues++ < maxSkippedResidues)
+               {
+                  p = blDeleteResiduePDB(pPDB, p);
+                  pdb = *pPDB;
+               }
+            }
+
+            NewPDBChain = FALSE;
+
             if(blThrone(p->resnam) != a->aacode)
             {
                fprintf(stderr,"Residue mismatch between patch file and \
@@ -527,7 +553,7 @@ record is:\n",a->aacode);
    /* Unlink anything which remains in the PDB linked list              */
    FREELIST(prev->next, PDB);
    prev->next = NULL;
-      
+
    return(TRUE);
 }
 
