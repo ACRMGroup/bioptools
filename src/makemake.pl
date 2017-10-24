@@ -60,9 +60,10 @@
 #                     V3.4.1
 #   V1.6.1  17.02.16  Bumped to require BiopLib V3.4.2
 #   V1.6.2  11.08.16  Bumped to require BiopLib V3.5
+#   V1.6.3  24.10.17  Bumped to require BiopLib V3.6
 #
 #*************************************************************************
-$::biopversion = "3.5.0";
+$::biopversion = "3.6";
 #*************************************************************************
 $::biopgit     = "https://github.com/ACRMGroup/bioplib/archive/V";
 $::biopext     = ".tar.gz";
