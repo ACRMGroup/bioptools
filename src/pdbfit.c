@@ -100,12 +100,12 @@ int main(int argc, char **argv)
       }
       
             
-      if((pdb1=ReadPDB(in1, &natoms1))==NULL)
+      if((pdb1=blReadPDB(in1, &natoms1))==NULL)
       {
          fprintf(stderr,"Error: Can't read atoms from %s\n",argv[1]);
          return(1);
       }
-      if((pdb2=ReadPDB(in2, &natoms2))==NULL)
+      if((pdb2=blReadPDB(in2, &natoms2))==NULL)
       {
          fprintf(stderr,"Error: Can't read atoms from %s\n",argv[2]);
          return(1);
