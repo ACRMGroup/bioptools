@@ -22,7 +22,7 @@ distmat : distmat.o $(LFILES)
 	$(CC) $(COPT) -c -o $@ $<
 
 clean :
-	\rm -f pdbrenum.o $(LFILES)
+	\rm -f distmat.o $(LFILES)
 
 distclean : clean
-	\rm -f pdbrenum
+	\rm -f distmat
