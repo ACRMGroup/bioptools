@@ -3,11 +3,11 @@
 
    \file       pdbsolv.c
    
-   \version    V1.5
-   \date       08.03.16
+   \version    V1.6
+   \date       21.11.17
    \brief      Solvent accessibility using bioplib
    
-   \copyright  (c) UCL, Dr. Andrew C.R. Martin, 2014-2016
+   \copyright  (c) UCL, Dr. Andrew C.R. Martin, 2014-2017
    \author     Dr. Andrew C.R. Martin
    \par
                Institute of Structural & Molecular Biology,
@@ -54,6 +54,7 @@
                     accessibility
 -   V1.5   08.03.16 Corrected insert code printing so it is left-justified
                     and now touches the residue number
+-   V1.7   21.11.17 Added -x flag to add radii in occupancy column
 
 *************************************************************************/
 /* Includes
@@ -85,9 +86,11 @@
 int  main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   REAL *integrationAccuracy, REAL *rad, char *radfile,
-                  BOOL *doAccessibility, char *resfile, BOOL *noAtoms);
+                  BOOL *doAccessibility, char *resfile, BOOL *noAtoms,
+                  BOOL *addRadii);
 void Usage(void);
 void PopulateBValWithAccess(PDB *pdb);
+void PopulateOccWithRadii(PDB *pdb);
 void PrintResidueAccessibility(FILE *out, PDB *pdb, RESRAD *resrad);
 
 
@@ -116,7 +119,8 @@ int main(int argc, char **argv)
    BOOL     doAccessibility = FALSE,
             noenv           = FALSE,
             noAtoms         = FALSE,
-            doResaccess     = FALSE;
+            doResaccess     = FALSE,
+            addRadii        = FALSE;
    REAL     integrationAccuracy,
             probeRadius;
    char     infile[MAXBUFF],
@@ -126,7 +130,8 @@ int main(int argc, char **argv)
    
    if(!ParseCmdLine(argc, argv, infile, outfile, 
                     &integrationAccuracy, &probeRadius, 
-                    radfile, &doAccessibility, resfile, &noAtoms))
+                    radfile, &doAccessibility, resfile, &noAtoms,
+                    &addRadii))
    {
       Usage();
       return(0);
@@ -202,6 +207,11 @@ arrays\n");
    if(!noAtoms)
    {
       PopulateBValWithAccess(pdb);
+      if(addRadii)
+      {
+         PopulateOccWithRadii(pdb);
+      }
+      
       blWriteWholePDB(out, wpdb);
    }
 
@@ -223,7 +233,8 @@ arrays\n");
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                      REAL *p, REAL *rad, char *radfile,
-                     BOOL *doAccessibility, char *resfile, BOOL *noAtoms)
+                     BOOL *doAccessibility, char *resfile, BOOL *noAtoms,
+                     BOOL *addRadii)
    ----------------------------------------------------------------------
 *//**
    \param[in]   int    argc              Argument count
@@ -238,15 +249,18 @@ arrays\n");
    \param[out]  char   *resfile          File for storing residue 
                                          accessibilities
    \param[out]  BOOL   *noAtoms          Do not write atom accessibilities
+   \param[out]  BOOL   *addRadii         Add radii to occupancy column
    \return      BOOL                     Success
 
    Parse the command line
 
    17.07.14 Original    By: ACRM
+   21.11.17 Added -x addRadii
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   REAL *integrationAccuracy, REAL *rad, char *radfile,
-                  BOOL *doAccessibility, char *resfile, BOOL *noAtoms)
+                  BOOL *doAccessibility, char *resfile, BOOL *noAtoms,
+                  BOOL *addRadii)
 {
    argc--;
    argv++;
@@ -290,6 +304,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
          case 'c':
             *doAccessibility = FALSE;
             break;
+         case 'x':
+            *addRadii = TRUE;
+            break;
          default:
             return(FALSE);
             break;
@@ -332,14 +349,15 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -   13.02.15 V1.3
 -   17.06.15 V1.4
 -   08.03.16 V1.5
+-   21.11.17 V1.6
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbsolv V1.5 (c) 2014-2016 UCL, Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbsolv V1.6 (c) 2014-2017 UCL, Dr. Andrew C.R. \
 Martin\n");
 
    fprintf(stderr,"\nUsage: pdbsolv [-i val] [-p val] [-f radfile] \
-[-r resfile] [-n] [-c] [in.pdb [out.pdb]]\n");
+[-r resfile] [-n] [-c] [-x] [in.pdb [out.pdb]]\n");
    fprintf(stderr,"            -i val      Specify integration accuracy \
 (Default: %.2f)\n",ACCESS_DEF_INTACC);
    fprintf(stderr,"            -p val      Specify probe radius \
@@ -361,6 +379,9 @@ program.\n");
 accessibility. Used with -r\n");
    fprintf(stderr,"            -c          Do contact area instead of \
 accessibility\n");
+   fprintf(stderr,"            -x          Add radii in occupancy \
+column of PDB file\n");
+
 
    fprintf(stderr,"\nPerforms solvent accessibility calculations \
 according to the method of\n");
@@ -387,6 +408,26 @@ void PopulateBValWithAccess(PDB *pdb)
    for(p=pdb; p!=NULL; NEXT(p))
    {
       p->bval = p->access;
+   }
+}
+
+
+/************************************************************************/
+/*>void PopulateOccWithRadii(PDB *pdb)
+   -----------------------------------
+*//**
+   \param   PDB  *pdb    PDB linked list
+
+   Copies the radius information into the occupancy column for output
+
+-  21.11.17  Original   By: ACRM   
+*/
+void PopulateOccWithRadii(PDB *pdb)
+{
+   PDB *p;
+   for(p=pdb; p!=NULL; NEXT(p))
+   {
+      p->occ = p->radius;
    }
 }
 
