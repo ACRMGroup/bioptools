@@ -870,7 +870,7 @@ BOOL initSequenceWeights(char **SeqTable, int numSeqs, int seqlen,
       {
          if(i == j)
             continue;
-            seqDistSum += seqDistTable[i][j];
+         seqDistSum += seqDistTable[i][j];
       }
       sSeqWeights[i] = seqDistSum / ((REAL)numSeqs - (REAL)1.0);
    }
