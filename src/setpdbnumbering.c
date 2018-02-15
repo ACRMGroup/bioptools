@@ -3,8 +3,8 @@
 
    \file       setpdbnumbering.c
    
-   \version    V1.5
-   \date       12.03.15
+   \version    V1.6
+   \date       28.01.18
    \brief      Apply standard numbering to a set of PDB files
    
    \copyright  (c) Dr. Andrew C. R. Martin 1996-2015
@@ -61,6 +61,7 @@
 -  V1.4  05.03.15 Now calls pdbpatchnumbering rather than assuming the
                   link to patchpdbnum is available. Improved help message
 -  V1.5  12.03.15 Changed to allow multi-character chain names
+-  V1.6  28.01.18 Increased label buffer sizes
 
 *************************************************************************/
 /* Includes
@@ -178,10 +179,11 @@ int main(int argc, char **argv)
 -  25.11.14 V1.3 By: ACRM
 -  05.03.15 V1.4
 -  12.03.15 V1.5
+-  28.01.18 V1.6
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nsetpdbnumbering V1.5 (c) 1996-2015 Dr. Andrew C.R. \
+   fprintf(stderr,"\nsetpdbnumbering V1.6 (c) 1996-2018 Dr. Andrew C.R. \
 Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: setpdbnumbering alnfile\n");
@@ -383,14 +385,15 @@ characters.\n");
 -  05.02.96 Original    By: ACRM
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  12.03.15 Changed to allow multi-character chain names
+-  28.01.18 Changed label[8] to label[32]
 */
 BOOL GetNumbering(NAMSEQ *namseq, char **numbering)
 {
    PDB  *pdb, *p, 
         *prev = NULL;
    FILE *fp;
-   char label[8],
-        nextlabel[8],
+   char label[32],
+        nextlabel[32],
         InsertLabel = ' ',
         RevLabel    = 'Z';
    int  nres, rescount, natoms;
@@ -508,13 +511,14 @@ the alphabet\n");
    to the pdbpatchnumbering program to do the work
 
 -  05.02.96 Original    By: ACRM
+-  28.01.18 Increased buffer size
 */
 BOOL ApplyNumbering(NAMSEQ *namseq, char **Numbering)
 {
    NAMSEQ *ns;
    FILE   *fp;
    int    i;
-   char   buffer[MAXBUFF];
+   char   buffer[MAXBUFF*3];
    
    for(ns=namseq; ns!=NULL; NEXT(ns))
    {

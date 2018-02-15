@@ -3,11 +3,11 @@
 
    \file       pdbtorsions.c
    
-   \version    V2.1
-   \date       04.03.15
+   \version    V2.2
+   \date       28.01.18
    \brief      Calculate torsion angles for a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1996-2015
+   \copyright  (c) Dr. Andrew C. R. Martin 1996-2018
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -66,6 +66,7 @@
                   residue. Still makes the old format available
 -  V2.1  04.03.15 Improved checking for old name
                   Now done by blCheckProgName()
+-  V2.2  28.01.17 Updated size of label array
 
 *************************************************************************/
 /* Includes
@@ -353,12 +354,13 @@ void doCATorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians,
    Does the work of printing a CA pseudo-torsion in the required format
 
 - 27.11.14 Original   By: ACRM
+- 28.01.18 label[32] instead of label[16]
 */
 void PrintCARecord(FILE *out, PDB *p, REAL tor, BOOL terse, 
                    BOOL showLabel, BOOL dummy)
 {
    char resnam[16];
-   char label[16];
+   char label[32];
 
    if(terse)
    {
@@ -493,11 +495,12 @@ void doFullTorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians,
    Does the work of printing a record for a normal full torsion angle
 
 - 27.11.14 Original   By: ACRM
+- 28.01.18 label[32] instead of label[16]
 */
 void PrintFullRecord(FILE *out, PDB *p, REAL phi, REAL psi, REAL omega, 
                      BOOL terse, BOOL oldStyle)
 {
-   char label[16];
+   char label[32];
    char resnam[16];
 
    if(p!=NULL)
@@ -710,10 +713,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  07.11.14 V1.6
 -  27.11.14 V2.0
 -  04.03.15 V2.1
+-  28.01.18 V2.2
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbtorsions V2.1 (c) 1994-2015 Andrew Martin, \
+   fprintf(stderr,"\npdbtorsions V2.2 (c) 1994-2018 Andrew Martin, \
 UCL.\n");
    fprintf(stderr,"\nUsage: pdbtorsions [-h][-r][-c][-t][-o][-n] \
 [in.pdb [out.tor]]\n");

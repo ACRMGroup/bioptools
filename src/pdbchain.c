@@ -3,11 +3,11 @@
 
    \file       pdbchain.c
    
-   \version    V2.1
-   \date       13.03.15
+   \version    V2.2
+   \date       28.01.18
    \brief      Insert chain labels into a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2018
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -69,6 +69,7 @@
                   L and H are now specified as L,H instead of LH
 -  V2.1  13.03.15 Now supports old chain specification method if
                   called as chainpdb
+-  V2.2  28.01.18 Increased MAXCHAINLABEL from 8 to 16
 
 *************************************************************************/
 /* Includes
@@ -90,7 +91,7 @@
 */
 #define MAXBUFF 160
 #define MAXCHAIN 160
-#define MAXCHAINLABEL 8
+#define MAXCHAINLABEL 16
 
 #define CNDISTSQ  3.5
 #define CADISTSQ 16.0
@@ -284,10 +285,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  05.03.15 V1.10
 -  10.03.15 V2.0
 -  13.03.15 V2.1
+-  28.01.18 V2.2
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbchain V2.1 (c) 1994-2015 Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbchain V2.2 (c) 1994-2018 Dr. Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"\nUsage: pdbchain [-c chain[,chain[...]]] [in.pdb \
 [out.pdb]]\n");
