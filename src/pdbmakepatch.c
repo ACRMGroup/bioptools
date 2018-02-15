@@ -88,8 +88,8 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include "bioplib/pdb.h"
-#include "bioplib/macros.h"
+#include "pdb.h"
+#include "macros.h"
 
 
 /************************************************************************/

@@ -57,10 +57,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "bioplib/pdb.h"
-#include "bioplib/general.h"
-#include "bioplib/macros.h"
-#include "bioplib/secstr.h"
+#include "pdb.h"
+#include "general.h"
+#include "macros.h"
+#include "secstr.h"
 
 /************************************************************************/
 /* Defines and macros

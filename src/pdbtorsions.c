@@ -75,13 +75,13 @@
 #include <math.h>
 #include <ctype.h>
 
-#include "bioplib/MathType.h"
-#include "bioplib/SysDefs.h"
-#include "bioplib/general.h"
-#include "bioplib/pdb.h"
-#include "bioplib/seq.h"
-#include "bioplib/angle.h"
-#include "bioplib/macros.h"
+#include "MathType.h"
+#include "SysDefs.h"
+#include "general.h"
+#include "pdb.h"
+#include "seq.h"
+#include "angle.h"
+#include "macros.h"
 
 /************************************************************************/
 /* Defines and macros

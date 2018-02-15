@@ -71,13 +71,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "bioplib/MathType.h"
-#include "bioplib/SysDefs.h"
-#include "bioplib/general.h"
-#include "bioplib/pdb.h"
-#include "bioplib/seq.h"
-#include "bioplib/macros.h"
-#include "bioplib/array.h"
+#include "MathType.h"
+#include "SysDefs.h"
+#include "general.h"
+#include "pdb.h"
+#include "seq.h"
+#include "macros.h"
+#include "array.h"
 
 /************************************************************************/
 /* Defines and macros

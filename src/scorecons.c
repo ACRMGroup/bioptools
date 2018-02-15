@@ -129,12 +129,12 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include "bioplib/SysDefs.h"
-#include "bioplib/MathType.h"
-#include "bioplib/seq.h"
-#include "bioplib/array.h"
-#include "bioplib/general.h"
-#include "bioplib/macros.h"
+#include "SysDefs.h"
+#include "MathType.h"
+#include "seq.h"
+#include "array.h"
+#include "general.h"
+#include "macros.h"
 
 
 /************************************************************************/

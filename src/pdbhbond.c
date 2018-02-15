@@ -148,13 +148,13 @@ Handle PGP file in data directory
 #include <string.h>
 #include <math.h>
 
-#include "bioplib/macros.h"
-#include "bioplib/SysDefs.h"
-#include "bioplib/pdb.h"
-#include "bioplib/hbond.h"
-#include "bioplib/hash.h"
-#include "bioplib/angle.h"
-#include "bioplib/general.h"
+#include "macros.h"
+#include "SysDefs.h"
+#include "pdb.h"
+#include "hbond.h"
+#include "hash.h"
+#include "angle.h"
+#include "general.h"
 
 /************************************************************************/
 /* Defines and macros

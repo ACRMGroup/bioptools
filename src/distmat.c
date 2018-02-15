@@ -68,13 +68,13 @@
 */
 #include <stdio.h>
 #include <stdlib.h>
-#include "bioplib/MathType.h"
-#include "bioplib/SysDefs.h"
-#include "bioplib/pdb.h"
-#include "bioplib/general.h"
-#include "bioplib/macros.h"
-#include "bioplib/MathUtil.h"
-#include "bioplib/hash.h"
+#include "MathType.h"
+#include "SysDefs.h"
+#include "pdb.h"
+#include "general.h"
+#include "macros.h"
+#include "MathUtil.h"
+#include "hash.h"
 
 /************************************************************************/
 /* Defines and macros
