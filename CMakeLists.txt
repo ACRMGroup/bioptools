@@ -90,7 +90,7 @@ set(BINARY_NAMES
         numpdb
         )
 
-include_directories(${BIOPLIB_INCLUDE} ${LIBXML2_INCLUDE_DIR})
+include_directories(${BIOPLIB_INCLUDE})
 
 ###############################################################################
 #                           BUILD RULES
@@ -106,7 +106,8 @@ foreach(val RANGE ${len})
     list(GET BINARY_NAMES ${val} BIN_NAME)
     add_executable(${BIN_NAME} ${SOURCE_FILE} ${BIOPLIB_INCLUDE})
     # link bioplib, genlib, lxml2 and math standard library (m)
-    target_link_libraries(${BIN_NAME} ${BIOPLIB_LIBRARIES} ${GENLIB_LIBRARIES} ${LIBXML2_LIBRARIES} m)
+    target_link_libraries(${BIN_NAME} ${BIOPLIB_LIBRARIES} ${GENLIB_LIBRARIES} m)
+    set_target_properties(${BIN_NAME} PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 endforeach()
 
 ###############################################################################
