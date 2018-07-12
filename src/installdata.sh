@@ -6,6 +6,7 @@ if [ "X$DESTDIR" == "X" ]; then
     exit 1;
 fi
 
+echo -n "Copying data files..."
 for file in ../data/*; do
     filename=`basename $file`
     if [ -f $file ]; then
@@ -18,3 +19,4 @@ for file in ../data/*; do
         fi
     fi
 done
+echo "done"

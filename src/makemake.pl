@@ -277,7 +277,8 @@ bioplib :
 \t(cd libsrc/bioplib/src; make)
 \tmkdir -p bioplib
 \tcp libsrc/bioplib/src/*.[ah] bioplib
-\tcp libsrc/bioplib/data/* \$(DATADIR)
+\tif [ ! -d ../data ]; then mkdir ../data; fi
+\tcp -R libsrc/bioplib/data/* ../data
 
 __EOF
     }
