@@ -62,9 +62,11 @@
 #   V1.6.2  11.08.16  Bumped to require BiopLib V3.5
 #   V1.6.3  24.10.17  Bumped to require BiopLib V3.6
 #   V1.6.4  10.11.17  Bumped to require BiopLib V3.7
+#   V1.6.5  10.11.17  Bumped to require BiopLib V3.8 and copies all
+#                     data files from bioplib
 #
 #*************************************************************************
-$::biopversion = "3.7";
+$::biopversion = "3.8";
 #*************************************************************************
 $::biopgit     = "https://github.com/ACRMGroup/bioplib/archive/V";
 $::biopext     = ".tar.gz";
@@ -111,15 +113,16 @@ close $makefp;
 #
 # 07.11.14 Original   By: ACRM
 # 15.02.16 Added making the libsrc directory
+# 12.07.18 No longer uses git submodules
 sub GetBiopLib
 {
-    if(-d "../.git")
-    {
-        system("(cd ..; git submodule init)");
-        system("(cd ..; git submodule update)");
-    }
-    else
-    {
+#    if(-d "../.git")
+#    {
+#        system("(cd ..; git submodule init)");
+#        system("(cd ..; git submodule update)");
+#    }
+#    else
+#    {
         if((! -d "libsrc/bioplib/.git") && (! -d "libsrc/bioplib/src"))
         {
             system("\\rm -rf libsrc/bioplib");
@@ -128,7 +131,7 @@ sub GetBiopLib
             my $tar = "V$::biopversion$::biopext";
             system("(cd libsrc; wget $url; tar xvf $tar; mv bioplib-$::biopversion bioplib)");
         }
-    }
+#    }
 }
 #*************************************************************************
 # Writes the rule for installing code in $BINDIR
@@ -272,6 +275,7 @@ bioplib :
 \t(cd libsrc/bioplib/src; make)
 \tmkdir -p bioplib
 \tcp libsrc/bioplib/src/*.[ah] bioplib
+\tcp libsrc/bioplib/data/* \$(DATADIR)
 
 __EOF
     }
