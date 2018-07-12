@@ -116,23 +116,16 @@ close $makefp;
 # 12.07.18 No longer uses git submodules
 sub GetBiopLib
 {
-#    if(-d "../.git")
-#    {
-#        system("(cd ..; git submodule init)");
-#        system("(cd ..; git submodule update)");
-#    }
-#    else
-#    {
-        if((! -d "libsrc/bioplib/.git") && (! -d "libsrc/bioplib/src"))
-        {
-            system("\\rm -rf libsrc/bioplib");
-            system("mkdir -p libsrc");
-            my $url = "$::biopgit$::biopversion$::biopext";
-            my $tar = "V$::biopversion$::biopext";
-            system("(cd libsrc; wget $url; tar xvf $tar; mv bioplib-$::biopversion bioplib)");
-        }
-#    }
+    if((! -d "libsrc/bioplib/.git") && (! -d "libsrc/bioplib/src"))
+    {
+        system("\\rm -rf libsrc/bioplib");
+        system("mkdir -p libsrc");
+        my $url = "$::biopgit$::biopversion$::biopext";
+        my $tar = "V$::biopversion$::biopext";
+        system("(cd libsrc; wget $url; tar xvf $tar; mv bioplib-$::biopversion bioplib)");
+    }
 }
+
 #*************************************************************************
 # Writes the rule for installing code in $BINDIR
 #
