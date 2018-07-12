@@ -4,11 +4,11 @@
 #   Program:    makemake
 #   File:       makemake.pl
 #   
-#   Version:    V1.6.3
-#   Date:       10.11.17
+#   Version:    V1.6.5
+#   Date:       12.07.18
 #   Function:   Build the Makefile for BiopTools
 #   
-#   Copyright:  (c) Dr. Andrew C. R. Martin, UCL, 2014-2017
+#   Copyright:  (c) Dr. Andrew C. R. Martin, UCL, 2014-2018
 #   Author:     Dr. Andrew C. R. Martin
 #   Address:    Institute of Structural and Molecular Biology
 #               Division of Biosciences
@@ -62,8 +62,8 @@
 #   V1.6.2  11.08.16  Bumped to require BiopLib V3.5
 #   V1.6.3  24.10.17  Bumped to require BiopLib V3.6
 #   V1.6.4  10.11.17  Bumped to require BiopLib V3.7
-#   V1.6.5  10.11.17  Bumped to require BiopLib V3.8 and copies all
-#                     data files from bioplib
+#   V1.6.5  12.07.18  Bumped to require BiopLib V3.8 and copies all
+#                     data files from bioplib using installs script
 #
 #*************************************************************************
 $::biopversion = "3.8";
@@ -137,6 +137,7 @@ sub GetBiopLib
 # Writes the rule for installing code in $BINDIR
 #
 # 06.11.14 Original   By: ACRM
+# 12.07.18 Now uses installdata script to install all data files
 sub WriteInstallRule
 {
     my($makefp, @exeFiles) = @_;
@@ -146,7 +147,7 @@ install :
 \tmkdir -p \$(BINDIR)
 \tcp \$(TARGETS) \$(BINDIR)
 \tmkdir -p \$(DATADIR)
-\tif [ ! -f \$(DATADIR)/radii.dat ] ; then cp ../data/radii.dat \$(DATADIR) ; fi
+\t./installdata.sh \$(DATADIR)
 \t\@echo " "
 \t\@echo " --- INSTALL COMPLETE --- "
 \t\@echo " "
@@ -257,6 +258,7 @@ __EOF
 # Writes the dummy rule for building everything
 #
 # 06.11.14 Original   By: ACRM
+# 12.07.18 Copies all data from bioplib
 sub WriteDummyRule
 {
     my($makefp, $bioplib) = @_;
