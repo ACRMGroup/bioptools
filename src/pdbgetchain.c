@@ -71,10 +71,10 @@
 /* Includes
 */
 #include <stdio.h>
-#include "bioplib/pdb.h"
-#include "bioplib/general.h"
-#include "bioplib/macros.h"
-#include "bioplib/array.h"
+#include "pdb.h"
+#include "general.h"
+#include "macros.h"
+#include "array.h"
 
 /************************************************************************/
 /* Defines and macros

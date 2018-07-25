@@ -58,8 +58,8 @@
 */
 #include <stdio.h>
 #include <string.h>
-#include "bioplib/pdb.h"
-#include "bioplib/macros.h"
+#include "pdb.h"
+#include "macros.h"
 
 /************************************************************************/
 /* Defines and macros

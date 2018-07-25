@@ -82,13 +82,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "bioplib/MathType.h"
-#include "bioplib/SysDefs.h"
-#include "bioplib/pdb.h"
-#include "bioplib/seq.h"
-#include "bioplib/macros.h"
-#include "bioplib/general.h"
-#include "bioplib/array.h"
+#include "MathType.h"
+#include "SysDefs.h"
+#include "pdb.h"
+#include "seq.h"
+#include "macros.h"
+#include "general.h"
+#include "array.h"
 
 
 /************************************************************************/

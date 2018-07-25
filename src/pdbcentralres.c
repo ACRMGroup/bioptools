@@ -57,10 +57,10 @@
 /* Includes
 */
 #include <stdio.h>
-#include "bioplib/macros.h"
-#include "bioplib/SysDefs.h"
-#include "bioplib/pdb.h"
-#include "bioplib/general.h"
+#include "macros.h"
+#include "SysDefs.h"
+#include "pdb.h"
+#include "general.h"
 
 /************************************************************************/
 /* Defines and macros

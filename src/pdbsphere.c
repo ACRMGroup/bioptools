@@ -75,10 +75,10 @@
 /* Includes
 */
 #include <stdio.h>
-#include "bioplib/pdb.h"
-#include "bioplib/SysDefs.h"
-#include "bioplib/MathType.h"
-#include "bioplib/macros.h"
+#include "pdb.h"
+#include "SysDefs.h"
+#include "MathType.h"
+#include "macros.h"
 
 /************************************************************************/
 /* Defines and macros

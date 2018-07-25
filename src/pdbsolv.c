@@ -63,10 +63,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "bioplib/macros.h"
-#include "bioplib/SysDefs.h"
-#include "bioplib/pdb.h"
-#include "bioplib/access.h"
+#include "macros.h"
+#include "SysDefs.h"
+#include "pdb.h"
+#include "access.h"
 
 /************************************************************************/
 /* Defines and macros

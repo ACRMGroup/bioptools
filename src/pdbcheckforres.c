@@ -61,8 +61,8 @@
 /* Includes
 */
 #include <stdio.h>
-#include "bioplib/pdb.h"
-#include "bioplib/general.h"
+#include "pdb.h"
+#include "general.h"
 
 /************************************************************************/
 /* Defines and macros

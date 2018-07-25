@@ -60,12 +60,12 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include "bioplib/MathType.h"
-#include "bioplib/SysDefs.h"
-#include "bioplib/pdb.h"
-#include "bioplib/macros.h"
-#include "bioplib/general.h"
-#include "bioplib/MathUtil.h"
+#include "MathType.h"
+#include "SysDefs.h"
+#include "pdb.h"
+#include "macros.h"
+#include "general.h"
+#include "MathUtil.h"
 
 /************************************************************************/
 /* Defines and macros

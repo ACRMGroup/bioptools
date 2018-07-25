@@ -70,12 +70,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include "bioplib/SysDefs.h"
-#include "bioplib/MathType.h"
-#include "bioplib/pdb.h"
-#include "bioplib/seq.h"
-#include "bioplib/macros.h"
-#include "bioplib/general.h"
+#include "SysDefs.h"
+#include "MathType.h"
+#include "pdb.h"
+#include "seq.h"
+#include "macros.h"
+#include "general.h"
 
 
 /************************************************************************/

@@ -58,9 +58,9 @@
 */
 #include <stdio.h>
 #include <stdlib.h>
-#include "bioplib/pdb.h"
-#include "bioplib/general.h"
-#include "bioplib/macros.h"
+#include "pdb.h"
+#include "general.h"
+#include "macros.h"
 
 /************************************************************************/
 /* Defines and macros

@@ -58,8 +58,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "bioplib/macros.h"
-#include "bioplib/pdb.h"
+#include "macros.h"
+#include "pdb.h"
 
 /***********************************************************************/
 /* Prototypes */

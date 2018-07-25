@@ -61,11 +61,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "bioplib/macros.h"
-#include "bioplib/SysDefs.h"
-#include "bioplib/MathType.h"
-#include "bioplib/pdb.h"
-#include "bioplib/general.h"
+#include "macros.h"
+#include "SysDefs.h"
+#include "MathType.h"
+#include "pdb.h"
+#include "general.h"
 
 /************************************************************************/
 /* Defines and macros

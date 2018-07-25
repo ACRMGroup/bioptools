@@ -57,9 +57,9 @@
 #include <string.h>
 #include <math.h>
 
-#include "bioplib/macros.h"
-#include "bioplib/SysDefs.h"
-#include "bioplib/pdb.h"
+#include "macros.h"
+#include "SysDefs.h"
+#include "pdb.h"
 
 /************************************************************************/
 /* Defines and macros
