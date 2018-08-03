@@ -66,9 +66,10 @@
 #                     data files from bioplib using install script
 #   V1.7    03.08.18  Added pdbatomselect to replace pdbatomsel
 #                     and provide links to both pdbatomsel and atomsel
+#                     Bumped to require BiopLib V3.8.1
 #
 #*************************************************************************
-$::biopversion = "3.8";
+$::biopversion = "3.8.1";
 #*************************************************************************
 $::biopgit     = "https://github.com/ACRMGroup/bioplib/archive/V";
 $::biopext     = ".tar.gz";
