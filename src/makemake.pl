@@ -4,8 +4,8 @@
 #   Program:    makemake
 #   File:       makemake.pl
 #   
-#   Version:    V1.6.5
-#   Date:       12.07.18
+#   Version:    V1.7
+#   Date:       03.08.18
 #   Function:   Build the Makefile for BiopTools
 #   
 #   Copyright:  (c) Dr. Andrew C. R. Martin, UCL, 2014-2018
@@ -63,7 +63,9 @@
 #   V1.6.3  24.10.17  Bumped to require BiopLib V3.6
 #   V1.6.4  10.11.17  Bumped to require BiopLib V3.7
 #   V1.6.5  12.07.18  Bumped to require BiopLib V3.8 and copies all
-#                     data files from bioplib using installs script
+#                     data files from bioplib using install script
+#   V1.7    03.08.18  Added pdbatomselect to replace pdbatomsel
+#                     and provide links to both pdbatomsel and atomsel
 #
 #*************************************************************************
 $::biopversion = "3.8";
@@ -163,7 +165,6 @@ links :
 \t(cd \$(BINDIR); \\rm -f addhet      ; ln -s pdbaddhet          addhet       )
 \t(cd \$(BINDIR); \\rm -f as2bval     ; ln -s naccess2bval       as2bval      )
 \t(cd \$(BINDIR); \\rm -f atomcount   ; ln -s pdbatomcount       atomcount    )
-\t(cd \$(BINDIR); \\rm -f atomsel     ; ln -s pdbatomsel         atomsel      )
 \t(cd \$(BINDIR); \\rm -f avbr        ; ln -s pdbavbr            avbr         )
 \t(cd \$(BINDIR); \\rm -f centralres  ; ln -s pdbcentralres      centralres   )
 \t(cd \$(BINDIR); \\rm -f chainpdb    ; ln -s pdbchain           chainpdb     )
@@ -190,6 +191,8 @@ links :
 \t(cd \$(BINDIR); \\rm -f sumbval     ; ln -s pdbsumbval         sumbval      )
 \t(cd \$(BINDIR); \\rm -f torsions    ; ln -s pdbtorsions        torsions     )
 \t(cd \$(BINDIR); \\rm -f transpdb    ; ln -s pdbtranslate       transpdb     )
+\t(cd \$(BINDIR); \\rm -f pdbatomsel  ; ln -s pdbatomselect      pdbatomsel   )
+\t(cd \$(BINDIR); \\rm -f atomsel     ; ln -s pdbatomselect      atomsel      )
 
 __EOF
 }

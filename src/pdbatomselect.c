@@ -1,13 +1,13 @@
 /************************************************************************/
 /**
 
-   \file       pdbatomsel.c
+   \file       pdbatomselect.c
    
-   \version    V1.7
-   \date       02.03.15
+   \version    V2.0
+   \date       03.08.18
    \brief      Select atoms from a PDB file. Acts as filter
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2018
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -55,6 +55,9 @@
 -  V1.5  07.11.14 Initialized a variable
 -  V1.6  12.02.15 Uses Whole PDB
 -  V1.7  02.03.15 Major rewrite to use blSelectAtomsPDBAsCopy()
+-  V2.0  03.08.18 Based on pdbatomsel - it now works as pdbatomsel did
+                  if called with that name. Otherwise now expects
+                  -atoms X,Y,Z and takes -h for help
 
 *************************************************************************/
 /* Includes
@@ -75,12 +78,16 @@
 /************************************************************************/
 /* Defines and macros
 */
-#define MAXBUFF 160
+#define MAXBUFF             160
+#define MAXATNAM              8
+#define STYLE_PDBATOMSEL      1
+#define STYLE_PDBATOMSELECT   2
+
 
 typedef struct _atomtype
 {
    struct _atomtype *next;
-   char type[8];
+   char type[MAXATNAM];
 }  ATOMTYPE;
 
 /************************************************************************/
@@ -91,11 +98,12 @@ typedef struct _atomtype
 /* Prototypes
 */
 int main(int argc, char **argv);
-void Usage(void);
-BOOL ParseCmdLine(int argc, char **argv, ATOMTYPE **atoms, char *infile, 
-                  char *outfile);
+void Usage(int style);
+int ParseCmdLine(int argc, char **argv, ATOMTYPE **atoms, char *infile, 
+                 char *outfile);
 void UpcaseAndPadAtomTypes(ATOMTYPE *atoms);
 char **ConvertAtomsToArray(ATOMTYPE *atoms, int *nSelected);
+ATOMTYPE *PopulateAtomsFromCSL(char *atomCSL);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -120,9 +128,12 @@ int main(int argc, char **argv)
    FILE     *in  = stdin, 
             *out = stdout;
    ATOMTYPE *atoms = NULL;
-   int      nSelected;
+   int      nSelected,
+            parseResult;
 
-   if(ParseCmdLine(argc, argv, &atoms, infile, outfile))
+   
+   parseResult = ParseCmdLine(argc, argv, &atoms, infile, outfile);
+   if(!parseResult)
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
@@ -169,7 +180,7 @@ list.\n");
    }
    else
    {
-      Usage();
+      Usage(parseResult);
    }
 
    return(0);
@@ -218,9 +229,11 @@ char **ConvertAtomsToArray(ATOMTYPE *atoms, int *nSelected)
 
 
 /************************************************************************/
-/*>void Usage(void)
-   ----------------
+/*>void Usage(int style)
+   ---------------------
 *//**
+
+   \param[in]   style    Is it being called as pdbatomsel or pdbatomselect
 
    Prints a usage message
 
@@ -231,25 +244,49 @@ char **ConvertAtomsToArray(ATOMTYPE *atoms, int *nSelected)
 -  07.11.14 V1.5
 -  12.02.15 V1.6
 -  02.03.15 V1.7
+-  03.08.18 V2.0
 */
-void Usage(void)
-{            
-   fprintf(stderr,"\npdbatomsel V1.7 (c) 1994-2015, Andrew C.R. \
+void Usage(int style)
+{
+   if(style == STYLE_PDBATOMSEL)
+   {
+      fprintf(stderr,"\npdbatomsel V2.0 (c) 1994-2018, Andrew C.R. \
 Martin, UCL\n");
-   fprintf(stderr,"Usage: pdbatomsel [-atom] [-atom...] [<in.pdb> \
-[<out.pdb>]]\n\n");
-   fprintf(stderr,"Selects specified atom types from a PDB file. \
+
+      fprintf(stderr,"\n*** USE pdbatomselect INSTEAD. THIS FORM IS \
+DEPRECATED AND KEPT ONLY ***\n");
+      fprintf(stderr,"*** FOR BACKWARDS COMPATIBILITY                 \
+                     ***\n");
+      
+      fprintf(stderr,"\nUsage: pdbatomsel [-atom] [-atom...] [in.pdb \
+[out.pdb]]\n");
+      fprintf(stderr,"\nSelects specified atom types from a PDB file. \
 Assumes C-alpha if no atoms\n");
-   fprintf(stderr,"are specified. I/O is through stdin/stdout if files \
-are not specified.\n\n");
-   fprintf(stderr,"Note that this program does not currently support \
+      fprintf(stderr,"are specified. I/O is through stdin/stdout if \
+files are not specified.\n\n");
+      fprintf(stderr,"Note that this program does not currently support \
 PDBML output\n\n");
+   }
+   else
+   {
+      fprintf(stderr,"\npdbatomselect V2.0 (c) 1994-2018, Andrew C.R. \
+Martin, UCL\n");
+      fprintf(stderr,"Usage: pdbatomselect [-a atom,atom,atom[,...]] \
+[in.pdb [out.pdb]]\n");
+      fprintf(stderr,"\nSelects specified atom types from a PDB file. \
+Assumes C-alpha if no atoms\n");
+      fprintf(stderr,"are specified. I/O is through stdin/stdout if \
+files are not specified.\n\n");
+      fprintf(stderr,"Note that this program does not currently support \
+PDBML output\n\n");
+   }
 }
 
+
 /************************************************************************/
-/*>BOOL ParseCmdLine(int argc, char **argv, ATOMTYPE **atoms,
-                     char *infile, char *outfile)
-   ---------------------------------------------------------------------
+/*>int ParseCmdLine(int argc, char **argv, ATOMTYPE **atoms,
+                    char *infile, char *outfile)
+   ---------------------------------------------------------
 *//**
 
    \param[in]      argc        Argument count
@@ -257,19 +294,34 @@ PDBML output\n\n");
    \param[out]     **atoms     Linked list of atoms to keep
    \param[out]     *infile     Input filename (or blank string)
    \param[out]     *outfile    Output filename (or blank string)
-   \return                     Success
+   \return                     0: Success,
+                               STYLE_PDBATOMSEL: 
+                                  Error called as pdbatomsel
+                               STYLE_PDBATOMSELECY: 
+                                  Error called as pdbatomselelect
 
    Parse the command line
 
 -  15.07.94 Original    By: ACRM
 -  19.08.14 Removed unused variables. By: CTP
 -  07.11.14 Initialized a
+-  03.08.18 Updated for pdbatomselect (i.e. V2.0)
 */
-BOOL ParseCmdLine(int argc, char **argv, ATOMTYPE **atoms, char *infile, 
+int ParseCmdLine(int argc, char **argv, ATOMTYPE **atoms, char *infile, 
                   char *outfile)
 {
-   ATOMTYPE *a = NULL;
+   ATOMTYPE *a    = NULL;
+   int      style = 0;
 
+   /* Set the command parser style based on whether the program is called
+      as pdbatomsel/atomsel or pdbatomselect
+   */
+   if(blCheckProgName(argv[0], "pdbatomsel") ||
+      blCheckProgName(argv[0], "atomsel"))
+      style = STYLE_PDBATOMSEL;
+   else
+      style = STYLE_PDBATOMSELECT;
+   
    argc--;
    argv++;
    
@@ -279,33 +331,52 @@ BOOL ParseCmdLine(int argc, char **argv, ATOMTYPE **atoms, char *infile,
    {
       if(argv[0][0] == '-')
       {
-         if(!strncmp(argv[0]+1,"help",4))
-            return(FALSE);
-         
-         if(*atoms == NULL)
+         if(style == STYLE_PDBATOMSEL)
          {
-            INIT((*atoms),ATOMTYPE);
-            a = *atoms;
+            if(!strncmp(argv[0]+1,"help",4))
+               return(style);
+            if(*atoms == NULL)
+            {
+               INIT((*atoms),ATOMTYPE);
+               a = *atoms;
+            }
+            else
+            {
+               ALLOCNEXT(a, ATOMTYPE);
+            }
+            
+            if(a == NULL)
+            {
+               fprintf(stderr,"Error: Unable to allocate memory for atom \
+list.\n");
+               exit(1);
+            }
+            
+            strncpy(a->type, argv[0]+1, MAXATNAM);
          }
          else
          {
-            ALLOCNEXT(a, ATOMTYPE);
+            switch(argv[0][1])
+            {
+            case 'a':
+               argv++;
+               argc--;
+               if(argc < 0)
+                  return(style);
+               *atoms = PopulateAtomsFromCSL(argv[0]);
+               break;
+            case 'h':
+            default:
+               return(style);
+            }
          }
          
-         if(a == NULL)
-         {
-            fprintf(stderr,"Error: Unable to allocate memory for atom \
-list.\n");
-            exit(1);
-         }
-         
-         strcpy(a->type, argv[0]+1);
       }
       else
       {
          /* Check that there are only 1 or 2 arguments left             */
          if(argc > 2)
-            return(FALSE);
+            return(style);
          
          /* Copy the first to infile                                    */
          strcpy(infile, argv[0]);
@@ -315,14 +386,62 @@ list.\n");
          argv++;
          if(argc)
             strcpy(outfile, argv[0]);
-         return(TRUE);
+         return(0);
       }
       argc--;
       argv++;
    }
    
-   return(TRUE);
+   return(0);
 }
+
+
+/************************************************************************/
+/*>ATOMTYPE *PopulateAtomsFromCSL(char *atomCSL)
+   ---------------------------------------------
+*//**
+   \param[in]   atomCSL  Atom comma separated list
+   \return               ATOMTYPE linked list
+
+   Populates the linked list of atom types from the comma separated
+   list
+
+-  03.08.18  Original   By: ACRM
+*/
+ATOMTYPE *PopulateAtomsFromCSL(char *atomCSL)
+{
+   ATOMTYPE *atoms = NULL,
+            *a     = NULL;
+   char     word[MAXBUFF],
+            *chp   = atomCSL;
+
+
+   do
+   {
+      chp = blGetWord(chp, word, MAXBUFF);
+      if(atoms == NULL)
+      {
+         INIT(atoms, ATOMTYPE);
+         a = atoms;
+      }
+      else
+      {
+         ALLOCNEXT(a, ATOMTYPE);
+      }
+   
+      if(a == NULL)
+      {
+         fprintf(stderr,"Error: Unable to allocate memory for atom \
+list.\n");
+         exit(1);
+      }
+   
+      strncpy(a->type, word, MAXATNAM);
+   }  while(chp != NULL);
+
+   return(atoms);
+}
+
 
 /************************************************************************/
 /*>void UpcaseAndPadAtomTypes(ATOMTYPE *atoms)
