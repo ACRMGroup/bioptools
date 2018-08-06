@@ -1,3 +1,4 @@
+DEST   = $(HOME)/bin
 XML    = # -DXML_SUPPORT $(shell xml2-config --cflags)
 XMLLIB = # -lxml2
 #
@@ -41,3 +42,7 @@ clean :
 
 distclean : clean
 	\rm -f pdbsecstr
+
+install :
+	mkdir -p $(DEST)
+	cp pdbsecstr $(DEST)
