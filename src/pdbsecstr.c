@@ -3,11 +3,11 @@
 
    \File       pdbsecstr.c
    
-   \version    V1.1
-   \date       11.08.16
+   \version    V1.2
+   \date       06.08.18
    \brief      Secondary structure calculation program
    
-   \copyright  (c) Dr. Andrew C. R. Martin, UCL, 1999-2016
+   \copyright  (c) Dr. Andrew C. R. Martin, UCL, 1999-2018
    \author     Dr. Andrew C. R. Martin
    \par
                Institute of Structural & Molecular Biology,
@@ -49,6 +49,7 @@
    V1.0   19.05.99 Original, written while at Inpharmatica   By: ACRM
    V1.1   11.08.16 Rewritten to use PDB files rather than XMAS files
                    and to use blCalcSecStrucPDB() in Bioplib
+   V1.2   06.08.18 Updated Usage message
 
 *************************************************************************/
 /* Includes
@@ -223,13 +224,14 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  19.05.99 Original   By: ACRM
 -  21.05.99 Added flags
 -  11.08.16 Updated for non-xmas version
+-  06.08.18 V1.2
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbsecstr V1.1 (c) 1999-2015, UCL, \
+   fprintf(stderr,"\npdbsecstr V1.2 (c) 1999-2018, UCL, \
 Dr. Andrew C.R. Martin\n");
 
-   fprintf(stderr,"\nUsage: pdbsecstr [-d] [in.xmas [out.xmas]]\n");
+   fprintf(stderr,"\nUsage: pdbsecstr [-d] [in.pdb [out.pdb]]\n");
    fprintf(stderr,"          -d Debug mode - reports information on\
 dropped 3rd Hbonds, etc.\n");
 
