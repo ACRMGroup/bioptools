@@ -67,9 +67,10 @@
 #   V1.7    03.08.18  Added pdbatomselect to replace pdbatomsel
 #                     and provide links to both pdbatomsel and atomsel
 #                     Bumped to require BiopLib V3.8.1
+#   V1.8    14.08.18  Bumped to require BiopLib V3.10
 #
 #*************************************************************************
-$::biopversion = "3.8.1";
+$::biopversion = "3.10";
 #*************************************************************************
 $::biopgit     = "https://github.com/ACRMGroup/bioplib/archive/V";
 $::biopext     = ".tar.gz";
