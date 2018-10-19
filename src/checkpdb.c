@@ -1,11 +1,11 @@
 /************************************************************************/
 /**
 
-   \file       pdbtorsions.c
+   \file       checkpdb.c
    
-   \version    V2.2
+   \version    V1.0
    \date       28.01.18
-   \brief      Calculate torsion angles for a PDB file
+   \brief      Check a PDB file
    
    \copyright  (c) Dr. Andrew C. R. Martin 1996-2018
    \author     Dr. Andrew C. R. Martin
@@ -36,16 +36,15 @@
 
    Description:
    ============
-   Calculate torsion angles from a PDB file
+   Note:
+
+   Need to deal with 3zeu where residue A41 and A194 is both MET and MSE!
+
 
 **************************************************************************
 
    Usage:
    ======
-   NOTE! If the executable is called 'torsions' rather than 'pdbtorsions'
-   this has the effect of setting the '-o' (old style) flag by default.
-   Consequently a symbolic link to the program can be used to obtain
-   old-style output for backwards compatibility
 
 **************************************************************************
 
