@@ -12,6 +12,10 @@ chaincontacts
 Calculates contacts between chains at the atom and residue level. You
 can get all contacts or contacts between specified chains.
 
+checkpdb
+--------
+Start of a program for performing various checks on a PDB file
+
 naccess2bval
 ------------
 Rewrites the output from naccess solvent accessibility as a standard PDB
@@ -128,9 +132,18 @@ pdbhetstrip
 -----------
 Removes het atoms from a PDB file.
 
+pdbhphob
+--------
+Patches the residue hydrophobicity values into the B-value 
+(temperature factor) column to allow colouring by hydrophobicity.
+
 pdbhstrip
 ---------
 Removes hydrogens from a PDB file.
+
+pdbline
+-------
+Calculates the best fit line through a set of PDB coordinates.
 
 pdblistss
 ---------
