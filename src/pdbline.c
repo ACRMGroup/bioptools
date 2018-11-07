@@ -3,8 +3,8 @@
 
    \file       pdbline.c
    
-   \version    V1.1
-   \date       13.10.14
+   \version    V1.2
+   \date       24.10.14
    \brief      Draws a best fit line through a specified set of CA atoms
    
    \copyright  (c) Dr. Andrew C. R. Martin, UCL, 2014
@@ -47,9 +47,12 @@
    Revision History:
    =================
 -  V1.0   08.10.14 Original   By: ACRM Based on code by Abhi Raghavan
-                              and Saba Ferdous
+                   and Saba Ferdous
 -  V1.1   13.10.14 Added -r and -a options to specify the residue label
                    and atom label for the line residues
+-  V1.2   24.10.14 Fixed bug in plotting line when Eigen vector had X 
+                   dimension close to zero. Added -v option
+                   Moved regression code into BiopLib
 
 *************************************************************************/
 /* Includes
@@ -64,8 +67,7 @@
 #include "bioplib/macros.h"
 #include "bioplib/MathType.h"
 #include "bioplib/SysDefs.h"
-#include "regression.h"
-#include "deprecated.h"
+#include "bioplib/regression.h"
 
 /************************************************************************/
 /* Defines and macros
@@ -82,13 +84,12 @@
 /* Prototypes
 */
 REAL **BuildCaCoordArray(PDB *pdb, int *numCa);
-PDB *ExtractZoneSpecPDB(PDB *pdb, char *firstRes, char *lastRes);
 BOOL DrawPDBRegressionLine(FILE *wfp, double **coordinates,
                            double *eigenVector, int numberOfPoints,
                            char *chainLabel, char *resnam, char *atnam);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   char *firstRes, char *lastRes, 
-                  char *resnam, char *atnam);
+                  char *resnam, char *atnam, BOOL *verbose);
 void Usage(void);
 
 
@@ -110,12 +111,14 @@ int main(int argc, char **argv)
    REAL    **coordArray = NULL;
    FILE    *in          = stdin,
            *out         = stdout;
+   BOOL    verbose      = FALSE;
    char    infile[MAXBUFF], 
            outfile[MAXBUFF],
            firstRes[MAXBUFF], 
            lastRes[MAXBUFF],
            resnam[MAXBUFF],
            atnam[MAXBUFF];
+   
 
    strcpy(resnam, DEF_RESNAM);
    PADMINTERM(resnam, 4);
@@ -123,12 +126,12 @@ int main(int argc, char **argv)
    PADMINTERM(resnam, 4);
 
    if(ParseCmdLine(argc, argv, infile, outfile, firstRes, lastRes, resnam,
-                   atnam))
+                   atnam, &verbose))
    {
-      if(OpenStdFiles(infile, outfile, &in, &out))
+      if(blOpenStdFiles(infile, outfile, &in, &out))
       {
          /* Read PDB file                                               */
-         if((pdb = ReadPDB(in, &natoms)) == NULL)
+         if((pdb = blReadPDB(in, &natoms)) == NULL)
          {
             fprintf(stderr, "No atoms read from PDB file.\n");
             retval = 1;
@@ -136,7 +139,8 @@ int main(int argc, char **argv)
          else
          {
             /* Extract the zone of interest                             */
-            if((zone = ExtractZoneSpecPDB(pdb, firstRes, lastRes))==NULL)
+            if((zone = blExtractZoneSpecPDBAsCopy(pdb, firstRes,
+                                                  lastRes))==NULL)
             {
                fprintf(stderr, "Unable to extract specified zone from \
 PDB file\n");
@@ -149,12 +153,20 @@ PDB file\n");
                     Centroid[3];
                
                coordArray = BuildCaCoordArray(zone, &numCa);
-               ComputeBestFitLine(coordArray, numCa, 3, 
-                                  Centroid, EigenVector);
+               blCalculateBestFitLine(coordArray, numCa, 3, 
+                                      Centroid, EigenVector);
+               if(verbose)
+               {
+                  fprintf(stderr,"Centroid:     %8.3f %8.3f %8.3f\n",
+                          Centroid[0], Centroid[1], Centroid[2]);
+                  fprintf(stderr,"Eigen vector: %8.3f %8.3f %8.3f\n",
+                          EigenVector[0], EigenVector[1], EigenVector[2]);
+               }
+               
                DrawPDBRegressionLine(out, coordArray, EigenVector, 
                                      numCa, "X", resnam, atnam);
-               WritePDB(out,zone);
-               FreeArray2D((char **)coordArray, numCa, 3);
+               blWritePDB(out,zone);
+               blFreeArray2D((char **)coordArray, numCa, 3);
                FREELIST(zone, PDB);
             }
             FREELIST(pdb, PDB);
@@ -194,9 +206,9 @@ REAL **BuildCaCoordArray(PDB *pdb, int *numCa)
    PDB  *p;
 
    SELECT(sel[0],"CA  ");
-   if((capdb = SelectAtomsPDB(pdb, 1, sel, numCa))!=NULL)
+   if((capdb = blSelectAtomsPDBAsCopy(pdb, 1, sel, numCa))!=NULL)
    {
-      if((coordArray = (REAL **)Array2D(sizeof(REAL), *numCa, 3))==NULL)
+      if((coordArray = (REAL **)blArray2D(sizeof(REAL), *numCa, 3))==NULL)
       {
          *numCa = 0;
          return(NULL);
@@ -217,33 +229,94 @@ REAL **BuildCaCoordArray(PDB *pdb, int *numCa)
 
 
 /************************************************************************/
-/*>PDB *ExtractZoneSpecPDB(PDB *pdb, char *firstRes, char *lastRes)
-   ----------------------------------------------------------------
+/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+                     char *firstRes, char *lastRes,
+                     char *resnam, char *atnam, BOOL *verbose)
+   ----------------------------------------------------------------------
 *//**
-   \param[in]   pdb       PDB linked list
-   \param[in]   firstRes  Residue spec ([chain]resnum[insert])
-   \param[in]   lastRes   Residue spec ([chain]resnum[insert])
+   \param[in]     argc       Argument count
+   \param[in]     argv       Argument array
+   \param[out]    infile     Input filename (or blank string)
+   \param[out]    outfile    Output filename (or blank string)
+   \param[out]    firstRes   First residue spec
+   \param[out]    lastRes    Last residue spec
+   \param[out]    resnam     Residue name for the line
+   \param[out]    atnam      Atom name for the line
+   \param[out]    verbose    Verbose?
+   \return                   Success?
 
-   Extracts a zone from a PDB linked list, making a copy of the original
-   list.
+   Parse the command line
 
--  08.10.14  Original   By: ACRM
+-  08.10.14  Original    By: ACRM
+-  13.10.14  Added -r resnam and -a atnam
+-  24.10.14  Added -v verbose
 */
-PDB *ExtractZoneSpecPDB(PDB *pdb, char *firstRes, char *lastRes)
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+                  char *firstRes, char *lastRes,
+                  char *resnam, char *atnam, BOOL *verbose)
 {
-   char chain1[8],  chain2[8],
-        insert1[8], insert2[8];
-   int  resnum1,    resnum2;
-   PDB  *zone = NULL;
-
-   if(ParseResSpec(firstRes, chain1, &resnum1, insert1) &&
-      ParseResSpec(lastRes,  chain2, &resnum2, insert2))
+   argc--;
+   argv++;
+   
+   infile[0] = outfile[0] = '\0';
+   *verbose  = FALSE;
+   
+   while(argc)
    {
-      zone = ExtractZonePDB(pdb, 
-                            chain1, resnum1, insert1,
-                            chain2, resnum2, insert2);
+      if(argv[0][0] == '-')
+      {
+         switch(argv[0][1])
+         {
+         case 'r':
+            argc--; argv++;
+            if(!argc) return(FALSE);
+            strncpy(resnam, argv[0], MAXBUFF);
+            UPPER(resnam);
+            break;
+         case 'a':
+            argc--; argv++;
+            if(!argc) return(FALSE);
+            strncpy(atnam, argv[0], MAXBUFF);
+            UPPER(atnam);
+            break;
+         case 'v':
+            *verbose = TRUE;
+            break;
+         case 'h':
+            return(FALSE);
+            break;
+         default:
+            return(FALSE);
+            break;
+         }
+      }
+      else
+      {
+         /* Check that there are 2-4 arguments left                     */
+         if((argc < 2) || (argc > 4))
+            return(FALSE);
+         
+         /* Copy the first two to firstRes and lastRes                  */
+         strcpy(firstRes, argv[0]);
+         argc--; argv++;
+         strcpy(lastRes,  argv[0]);
+         argc--; argv++;
+         
+         /* If there's another, copy it to infile                       */
+         if(argc)
+            strcpy(infile, argv[0]);
+         argc--; argv++;
+
+         /* If there's another, copy it to outfile                      */
+         if(argc)
+            strcpy(outfile, argv[0]);
+
+         return(TRUE);
+      }
+      argc--; argv++;
    }
-   return(zone);
+   
+   return(TRUE);
 }
 
 
@@ -274,39 +347,53 @@ PDB *ExtractZoneSpecPDB(PDB *pdb, char *firstRes, char *lastRes)
 
 -  06.10.14  Original   By: ACRM
 -  13.10.14  Added resnam and atnam
+-  24.10.14  Modified to walk along the direction of the largest Eigen
+             vector dimension rather than always walking along X. The
+             previous code broke if there X dimension was close to zero
 */
 BOOL DrawPDBRegressionLine(FILE *wfp, REAL **coordinates, 
                            REAL *eigenVector,
                            int numberOfPoints, char *chainLabel,
                            char *resnam, char *atnam)
 {
-   PDB  *p        = NULL,
-        *pdb      = NULL;
-   int  kmin      = 0,
-        kmax      = 0,
-        i         = 0;
-   REAL smallestX = 0.0,
-        largestX  = 0.0,
+   PDB  *p            = NULL,
+        *pdb          = NULL;
+   int  kmin          = 0,
+        kmax          = 0,
+        i             = 0,
+        largestDim    = 0;
+   REAL smallestCoord = 0.0,
+        largestCoord  = 0.0,
         centroid[3];
 
    /* Find the centroid of the atom positions                           */
-   FindCentroid(coordinates, numberOfPoints, 3, centroid);
+   blFindCentroid(coordinates, numberOfPoints, 3, centroid);
 
-   /* Find the smallest and largest x-coordinate                        */
-   smallestX = largestX = coordinates[0][0];
+   /* Determine which dimension of the eigen vector is largest          */
+   largestDim = 0;
+   for(i=1; i<3; i++)
+   {
+      if(ABS(eigenVector[i]) > ABS(eigenVector[largestDim]))
+         largestDim = i;
+   }
+
+   /* Find the smallest and largest coordinate in the largest dimension */
+   smallestCoord = largestCoord = coordinates[0][largestDim];
    for(i=1; i<numberOfPoints; i++)
    {
-      if(coordinates[i][0] > largestX)
-         largestX = coordinates[i][0];
-      if(coordinates[i][0] < smallestX)
-         smallestX = coordinates[i][0];
+      if(coordinates[i][largestDim] > largestCoord)
+         largestCoord = coordinates[i][largestDim];
+      if(coordinates[i][largestDim] < smallestCoord)
+         smallestCoord = coordinates[i][largestDim];
    }
       
    /* Find values of k such that points on the line of best fit may be 
       plotted 
    */
-   kmin = (int)((smallestX-centroid[0])/eigenVector[0]);
-   kmax = (int)((largestX-centroid[0])/eigenVector[0]);
+   kmin = (int)((smallestCoord - centroid[largestDim]) /
+                eigenVector[largestDim]);
+   kmax = (int)((largestCoord  - centroid[largestDim]) /
+                eigenVector[largestDim]);
    if(kmin > kmax)
    {
       kmin = -1 * kmin;
@@ -363,7 +450,7 @@ BOOL DrawPDBRegressionLine(FILE *wfp, REAL **coordinates,
 
    /* Write the points along the line out in PDB format                 */
    for(p=pdb; p!=NULL; NEXT(p))
-      WritePDBRecord(wfp,p);
+      blWritePDBRecord(wfp,p);
 
    /* Free memory for linked list and return                            */
    FREELIST(pdb, PDB);
@@ -373,91 +460,6 @@ BOOL DrawPDBRegressionLine(FILE *wfp, REAL **coordinates,
 
 
 /************************************************************************/
-/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                     char *firstRes, char *lastRes,
-                     char *resnam, char *atnam)
-   ----------------------------------------------------------------------
-*//**
-   \param[in]     argc       Argument count
-   \param[in]     argv       Argument array
-   \param[out]    infile     Input filename (or blank string)
-   \param[out]    outfile    Output filename (or blank string)
-   \param[out]    firstRes   First residue spec
-   \param[out]    lastRes    Last residue spec
-   \param[out]    resnam     Residue name for the line
-   \param[out]    atnam      Atom name for the line
-   \return                   Success?
-
-   Parse the command line
-
--  08.10.14  Original    By: ACRM
--  13.10.14  Added resnam and atnam
-*/
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  char *firstRes, char *lastRes,
-                  char *resnam, char *atnam)
-{
-   argc--;
-   argv++;
-   
-   infile[0] = outfile[0] = '\0';
-   
-   while(argc)
-   {
-      if(argv[0][0] == '-')
-      {
-         switch(argv[0][1])
-         {
-         case 'r':
-            argc--; argv++;
-            if(!argc) return(FALSE);
-            strncpy(resnam, argv[0], MAXBUFF);
-            UPPER(resnam);
-            break;
-         case 'a':
-            argc--; argv++;
-            if(!argc) return(FALSE);
-            strncpy(atnam, argv[0], MAXBUFF);
-            UPPER(atnam);
-            break;
-         case 'h':
-            return(FALSE);
-            break;
-         default:
-            return(FALSE);
-            break;
-         }
-      }
-      else
-      {
-         /* Check that there are 2-4 arguments left                     */
-         if((argc < 2) || (argc > 4))
-            return(FALSE);
-         
-         /* Copy the first two to firstRes and lastRes                  */
-         strcpy(firstRes, argv[0]);
-         argc--; argv++;
-         strcpy(lastRes,  argv[0]);
-         argc--; argv++;
-         
-         /* If there's another, copy it to infile                       */
-         if(argc)
-            strcpy(infile, argv[0]);
-         argc--; argv++;
-
-         /* If there's another, copy it to outfile                      */
-         if(argc)
-            strcpy(outfile, argv[0]);
-
-         return(TRUE);
-      }
-      argc--; argv++;
-   }
-   
-   return(TRUE);
-}
-
-/************************************************************************/
 /*>void Usage(void)
    ----------------
 *//**
@@ -465,14 +467,15 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
 -  08.10.14  Original   By: ACRM
 -  13.10.14  Added -r and -a options
+-  24.10.14  Added -v option
 */
 void Usage(void)
 {
-   printf("\npdbline V1.1 (c) 2014 UCL, Dr. Andrew C.R. Martin\n");
+   printf("\npdbline V1.2 (c) 2014 UCL, Dr. Andrew C.R. Martin\n");
    printf("        With contributions from Abhi Raghavan and Saba \
 Ferdous\n");
 
-   printf("\nUsage: pdbline [-r resnam][-a atnam] firstres lastres \
+   printf("\nUsage: pdbline [-r resnam][-a atnam][-v] firstres lastres \
 [in.pdb [out.pdb]]\n");
    printf("       firstres - a residue identifier of the form \
 [chain]resnum[insert]\n");
@@ -486,6 +489,7 @@ interest\n");
 (Default: %s)\n", DEF_RESNAM);
    printf("       -a Specify the atom name for the line \
 (Default: %s)\n", DEF_ATNAM);
+   printf("       -v Verbose: Prints the Eigen vector and centroid\n");
 
    printf("\nGenerates a set of atom positions along a best fit line \
 through a\n");
@@ -493,3 +497,5 @@ through a\n");
 standard\n");
    printf("input/output if files are not specified\n\n");
 }
+
+
