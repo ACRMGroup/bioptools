@@ -3,11 +3,11 @@
 
    \file       pdborder.c
    
-   \version    V1.7
-   \date       12.03.15
+   \version    V1.8
+   \date       13.03.19
    \brief      Correct the atom order in a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2015
+   \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2019
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -55,6 +55,7 @@
 -  V1.5  13.02.15 Added whole PDB support and fixed some core dumps
 -  V1.6  05.03.15 Replaced blFindEndPDB() with blFindNextResidue()
 -  V1.7  12.03.15 Changed to allow multi-character chain names
+-  V1.8  13.03.19 Fixed possible unterminated string
 
 *************************************************************************/
 /* Includes
@@ -264,10 +265,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  13.02.15 V1.5 
 -  05.03.15 V1.6
 -  12.03.15 V1.7
+-  13.03.19 V1.8
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdborder V1.7 (c) 1994-2015, Andrew C.R. Martin, \
+   fprintf(stderr,"\npdborder V1.8 (c) 1994-2019, Andrew C.R. Martin, \
 UCL\n\n");
    fprintf(stderr,"Usage: pdborder [-c] [-i] [-g] [in.pdb \
 [out.pdb]]\n");
@@ -577,6 +579,7 @@ residue %s %s.%d%c\n",          gAtomLists[offset][i],
 
 -  23.08.94 Original    By: ACRM
 -  15.01.97 Added the Gromos parameter (previously always -> Gromos form)
+-  13.03.19 Fixed possible non-terminated string
 */
 void FixGromosILE(PDB *pdb, BOOL Gromos)
 {
@@ -605,7 +608,7 @@ void FixGromosILE(PDB *pdb, BOOL Gromos)
             {
                if(!strncmp(gAtomLists[offset][i],"CD1 ",4))
                {
-                  strncpy(gAtomLists[offset][i],"CD  ", 4);
+                  strncpy(gAtomLists[offset][i],"CD  ", 5);
                   break;
                }
             }

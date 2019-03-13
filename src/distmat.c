@@ -3,12 +3,12 @@
    Program:    distmat
    File:       distmat.c
    
-   Version:    V2.0
-   Date:       01.12.16
+   Version:    V2.1
+   Date:       13.03.19
    Function:   Calculate inter-CA distances on a set of common-labelled
                PDB files
    
-   Copyright:  (c) UCL, Dr. Andrew C. R. Martin 2009-2016
+   Copyright:  (c) UCL, Dr. Andrew C. R. Martin 2009-2019
    Author:     Dr. Andrew C. R. Martin
    Address:    Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -59,6 +59,7 @@
    V2.0   01.12.16  Rewrite to use hashes. Removed -n and -m since these
                     are't needed any more - everything is dynamically
                     allocated.
+   V2.1   13.03.19  Increased some buffer sizes
 
 *************************************************************************/
 /* #define DEBUG 1 */
@@ -436,11 +437,12 @@ void ProcessPDB(PDB *pdb, HASHTABLE *hashTable)
    by the residue pair.
 
 -  01.12.16 Original - Complete new version   By: ACRM  
+-  13.03.19 Added 1 to resID1, resID2 and resPair sizes  
 */
 void StoreData(HASHTABLE *hashTable, PDB *res1, PDB *res2, REAL dist)
 {
    RESPAIR *rp = NULL;
-   char resID1[MAXLABEL], resID2[MAXLABEL], resPair[MAXLABEL*2];
+   char resID1[MAXLABEL+1], resID2[MAXLABEL+1], resPair[(MAXLABEL+1)*2];
    
    MAKERESID(resID1, res1);
    MAKERESID(resID2, res2);
@@ -560,6 +562,7 @@ PDB *ReduceAtomList(PDB *pdb, int atomTypes)
 
 -  01.04.09 Original   By: ACRM
 -  01.12.16 Major rewrite
+-  13.03.19 Added 1 to res1 and res2 sizes and terminate string
 */
 void DisplayResults(FILE *out, HASHTABLE *hashTable)
 {
@@ -574,8 +577,8 @@ void DisplayResults(FILE *out, HASHTABLE *hashTable)
       for(i=0; keys[i] != NULL; i++)
       {
          RESPAIR *rp;
-         char    res1[MAXLABEL],
-                 res2[MAXLABEL],
+         char    res1[MAXLABEL+1],
+                 res2[MAXLABEL+1],
                  *chp;
       
          if((rp=(RESPAIR *)blGetHashValuePointer(hashTable,keys[i]))==NULL)
@@ -588,6 +591,7 @@ void DisplayResults(FILE *out, HASHTABLE *hashTable)
          TERMAT(res1, '-');
          chp = strchr(keys[i], '-');
          strncpy(res2, chp+1, MAXLABEL);
+         res2[MAXLABEL]='\0';
       
          blCalcExtSD((REAL)0.0, 1, 
                      &(rp->sx), &(rp->sxsq), &(rp->nval), &mean, &sd);
@@ -709,10 +713,11 @@ PDB *FindEndOfChain(PDB *chain)
 -  06.04.09 V1.1
 -  30.11.16 V1.2
 -  01.12.16 V2.0
+-  13.03.19 V2.1
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nDistMat V2.0 (c) 2009-2016, Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"\nDistMat V2.1 (c) 2009-2019, Dr. Andrew C.R. Martin, \
 UCL\n");
 
    fprintf(stderr,"\nUsage: distmat [-p][-c chains][-a | -s] [input [output]]\n");

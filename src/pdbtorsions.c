@@ -3,11 +3,11 @@
 
    \file       pdbtorsions.c
    
-   \version    V2.2
-   \date       28.01.18
+   \version    V2.3
+   \date       13.03.19
    \brief      Calculate torsion angles for a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1996-2018
+   \copyright  (c) Dr. Andrew C. R. Martin 1996-2019
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -67,6 +67,8 @@
 -  V2.1  04.03.15 Improved checking for old name
                   Now done by blCheckProgName()
 -  V2.2  28.01.17 Updated size of label array
+-  V2.3  13.03.19 Made a local copy in MakeLabel() to avoid -Wrestrict
+                  for GCC V8. Introduced MAXLABEL rather than 32
 
 *************************************************************************/
 /* Includes
@@ -88,6 +90,7 @@
 /* Defines and macros
 */
 #define MAXBUFF     512
+#define MAXLABEL    32
 #define ERROR_VALUE 9999.0
 
 /* Macro to set pointers 0..2 in an array to NULL                       */
@@ -355,12 +358,13 @@ void doCATorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians,
 
 - 27.11.14 Original   By: ACRM
 - 28.01.18 label[32] instead of label[16]
+- 13.03.19 Now uses MAXLABEL 
 */
 void PrintCARecord(FILE *out, PDB *p, REAL tor, BOOL terse, 
                    BOOL showLabel, BOOL dummy)
 {
    char resnam[16];
-   char label[32];
+   char label[MAXLABEL];
 
    if(terse)
    {
@@ -496,11 +500,12 @@ void doFullTorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians,
 
 - 27.11.14 Original   By: ACRM
 - 28.01.18 label[32] instead of label[16]
+- 13.03.19 Now uses MAXLABEL 
 */
 void PrintFullRecord(FILE *out, PDB *p, REAL phi, REAL psi, REAL omega, 
                      BOOL terse, BOOL oldStyle)
 {
-   char label[32];
+   char label[MAXLABEL];
    char resnam[16];
 
    if(p!=NULL)
@@ -543,10 +548,12 @@ void PrintFullRecord(FILE *out, PDB *p, REAL phi, REAL psi, REAL omega,
    code
 
 - 27.11.14 Original   By: ACRM
+- 
 */
 void BuildLabel(char *label, PDB *p, int width, BOOL LeftJustify)
 {
    char format[16];
+   char localLabel[MAXLABEL];
    
    if(p==NULL)
    {
@@ -570,7 +577,8 @@ void BuildLabel(char *label, PDB *p, int width, BOOL LeftJustify)
    else
       strcpy(format, "%s");
 
-   sprintf(label, format, label);
+   sprintf(localLabel, format, label);
+   strcpy(label, localLabel);
 }
 
 

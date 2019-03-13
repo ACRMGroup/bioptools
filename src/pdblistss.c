@@ -3,11 +3,11 @@
 
    \file       pdblistss.c
    
-   \version    V1.0
-   \date       20.07.15
+   \version    V1.1
+   \date       13.03.19
    \brief      List disulphide bonds
    
-   \copyright  (c) UCL, Dr. Andrew C.R. Martin, 2014-2015
+   \copyright  (c) UCL, Dr. Andrew C.R. Martin, 2014-2019
    \author     Dr. Andrew C.R. Martin
    \par
                Institute of Structural & Molecular Biology,
@@ -48,6 +48,7 @@
    Revision History:
    =================
 -   V1.0   20.07.15 Original   By: ACRM
+-   V1.1   13.03.19 Fixed some buffer sizes
 
 *************************************************************************/
 /* Includes
@@ -137,6 +138,7 @@ file, %s\n", infile);
    Does the actual work of finding and printing the disulphides
 
 -  20.07.15   Original   By: ACRM
+-  13.03.19   Increased resid size from 16 to 32
 */
 void ListDisulphides(FILE *out, PDB *pdb)
 {
@@ -154,8 +156,8 @@ void ListDisulphides(FILE *out, PDB *pdb)
             {
                if(DISTSQ(p,q) < DISULPHIDE_CUTOFFSQ)
                {
-                  char resid1[16],
-                       resid2[16];
+                  char resid1[32],
+                       resid2[32];
                   MAKERESID(resid1, p);
                   MAKERESID(resid2, q);
 
@@ -240,10 +242,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
    Prints a usage message
 
 -  20.07.15 Original   By: ACRM
+-  13.03.19 V1.1
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdblistss V1.0 (c) 2015 UCL, Dr. Andrew C.R. \
+   fprintf(stderr,"\npdblistss V1.1 (c) 2015-2019 UCL, Dr. Andrew C.R. \
 Martin\n");
 
    fprintf(stderr,"\nUsage: pdblistss [in.pdb [out.txt]]\n");

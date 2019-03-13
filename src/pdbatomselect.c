@@ -3,11 +3,11 @@
 
    \file       pdbatomselect.c
    
-   \version    V2.0
-   \date       03.08.18
+   \version    V2.1
+   \date       13.03.19
    \brief      Select atoms from a PDB file. Acts as filter
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2018
+   \copyright  (c) Dr. Andrew C. R. Martin 1994-2019
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -58,6 +58,7 @@
 -  V2.0  03.08.18 Based on pdbatomsel - it now works as pdbatomsel did
                   if called with that name. Otherwise now expects
                   -atoms X,Y,Z and takes -h for help
+-  V2.1  13.03.19 Terminate string ofter strncpy()
 
 *************************************************************************/
 /* Includes
@@ -245,12 +246,13 @@ char **ConvertAtomsToArray(ATOMTYPE *atoms, int *nSelected)
 -  12.02.15 V1.6
 -  02.03.15 V1.7
 -  03.08.18 V2.0
+-  13.03.19 V2.1
 */
 void Usage(int style)
 {
    if(style == STYLE_PDBATOMSEL)
    {
-      fprintf(stderr,"\npdbatomsel V2.0 (c) 1994-2018, Andrew C.R. \
+      fprintf(stderr,"\npdbatomsel V2.1 (c) 1994-2019, Andrew C.R. \
 Martin, UCL\n");
 
       fprintf(stderr,"\n*** USE pdbatomselect INSTEAD. THIS FORM IS \
@@ -269,7 +271,7 @@ PDBML output\n\n");
    }
    else
    {
-      fprintf(stderr,"\npdbatomselect V2.0 (c) 1994-2018, Andrew C.R. \
+      fprintf(stderr,"\npdbatomselect V2.1 (c) 1994-2019, Andrew C.R. \
 Martin, UCL\n");
       fprintf(stderr,"Usage: pdbatomselect [-a atom,atom,atom[,...]] \
 [in.pdb [out.pdb]]\n");
@@ -407,6 +409,7 @@ list.\n");
    list
 
 -  03.08.18  Original   By: ACRM
+-  13.03.19  Terminate string ofter strncpy()
 */
 ATOMTYPE *PopulateAtomsFromCSL(char *atomCSL)
 {
@@ -437,6 +440,7 @@ list.\n");
       }
    
       strncpy(a->type, word, MAXATNAM);
+      a->type[MAXATNAM] = '\0';
    }  while(chp != NULL);
 
    return(atoms);

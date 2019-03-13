@@ -4,11 +4,11 @@
 #   Program:    makemake
 #   File:       makemake.pl
 #   
-#   Version:    V1.7
-#   Date:       03.08.18
+#   Version:    V1.9
+#   Date:       13.03.19
 #   Function:   Build the Makefile for BiopTools
 #   
-#   Copyright:  (c) Dr. Andrew C. R. Martin, UCL, 2014-2018
+#   Copyright:  (c) Dr. Andrew C. R. Martin, UCL, 2014-2019
 #   Author:     Dr. Andrew C. R. Martin
 #   Address:    Institute of Structural and Molecular Biology
 #               Division of Biosciences
@@ -68,6 +68,7 @@
 #                     and provide links to both pdbatomsel and atomsel
 #                     Bumped to require BiopLib V3.8.1
 #   V1.8    14.08.18  Bumped to require BiopLib V3.10
+#   V1.9    13.03.19  Added -Wno-stringop-truncation
 #
 #*************************************************************************
 $::biopversion = "3.10";
@@ -307,7 +308,7 @@ sub WriteFlags
 CC      = gcc
 BINDIR  = $bindir
 DATADIR = $datadir
-CFLAGS  = -O3 -ansi -Wall -pedantic -I$incdir -L$libdir
+CFLAGS  = -O3 -ansi -Wall -pedantic -Wno-stringop-truncation -I$incdir -L$libdir
 LFLAGS  = -lbiop -lgen -lm -lxml2
 __EOF
 }

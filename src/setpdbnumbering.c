@@ -3,11 +3,11 @@
 
    \file       setpdbnumbering.c
    
-   \version    V1.6
-   \date       28.01.18
+   \version    V1.7
+   \date       13.03.19
    \brief      Apply standard numbering to a set of PDB files
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1996-2015
+   \copyright  (c) Dr. Andrew C. R. Martin 1996-2019
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -62,6 +62,7 @@
                   link to patchpdbnum is available. Improved help message
 -  V1.5  12.03.15 Changed to allow multi-character chain names
 -  V1.6  28.01.18 Increased label buffer sizes
+-  V1.7  13.03.19 Increase buffer sizes
 
 *************************************************************************/
 /* Includes
@@ -180,10 +181,11 @@ int main(int argc, char **argv)
 -  05.03.15 V1.4
 -  12.03.15 V1.5
 -  28.01.18 V1.6
+-  13.03.19 V1.7
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nsetpdbnumbering V1.6 (c) 1996-2018 Dr. Andrew C.R. \
+   fprintf(stderr,"\nsetpdbnumbering V1.7 (c) 1996-2019 Dr. Andrew C.R. \
 Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: setpdbnumbering alnfile\n");
@@ -511,14 +513,15 @@ the alphabet\n");
    to the pdbpatchnumbering program to do the work
 
 -  05.02.96 Original    By: ACRM
--  28.01.18 Increased buffer size
+-  28.01.18 Increased buffer size to *3
+-  13.03.19 Increased buffer size to *4
 */
 BOOL ApplyNumbering(NAMSEQ *namseq, char **Numbering)
 {
    NAMSEQ *ns;
    FILE   *fp;
    int    i;
-   char   buffer[MAXBUFF*3];
+   char   buffer[MAXBUFF*4];
    
    for(ns=namseq; ns!=NULL; NEXT(ns))
    {
