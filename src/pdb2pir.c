@@ -3,11 +3,11 @@
 
    \file       pdb2pir.c
    
-   \version    V2.13
-   \date       10.03.15
+   \version    V2.15
+   \date       13.03.19
    \brief      Convert PDB to PIR sequence file
    
-   \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2015
+   \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2019
    \author     Dr. Andrew C. R. Martin
    \par
                Biomolecular Structure and Modelling,
@@ -74,6 +74,7 @@
 -  V2.12 25.11.14 Initialized a variable  By: ACRM
 -  V2.13 10.03.15 Improved multi-character chain support
 -  V2.14 11.06.15 Moved generally useful code into Bioplib
+-  V2.15 13.03.19 Now valgrind clean
 
 *************************************************************************/
 /* Includes
@@ -144,7 +145,10 @@ char *strdup(const char *s);
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  26.08.14 Use renamed macros blPDB2SeqXNoX() and blPDB2SeqX(). By: CTP
 -  25.11.14 Initialized seqres  By: ACRM
--  11.06.15 Changed to blGetModresWholePDB() and blGetSeqresWholePDB()  By: ACRM
+-  11.06.15 Changed to blGetModresWholePDB() and blGetSeqresWholePDB() 
+            By: ACRM
+-  13.03.19 Adds 2 rather than 1 to the length of the sequence in
+            realloc()
 */
 int main(int argc, char **argv)
 {
@@ -353,7 +357,7 @@ int main(int argc, char **argv)
    */
    len1 = strlen(sequence);
    if((sequence=(char *)realloc((void *)sequence,
-                                (len1+1)*sizeof(char)))==NULL)
+                                (len1+2)*sizeof(char)))==NULL)
    {
       fprintf(stderr,"Error: No memory to expand sequence data\n");
       return(1);
@@ -412,10 +416,11 @@ int main(int argc, char **argv)
 -  25.11.14 V2.12
 -  10.03.15 V2.13
 -  11.06.15 V2.14
+-  13.03.19 V2.15
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdb2pir V2.14 (c) 1994-2015 Dr. Andrew C.R. Martin, \
+   fprintf(stderr,"\npdb2pir V2.15 (c) 1994-2019 Dr. Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"\nUsage: pdb2pir [-h][-l label][-t title][-s][-c][-x]\
 [-u][-p][-q]\n");
