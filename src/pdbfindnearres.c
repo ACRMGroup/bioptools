@@ -531,12 +531,20 @@ residue\n");
    printf("\nzone is specified as a single residue specification or two \
 residue\n");
    printf("        specifications separated by a dash (-).\n");
+   printf("        Several specifications can be separated by a comma \
+(,).\n");
+
    printf("        A residue specification is of the form \
 [c[.]]nnn[i]\n");
    printf("        where c   is a chain specification followed by a . \
 if numeric\n");
    printf("              nnn is a residue number\n");
    printf("              i   is an insert code\n");
-   printf("resnam is a three-letter code amino acid name\n");
+
+   printf("\n        e.g. L23\n");
+   printf("        e.g. L23-L34\n");
+   printf("        e.g. L23-L34,L50-L56\n");
+   printf("        e.g. L23-L34,L50-L56,L89-L96\n");
+   printf("\nresnam is a three-letter code amino acid name\n\n");
 }
 
