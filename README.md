@@ -94,6 +94,11 @@ pdbdummystrip
 Removes atoms from a PDB file which have NULL coordinates (i.e.
 x = y = z = 9999.0)
 
+pdbfindnearres
+--------------
+Takes one or more zones in a PDB file and outputs all residues of a 
+specified type within a given distance of the zone(s).
+
 pdbfindresrange
 ---------------
 Takes a PDB file as input and given a key residue and a number of

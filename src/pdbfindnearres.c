@@ -95,6 +95,7 @@ do {  strncpy(a,b,c);  \
 */
 int main(int argc, char **argv);
 void WriteFlaggedAtoms(FILE *out, PDB *pdb);
+void ListFlaggedResidues(FILE *out, PDB *pdb);
 BOOL ResInZone(PDB *res, ZONE *zones);
 void ClearOccup(PDB *pdb);
 void FlagNearRes(PDB *pdb, ZONE *zones, char *restype, REAL radiusSq);
@@ -106,24 +107,27 @@ void PopulateZone(ZONE *z, char *zoneDescription);
 char **blSplitStringOnCharacter(char *string, char charac, 
                                 int minItemLen);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  REAL *radius, char *zonespec, char *restype);
+                  REAL *radius, char *zonespec, char *restype, 
+                  BOOL *listOnly);
 void Usage(void);
 
 /************************************************************************/
 int main(int argc, char **argv)
 {
-   FILE *in  = stdin,
-        *out = stdout;
+   FILE *in      = stdin,
+        *out     = stdout;
+   REAL radius   = DEFRAD;
+   PDB  *pdb     = NULL;
+   ZONE *zones   = NULL;
+   BOOL listOnly = FALSE;
    char infile[MAXBUFF],
         outfile[MAXBUFF],
         zonespec[MAXBUFF],
         restype[MAXBUFF];
-   REAL radius = DEFRAD;
-   PDB  *pdb   = NULL;
-   ZONE *zones = NULL;
+   
    
    if(ParseCmdLine(argc, argv, infile, outfile, &radius, zonespec, 
-                   restype))
+                   restype, &listOnly))
    {
       if((zones = ParseZoneSpec(zonespec))!=NULL)
       {
@@ -145,7 +149,14 @@ int main(int argc, char **argv)
             {
                pdb = wpdb->pdb;
                FlagNearRes(pdb, zones, restype, radius);
-               WriteFlaggedAtoms(out, pdb);
+               if(listOnly)
+               {
+                  ListFlaggedResidues(out, pdb);
+               }
+               else
+               {
+                  WriteFlaggedAtoms(out, pdb);
+               }
             }
             else
             {
@@ -177,6 +188,23 @@ void WriteFlaggedAtoms(FILE *out, PDB *pdb)
       if(p->occ > 0.001)
       {
          blWritePDBRecord(out, p);
+      }
+   }
+}
+
+
+/************************************************************************/
+void ListFlaggedResidues(FILE *out, PDB *pdb)
+{
+   PDB *res, *nextRes;
+   for(res=pdb; res!=NULL; res=nextRes)
+   {
+      nextRes = blFindNextResidue(res);
+      if(res->occ > 0.01)
+      {
+         char resid[16];
+         MAKERESID(resid, res);
+         fprintf(out, "%s\n", resid);
       }
    }
 }
@@ -393,7 +421,8 @@ char **blSplitStringOnCharacter(char *string, char charac, int minItemLen)
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                     REAL *radius, char *zonespec, char *restype)
+                     REAL *radius, char *zonespec, char *restype,
+                     char *listOnly)
    ---------------------------------------------------------------------
 *//**
 
@@ -404,6 +433,8 @@ char **blSplitStringOnCharacter(char *string, char charac, int minItemLen)
    \param[out]     *radius      Neighbour radius
    \param[out]     *zonespec    Zone specification
    \param[out]     *restype     Res type to look for
+   \param[out]     *listOnly    Only list the near residues rather than
+                                PDB output
    \return                      Success?
 
    Parse the command line
@@ -411,7 +442,8 @@ char **blSplitStringOnCharacter(char *string, char charac, int minItemLen)
 -  05.06.19 Original    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  REAL *radius, char *zonespec, char *restype)
+                  REAL *radius, char *zonespec, char *restype, 
+                  BOOL *listOnly)
 {
    argc--;
    argv++;
@@ -428,6 +460,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             argc--;
             argv++;
             sscanf(argv[0],"%lf",radius);
+            break;
+         case 'l':
+            *listOnly = TRUE;
             break;
          default:
             return(FALSE);
