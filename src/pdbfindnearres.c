@@ -48,6 +48,7 @@
    Revision History:
    =================
    V1.0   05.06.19  Original
+   V1.0.1 18.06.19  Fixed buffer size for fussy compiler
 
 *************************************************************************/
 /* Includes
@@ -63,7 +64,7 @@
 /************************************************************************/
 /* Defines and macros
 */
-#define SMALLBUFF 16
+#define SMALLBUFF 32
 #define MAXBUFF   160
 #define DEFRAD    8.0
 
@@ -202,7 +203,7 @@ void ListFlaggedResidues(FILE *out, PDB *pdb)
       nextRes = blFindNextResidue(res);
       if(res->occ > 0.01)
       {
-         char resid[16];
+         char resid[SMALLBUFF];
          MAKERESID(resid, res);
          fprintf(out, "%s\n", resid);
       }
@@ -513,7 +514,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 void Usage(void)
 {
-   printf("\npdbfindneares V1.0 (c) 2019 UCL, Prof. Andrew C.R. \
+   printf("\npdbfindneares V1.0.1 (c) 2019 UCL, Prof. Andrew C.R. \
 Martin\n");
 
    printf("\nUsage: pdbfindnearres [-r nnn][-l] zone resnam [in.pdb \
