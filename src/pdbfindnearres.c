@@ -4,8 +4,8 @@
    Program:    pdbfindnearres
    \file       pdbfindnearres.c
    
-   \version    V1.0
-   \date       05.06.19       
+   \version    V1.0.1
+   \date       18.06.19       
    \brief      Finds residues of a specified type near to the given
                zones   
    
@@ -517,8 +517,8 @@ void Usage(void)
    printf("\npdbfindneares V1.0.1 (c) 2019 UCL, Prof. Andrew C.R. \
 Martin\n");
 
-   printf("\nUsage: pdbfindnearres [-r nnn][-l] zone resnam [in.pdb \
-[out.pdb]]\n");
+   printf("\nUsage: pdbfindnearres [-r nnn][-l] zone[,zone...] resnam \
+[in.pdb [out.pdb]]\n");
    printf("       -r   Specify the radius used to look for nearby \
 residues\n");
    printf("       -l   Simply list residues instead of PDB output\n");
@@ -538,6 +538,15 @@ residue\n");
 if numeric\n");
    printf("              nnn is a residue number\n");
    printf("              i   is an insert code\n");
-   printf("resnam is a three-letter code amino acid name\n");
+   printf("        Multiple zones may be listed separated by commas\n");
+   printf("resnam is a three-letter code amino acid name (upper or \
+lower case)\n");
+   printf("\n\nFor example:\n");
+   printf("        pdbfindnearres L24-L34 tyr test.pdb\n");
+   printf("        pdbfindnearres -l L50-L56 tyr test.pdb\n");
+   printf("        pdbfindnearres -l L24-L34,L50-L56 tyr test.pdb\n");
+   printf("        pdbfindnearres -l L24,L34,L50,L56 tyr test.pdb\n");
+   printf("        pdbfindnearres -l -r 16 L50 lys test.pdb\n");
+   printf("        pdbfindnearres -l -r 16 L50,L24-L34 lys test.pdb\n\n");
 }
 
