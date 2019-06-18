@@ -4,8 +4,8 @@
    Program:    pdbfindnearres
    \file       pdbfindnearres.c
    
-   \version    V1.0
-   \date       05.06.19       
+   \version    V1.0.1
+   \date       18.06.19       
    \brief      Finds residues of a specified type near to the given
                zones   
    
@@ -48,6 +48,7 @@
    Revision History:
    =================
    V1.0   05.06.19  Original
+   V1.0.1 18.06.19  Fixed buffer size for fussy compiler
 
 *************************************************************************/
 /* Includes
@@ -63,7 +64,7 @@
 /************************************************************************/
 /* Defines and macros
 */
-#define SMALLBUFF 16
+#define SMALLBUFF 32
 #define MAXBUFF   160
 #define DEFRAD    8.0
 
@@ -202,7 +203,7 @@ void ListFlaggedResidues(FILE *out, PDB *pdb)
       nextRes = blFindNextResidue(res);
       if(res->occ > 0.01)
       {
-         char resid[16];
+         char resid[SMALLBUFF];
          MAKERESID(resid, res);
          fprintf(out, "%s\n", resid);
       }
@@ -513,11 +514,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 /************************************************************************/
 void Usage(void)
 {
-   printf("\npdbfindneares V1.0 (c) 2019 UCL, Prof. Andrew C.R. \
+   printf("\npdbfindneares V1.0.1 (c) 2019 UCL, Prof. Andrew C.R. \
 Martin\n");
 
-   printf("\nUsage: pdbfindnearres [-r nnn][-l] zone resnam [in.pdb \
-[out.pdb]]\n");
+   printf("\nUsage: pdbfindnearres [-r nnn][-l] zone[,zone...] resnam \
+[in.pdb [out.pdb]]\n");
    printf("       -r   Specify the radius used to look for nearby \
 residues\n");
    printf("       -l   Simply list residues instead of PDB output\n");
@@ -540,11 +541,15 @@ residue\n");
 if numeric\n");
    printf("              nnn is a residue number\n");
    printf("              i   is an insert code\n");
-
-   printf("\n        e.g. L23\n");
-   printf("        e.g. L23-L34\n");
-   printf("        e.g. L23-L34,L50-L56\n");
-   printf("        e.g. L23-L34,L50-L56,L89-L96\n");
-   printf("\nresnam is a three-letter code amino acid name\n\n");
+   printf("        Multiple zones may be listed separated by commas\n");
+   printf("resnam is a three-letter code amino acid name (upper or \
+lower case)\n");
+   printf("\n\nFor example:\n");
+   printf("        pdbfindnearres L24-L34 tyr test.pdb\n");
+   printf("        pdbfindnearres -l L50-L56 tyr test.pdb\n");
+   printf("        pdbfindnearres -l L24-L34,L50-L56 tyr test.pdb\n");
+   printf("        pdbfindnearres -l L24,L34,L50,L56 tyr test.pdb\n");
+   printf("        pdbfindnearres -l -r 16 L50 lys test.pdb\n");
+   printf("        pdbfindnearres -l -r 16 L50,L24-L34 lys test.pdb\n\n");
 }
 
