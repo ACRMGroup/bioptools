@@ -4,8 +4,8 @@
    Program:    pdbfindnearres
    \file       pdbfindnearres.c
    
-   \version    V1.0.1
-   \date       18.06.19       
+   \version    V1.0.2
+   \date       29.06.19       
    \brief      Finds residues of a specified type near to the given
                zones   
    
@@ -49,6 +49,7 @@
    =================
    V1.0   05.06.19  Original
    V1.0.1 18.06.19  Fixed buffer size for fussy compiler
+   V1.0.2 19.06.19  Fully documented and default radius in help message
 
 *************************************************************************/
 /* Includes
@@ -180,6 +181,17 @@ int main(int argc, char **argv)
 
 
 /************************************************************************/
+/*>void WriteFlaggedAtoms(FILE *out, PDB *pdb)
+   -------------------------------------------
+*//**
+   \param[in]    out   Output file pointer
+   \param[in]    pdb   PDB linked list
+
+   Writes the ATOM records of a PDB file only writing those with the
+   occupancy set to > 0.001 (used as a flag)
+
+-  05.06.19 Original    By: ACRM
+*/
 void WriteFlaggedAtoms(FILE *out, PDB *pdb)
 {
    PDB *p;
@@ -195,6 +207,17 @@ void WriteFlaggedAtoms(FILE *out, PDB *pdb)
 
 
 /************************************************************************/
+/*>void ListFlaggedResidues(FILE *out, PDB *pdb)
+   ---------------------------------------------
+*//**
+   \param[in]    out   Output file pointer
+   \param[in]    pdb   PDB linked list
+
+   Writes a list of residues where the occupancy of the first atom in the
+   residues is > 0.001 (used as a flag)
+
+-  05.06.19 Original    By: ACRM
+*/
 void ListFlaggedResidues(FILE *out, PDB *pdb)
 {
    PDB *res, *nextRes;
@@ -212,6 +235,18 @@ void ListFlaggedResidues(FILE *out, PDB *pdb)
 
 
 /************************************************************************/
+/*>BOOL ResInZone(PDB *res, ZONE *zones)
+   -------------------------------------
+*//**
+   \param[in]    res     Pointer to the start of a residue
+   \param[in]    zones   Linked list of zones
+   \return               Is the residue in any of the zones
+
+   Determine whether a residue is within any the zones specified in the
+   linked list
+
+-  05.06.19 Original    By: ACRM
+*/
 BOOL ResInZone(PDB *res, ZONE *zones)
 {
    ZONE *z;
@@ -228,6 +263,15 @@ BOOL ResInZone(PDB *res, ZONE *zones)
 
 
 /************************************************************************/
+/*>void ClearOccup(PDB *pdb)
+   -------------------------
+*//**
+   \param[in]     pdb    PDB linked list
+
+   Sets the occupancy to zero across the whole PDB file. Used as a flag
+
+-  05.06.19 Original    By: ACRM
+*/
 void ClearOccup(PDB *pdb)
 {
    PDB *p;
@@ -240,6 +284,21 @@ void ClearOccup(PDB *pdb)
 
 
 /************************************************************************/
+/*>void FlagNearRes(PDB *pdb, ZONE *zones, char *restype, REAL radiusSq)
+   ---------------------------------------------------------------------
+*//**
+   \param[in]    pdb       PDB linked list
+   \param[in]    zones     Linked list of zone specifications
+   \param[in]    restype   Amino acid type we are looking for
+   \param[in]    radiusSq  Squared distance for a residue to be in range
+
+   Uses occupancy as a flag - first clears this for all atoms, then
+   looks for residues of the specified type (restype) within the given
+   distance of any of the given zones. If a residue has any s/c atom in
+   range then the occupancy for the residue is set to 1
+
+-  05.06.19 Original    By: ACRM
+*/
 void FlagNearRes(PDB *pdb, ZONE *zones, char *restype, REAL radiusSq)
 {
    PDB  *nextRes1, *nextRes2, *res1, *res2;
@@ -281,6 +340,16 @@ void FlagNearRes(PDB *pdb, ZONE *zones, char *restype, REAL radiusSq)
 
 
 /************************************************************************/
+/*>void SetOccup(PDB *start, PDB *stop)
+   ------------------------------------
+*//**
+   \param[in]   start   Start of a residue in PDB linked list
+   \param[in]   stop    Start of next residue
+
+   Sets the occupancy to 1 for all atoms from start to before stop
+
+-  05.06.19 Original    By: ACRM
+*/
 void SetOccup(PDB *start, PDB *stop)
 {
    PDB *p;
@@ -292,6 +361,23 @@ void SetOccup(PDB *start, PDB *stop)
 
 
 /************************************************************************/
+/*>BOOL CheckInRange(PDB *res1, PDB *nextRes1, PDB *res2, PDB *nextRes2, 
+                     REAL radiusSq)
+   ----------------------------------------------------------------------
+*//**
+   \param[in]    res1        Start of residue range (all atoms)
+   \param[in]    nextRes1    End of residue range (all atoms)
+   \param[in]    res2        Start of residue range (sidechain atoms)
+   \param[in]    nextRes2    End of residue range (sidechain atoms)
+   \param[in]    radiusSq    Distance squared
+   \return                   BOOL: In range?
+
+   Looks to see if sidechain atoms of res2 are within the specified
+   distance of all atoms of res1. Returns true if they are, false 
+   otherwise
+
+-  05.06.19 Original    By: ACRM
+*/
 BOOL CheckInRange(PDB *res1, PDB *nextRes1, PDB *res2, PDB *nextRes2, 
                   REAL radiusSq)
 {
@@ -315,6 +401,18 @@ BOOL CheckInRange(PDB *res1, PDB *nextRes1, PDB *res2, PDB *nextRes2,
 
 
 /************************************************************************/
+/*>ZONE *ParseZoneSpec(char *zonespec)
+   -----------------------------------
+*//**
+   \param[in]    zonespec   Zone specification
+   \return                  Linked list of ZONEs
+
+   Takes a comma separated list of zones each of which may be a single
+   residue label or a range of labels (i.e. [c[.]]NNN[i]-[c[.]]NNN[i])
+   and creates a linked list of ZONEs
+
+-  05.06.19 Original    By: ACRM
+*/
 ZONE *ParseZoneSpec(char *zonespec)
 {
    ZONE *zones = NULL, 
@@ -350,6 +448,18 @@ ZONE *ParseZoneSpec(char *zonespec)
 
 
 /************************************************************************/
+/*>void PopulateZone(ZONE *z, char *zoneDescription)
+   -------------------------------------------------
+*//**
+   \param[in]    z                 Pointer to a ZONE structure
+   \param[in]    zoneDescription   Zone specification
+
+   Takes a zone specification which may be a single residue label or a 
+   range of labels (i.e. [c[.]]NNN[i]-[c[.]]NNN[i]) and creates a ZONE
+   structure
+
+-  05.06.19 Original    By: ACRM
+*/
 void PopulateZone(ZONE *z, char *zoneDescription)
 {
    char *dash, *z2;
@@ -370,6 +480,21 @@ void PopulateZone(ZONE *z, char *zoneDescription)
 
 
 /************************************************************************/
+/*>char **blSplitStringOnCharacter(char *string, char charac, 
+                                   int minItemLen)
+   -----------------------------------------------------------------------
+*//**
+   \param[in]   string       A string
+   \param[in]   charac       A character
+   \param[in]   minItemLen   Minimum length to allocate for each item
+   \return                   Array of strings
+
+   Takes a string and splits it into an array of strings at the specified
+   character. This is done as a 2D array where each string has the same
+   length.
+
+-  05.06.19 Original    By: ACRM
+*/
 char **blSplitStringOnCharacter(char *string, char charac, int minItemLen)
 {
    int  nitems = 0;
@@ -426,7 +551,6 @@ char **blSplitStringOnCharacter(char *string, char charac, int minItemLen)
                      char *listOnly)
    ---------------------------------------------------------------------
 *//**
-
    \param[in]      argc         Argument count
    \param[in]      **argv       Argument array
    \param[out]     *infile      Input file (or blank string)
@@ -441,6 +565,7 @@ char **blSplitStringOnCharacter(char *string, char charac, int minItemLen)
    Parse the command line
    
 -  05.06.19 Original    By: ACRM
+-  18.06.19 Improved help message
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   REAL *radius, char *zonespec, char *restype, 
@@ -512,15 +637,25 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
 
 /************************************************************************/
+/*>void Usage(void)
+   ----------------
+*//**
+   Usage message
+
+-  05.06.19 Original    By: ACRM
+-  18.06.19 V1.0.1
+-  19.06.19 V1.0.2
+
+*/
 void Usage(void)
 {
-   printf("\npdbfindneares V1.0.1 (c) 2019 UCL, Prof. Andrew C.R. \
+   printf("\npdbfindneares V1.0.2 (c) 2019 UCL, Prof. Andrew C.R. \
 Martin\n");
 
    printf("\nUsage: pdbfindnearres [-r nnn][-l] zone[,zone...] resnam \
 [in.pdb [out.pdb]]\n");
    printf("       -r   Specify the radius used to look for nearby \
-residues\n");
+residues [%.3f]\n", DEFRAD);
    printf("       -l   Simply list residues instead of PDB output\n");
 
    printf("\nFinds occurrences of residues of type 'resnam' that have \
