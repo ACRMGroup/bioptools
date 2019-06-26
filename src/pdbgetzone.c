@@ -3,12 +3,12 @@
 
    \file       pdbgetzone.c
    
-   \version    V1.9
-   \date       07.10.15
+   \version    V1.10
+   \date       19.06.19
    \brief      Extract a numbered zone from a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1996-2015
-   \author     Dr. Andrew C. R. Martin
+   \copyright  (c) Prof. Andrew C. R. Martin 1996-2019
+   \author     Prof. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -65,6 +65,7 @@
                     it to make sense
 -  V1.8   02.10.15  Added -x (extend) and -f (force) parameters
 -  V1.9   07.10.15  Added -v (invert) parameter
+-  V1.10  26.06.19  -f with -v now ignores being unable to find the zone
 
 *************************************************************************/
 /* Includes
@@ -186,14 +187,27 @@ the zone.\n");
 
          if(invert)
          {
-            if((newpdb = blExtractNotZonePDBAsCopy(pdb, 
-                                                   chain1, res1, insert1,
-                                                   chain2, res2, insert2))
-               ==NULL)
+            if(force)
             {
-               fprintf(stderr,"pdbgetzone: Zone not found (%s or %s)\n",
-                       Zone1, Zone2);
-               return(1);
+               newpdb = blForceExtractNotZonePDBAsCopy(pdb, 
+                                                       chain1, res1,
+                                                       insert1,
+                                                       chain2, res2,
+                                                       insert2);
+            }
+            else
+            {
+               if((newpdb = blExtractNotZonePDBAsCopy(pdb, 
+                                                      chain1, res1,
+                                                      insert1,
+                                                      chain2, res2,
+                                                      insert2))
+                  ==NULL)
+               {
+                  fprintf(stderr,"pdbgetzone: Zone not found \
+(%s or %s)\n", Zone1, Zone2);
+                  return(1);
+               }
             }
          }
          else
@@ -471,11 +485,12 @@ BOOL FindOffsetResidue(PDBSTRUCT *pdbs, int width,
 -  13.02.15 V1.7 By: ACRM
 -  03.10.15 V1.8
 -  07.10.15 V1.9
+-  26.06.19 V1.10
 */
 void Usage(void)
 {
    fprintf(stderr,"\n");
-   fprintf(stderr,"pdbgetzone V1.9 (c) 1996-2015, Dr. Andrew C.R. \
+   fprintf(stderr,"pdbgetzone V1.10 (c) 1996-2019, Prof. Andrew C.R. \
 Martin, UCL.\n");
    fprintf(stderr,"                    Modified by Tony Lewis, \
 UCL, 2005\n");
@@ -487,6 +502,8 @@ of residues\n");
    fprintf(stderr,"           each side\n");
    fprintf(stderr,"       -f  Force output even if the zone could not \
 be expanded\n");
+   fprintf(stderr,"           With -v forces output even if the zone is \
+not found\n");
    fprintf(stderr,"       -l  Redundant - kept for backwards \
 compatibility\n");
    fprintf(stderr,"       -m  Include metatdata (header and trailed) in \
