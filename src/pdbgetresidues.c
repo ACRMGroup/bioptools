@@ -3,12 +3,12 @@
 
    \file       pdbgetresidues.c
    
-   \version    V1.5
-   \date       13.03.19
+   \version    V1.5.1
+   \date       26.06.19
    \brief      Extract a set of residues from a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 2010-2019
-   \author     Dr. Andrew C. R. Martin
+   \copyright  (c) Prof. Andrew C. R. Martin 2010-2019
+   \author     Prof. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -46,13 +46,15 @@
 
    Revision History:
    =================
--  V1.0  15.06.10 Original
--  V1.1  22.07.14 Renamed deprecated functions with bl prefix.
-                  Added doxygen annotation. By: CTP
--  V1.2  06.11.14 Renamed from getresidues  By: ACRM
--  V1.3  25.11.14 Initialized a variable
--  V1.4  12.03.15 Changed to allow multi-character chain names
--  V1.5  13.03.19 Terminate strings after strncpy()
+-  V1.0   15.06.10 Original
+-  V1.1   22.07.14 Renamed deprecated functions with bl prefix.
+                   Added doxygen annotation. By: CTP
+-  V1.2   06.11.14 Renamed from getresidues  By: ACRM
+-  V1.3   25.11.14 Initialized a variable
+-  V1.4   12.03.15 Changed to allow multi-character chain names
+-  V1.5   13.03.19 Terminate strings after strncpy()
+-  V1.5.1 26.06.19 Fix to termination of resnam which was beyond array
+                   boundary
 
 *************************************************************************/
 /* Includes
@@ -177,6 +179,7 @@ void PrintResidues(FILE *out, PDB *pdb, RESLIST *reslist)
 /************************************************************************/
 /*
 -  13.03.19  Terminate string ofter strncpy()
+-  26.06.19  Array boundary fix
 */
 RESLIST *ReadResidueList(FILE *fp)
 {
@@ -207,7 +210,7 @@ RESLIST *ReadResidueList(FILE *fp)
          }
          
          strncpy(r->resid, buffer, MAXRESID);
-         r->resid[MAXRESID] = '\0';
+         r->resid[MAXRESID-1] = '\0'; /* ACRM 26.06.19 Added the -1     */
 
          strncpy(r->chain, chain, 8);
          r->chain[7] = '\0';
