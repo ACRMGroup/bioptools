@@ -1,0 +1,21 @@
+pdb2pir needs to keep a list of multi-char chain labels
+        GetPDBChains()
+
+
+Done
+----
+things that need comma separated list of chain labels need to
+support old format
+
+###pdbrenum
+###pdbchain
+###pdbgetchain
+###pdbtorsions
+###pdbsplitchains needs to handle TER card properly
+
+
+
+Need testing...
+setpdbnumbering 
+
+
