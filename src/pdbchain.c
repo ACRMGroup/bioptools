@@ -3,12 +3,12 @@
 
    \file       pdbchain.c
    
-   \version    V2.2
-   \date       28.01.18
+   \version    V2.3
+   \date       09.08.19
    \brief      Insert chain labels into a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2018
-   \author     Dr. Andrew C. R. Martin
+   \copyright  (c) UCL, Prof. Andrew C. R. Martin 1994-2019
+   \author     Prof. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -70,6 +70,7 @@
 -  V2.1  13.03.15 Now supports old chain specification method if
                   called as chainpdb
 -  V2.2  28.01.18 Increased MAXCHAINLABEL from 8 to 16
+-  V2.3  09.08.19 Added -v flag
 
 *************************************************************************/
 /* Includes
@@ -78,6 +79,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 
 #include "bioplib/macros.h"
 #include "bioplib/SysDefs.h"
@@ -105,9 +107,9 @@
 */
 int  main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  char ***chains, BOOL *BumpChainOnHet);
+                  char ***chains, BOOL *BumpChainOnHet, BOOL *verbose);
 void Usage(void);
-void DoChain(PDB *pdb, char **chains, BOOL BumpChainOnHet);
+void DoChain(PDB *pdb, char **chains, BOOL BumpChainOnHet, BOOL verbose);
 char *GetChainLabel(int ChainNum);
 
 /************************************************************************/
@@ -133,9 +135,11 @@ int main(int argc, char **argv)
    BOOL     BumpChainOnHet = FALSE;  /* Flag to indicate ATOMs after 
                                         HETATMs should be start of a new
                                         residue                         */
+   BOOL     verbose = FALSE;         /* Flag to print CA-CA distances   */
 
 
-   if(ParseCmdLine(argc, argv, infile, outfile, &chains, &BumpChainOnHet))
+   if(ParseCmdLine(argc, argv, infile, outfile, &chains, &BumpChainOnHet,
+                   &verbose))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
@@ -146,7 +150,7 @@ int main(int argc, char **argv)
          else
          {
             pdb = wpdb->pdb;
-            DoChain(pdb, chains, BumpChainOnHet);
+            DoChain(pdb, chains, BumpChainOnHet, verbose);
             blWriteWholePDB(out, wpdb);
          }
       }
@@ -168,7 +172,7 @@ int main(int argc, char **argv)
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                     char ***chains, BOOL *BumpChainOnHet)
+                     char ***chains, BOOL *BumpChainOnHet, BOOL *verbose)
    ----------------------------------------------------------------------
 *//**
 
@@ -176,9 +180,11 @@ int main(int argc, char **argv)
    \param[in]      **argv           Argument array
    \param[out]     *infile          Input filename (or blank string)
    \param[out]     *outfile         Output filename (or blank string)
-   \param[out]     *BumpChainOnHet  Bump chain label on ATOMs after HETs
    \param[out]     ***chains        Array of chain labels (if specified)
                                     NULL if no chains allocated
+   \param[out]     *BumpChainOnHet  Bump chain label on ATOMs after HETs
+   \param[out]     *verbose         Print CA-CA distance of chain breaks
+   
    \return                          Success
 
    Parse the command line
@@ -189,7 +195,7 @@ int main(int argc, char **argv)
 -  13.03.15 Gone back to returning BOOL
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  char ***chains, BOOL *BumpChainOnHet)
+                  char ***chains, BOOL *BumpChainOnHet, BOOL *verbose)
 {
    BOOL oldStyle;
 
@@ -235,6 +241,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             break;
          case 'b':
             *BumpChainOnHet = TRUE;
+            break;
+         case 'v':
+            *verbose        = TRUE;
             break;
          default:
             return(FALSE);
@@ -286,16 +295,20 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  10.03.15 V2.0
 -  13.03.15 V2.1
 -  28.01.18 V2.2
+-  09.08.19 V2.3
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbchain V2.2 (c) 1994-2018 Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbchain V2.3 (c) 1994-2019 Prof. Andrew C.R. \
 Martin, UCL\n");
-   fprintf(stderr,"\nUsage: pdbchain [-c chain[,chain[...]]] [in.pdb \
-[out.pdb]]\n");
+
+   fprintf(stderr,"\nUsage: pdbchain [-c chain[,chain[...]]][-b][-v] \
+[in.pdb [out.pdb]]\n");
    fprintf(stderr,"       -c Specify chain names to use\n");
    fprintf(stderr,"       -b If ATOM records follow HETATM records they \
 start a new chain\n");
+   fprintf(stderr,"       -v Print CA-CA distance of each chain break\n");
+
    fprintf(stderr,"\nSplits a PDB file into chains using distance \
 criteria\n\n");
    fprintf(stderr,"If files are not specified, stdin and stdout are \
@@ -314,14 +327,16 @@ instead of L,H)\n\n");
 
 
 /************************************************************************/
-/*>void DoChain(PDB *pdb, char **chains, BOOL BumpChainOnHet)
-   ---------------------------------------------------------
+/*>void DoChain(PDB *pdb, char **chains, BOOL BumpChainOnHet,
+                BOOL verbose)
+   ----------------------------------------------------------
 *//**
 
    \param[in,out]  *pdb            PDB linked list
    \param[in]      *chains         Chain labels (or blank string)
    \param[in]      BumpChainOnHet  Bump the chain label when a HETATM
                                    is found
+   \param[in]      verbose         Print CA-CA distance of chain breaks
 
    Do the actual chain naming.
 
@@ -333,8 +348,9 @@ instead of L,H)\n\n");
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
 -  05.03.15 Replaced blFindEndPDB() with blFindNextResidue()
 -  10.03.15 Chains is now an array
+-  09.08.19 Added verbose handling to print CA-CA distances
 */
-void DoChain(PDB *pdb, char **chains, BOOL BumpChainOnHet)
+void DoChain(PDB *pdb, char **chains, BOOL BumpChainOnHet, BOOL verbose)
 {
    PDB  *p,
         *start,
@@ -440,6 +456,16 @@ void DoChain(PDB *pdb, char **chains, BOOL BumpChainOnHet)
          else
          {
             strcpy(chain, GetChainLabel(ChainNum));
+         }
+
+         if(verbose)
+         {
+            if(CAPrev != NULL && CA != NULL)
+            {
+               REAL CaCaDist = DIST(CAPrev, CA);
+               fprintf(stderr, "CA-CA distance to start of chain %s: \
+%.3f\n", chain, CaCaDist);
+            }
          }
       }
 
