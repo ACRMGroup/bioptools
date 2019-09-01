@@ -4,7 +4,7 @@ bioptools
 Tools making use of BiopLib
 
 
-See INSTALL.md for installation instructions!
+See `INSTALL.md` for installation instructions!
 
 
 chaincontacts
