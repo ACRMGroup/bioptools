@@ -3,14 +3,14 @@
    Program:    scorecons
    File:       scorecons.c
    
-   Version:    V1.5
-   Date:       24.08.15
+   Version:    V1.6
+   Date:       11.10.19
    Function:   Scores conservation from a PIR sequence alignment
                Not to be confused with the program of the same name
                by Will Valdar (this one predates his!)
    
-   Copyright:  (c) Dr. Andrew C. R. Martin 1996-2015
-   Author:     Dr. Andrew C. R. Martin
+   Copyright:  (c) Prof. Andrew C. R. Martin 1996-2019
+   Author:     Prof. Andrew C. R. Martin
                Tom Northey (implemented Valdar01 scoring)
    Address:    Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -121,6 +121,8 @@
    V1.3  15.07.08 Added -x flag
    V1.4  11.08.15 Modified for new bioplib
    V1.5  24.08.15 Implemented the Valdar01 scoring By: TCN
+   V1.6  11.10.19 Fixed reading of a specified matrix - it was ignoring
+                  -m before!
 
 *************************************************************************/
 /* Includes
@@ -216,6 +218,7 @@ REAL valdarMatrixScore(char res1, char res2, int MaxInMatrix);
    17.09.96 Rewritten. Zeros the MDM
    18.09.96 Added check on environment variable if ReadMDM() failed.
    15.07.08 Added -x/Extended handling
+   11.10.19 Fixed code to actually read a different matrix if specified!
 */
 int main(int argc, char **argv)
 {
@@ -227,15 +230,17 @@ int main(int argc, char **argv)
    int  MaxInMatrix,
         Method = METH_MDM;
    BOOL Extended = FALSE;
+
+   strncpy(matrix, MUTMAT, MAXBUFF-1);
    
    if(ParseCmdLine(argc, argv, InFile, OutFile, matrix, &Method,
                    &Extended))
    {
       if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
-         if(!blReadMDM(MUTMAT))
+         if(!blReadMDM(matrix))
          {
-            fprintf(stderr,"Unable to read mutation matrix: %s\n",MUTMAT);
+            fprintf(stderr,"Unable to read mutation matrix: %s\n",matrix);
             if(getenv(DATADIR) == NULL)
             {
                fprintf(stderr,"Environment variable (%s) not set.\n",
@@ -1026,10 +1031,11 @@ REAL valdarMatrixScore(char res1, char res2, int MaxInMatrix)
    15.07.08 V1.3 - added -x
    11.08.15 V1.4
    24.08.15 V1.5 (added -d Valdar method)
+   11.10.19 V1.6 Fixed reading of matrix with -m
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nScoreCons V1.5 (c) 1996-2015 Dr. Andrew C.R. \
+   fprintf(stderr,"\nScoreCons V1.6 (c) 1996-2019 Prof. Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"          valdar01 scoring implemented by Tom \
 Northey\n");
