@@ -4,10 +4,12 @@ BiopTools - Installation
 If you have downloaded and installed BiopLib already
 ----------------------------------------------------
 
+```
         cd src
         ./makemake.pl
         make
         make install
+```
 
 This assumes that you have installed BiopLib in $HOME/lib with include
 files in $HOME/include and you wish to install the programs in
@@ -30,21 +32,34 @@ If you have been a previous user of tools distributed by us, then you
 will find that many of the program names have changed. To create
 symbolic links in the binary directory to the old names, do:
 
+```
         make links
-
+```
 
 
 If you have NOT downloaded and installed BiopLib already
 --------------------------------------------------------
 
+**Note!!! This will only work if you have downloaded one of the
+  *releases* of BiopTools rather than using `git clone`.** e.g.
+
+```
+wget https://github.com/ACRMGroup/bioptools/archive/V1.9.tar.gz
+```
+(This is because the latest code obtained with `git clone` may use
+BiopLib routines not contained in the version of BiopLib that will be
+downloaded by makemake.pl.)
+
 Ensure you have 'git' installed,
 
+```
         cd src
         ./makemake.pl -bioplib
         make
         make install
+```
 
-This assumes that you wish to install the programs in $HOME/bin
+This assumes that you wish to install the programs in `$HOME/bin`
 
 You may change this default location with the following options for
 the makemake.pl script
@@ -63,7 +78,8 @@ If you have been a previous user of tools distributed by us, then you
 will find that many of the program names have changed. To create
 symbolic links in the binary directory to the old names, do:
 
+```
         make links
-
+```
 
 
