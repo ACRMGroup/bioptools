@@ -28,7 +28,17 @@ LFILES = bioplib/BuildConect.o     \
          bioplib/openorpipe.o      \
          bioplib/secstr.o          \
          bioplib/array3.o          \
-         bioplib/array2.o 
+         bioplib/array2.o 	   \
+         bioplib/hash.o 	   \
+         bioplib/prime.o 	   \
+         bioplib/stringutil.o 	   \
+         bioplib/GetPDBChainLabels.o \
+         bioplib/PDBHeaderInfo.o   \
+         bioplib/throne.o	   \
+         bioplib/strcatalloc.o	   \
+         bioplib/GetWord.o	   \
+         bioplib/stringcat.o	   \
+
 
 
 pdbsecstr : pdbsecstr.o $(LFILES)
