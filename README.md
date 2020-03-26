@@ -227,6 +227,11 @@ pdbtranslate
 ------------
 Translates a PDB file
 
+rangecontacts
+-------------
+Performs a contact analysis at the residue level to find residues whose
+sidechains contact any atom of the residues specified in a given range
+
 scorecons
 ---------
 A program similar to (and which predates) Will Valdar's scorecons program
