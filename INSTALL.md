@@ -50,7 +50,40 @@ wget https://github.com/ACRMGroup/bioptools/archive/V1.9.tar.gz
 BiopLib routines not contained in the version of BiopLib that will be
 downloaded by makemake.pl.)
 
-Ensure you have 'git' installed,
+### Ensure you have libxml2 installed
+
+This will normally be already installed and available on Linux
+systems. If not then it is installed on Fedora/CentOS systems using
+(as root):
+
+```
+yum -y install libxml2 libxml2-devel
+```
+
+or on Debian/Ubuntu systems using:
+
+```
+sudo apt-get install libxml2 libxml2-dev
+```
+
+On other systems, you will need to install libxml2 manually from 
+http://xmlsoft.org/downloads.html
+
+
+### Ensure you have 'git' installed
+
+```
+yum -y install git
+```
+
+or on Debian/Ubuntu systems using:
+
+```
+sudo apt-get install git
+```
+
+
+### Now install bioptools
 
 ```
         cd src
