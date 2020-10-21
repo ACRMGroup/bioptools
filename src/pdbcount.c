@@ -84,9 +84,7 @@ int  main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   BOOL *byChain);
 void Usage(void);
-void DoCount(PDB *pdb, int *nchain, int *nres, int *natom, int *nhyd,
-             int *nhet, char *chain);
-void PrintCountByChains(FILE *out, PDB *pdb);
+void DoCountAndPrint(FILE *out, PDB *pdb, BOOL *byChain);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -119,16 +117,7 @@ int main(int argc, char **argv)
          }
          else
          {
-            if(byChain)
-            {
-               PrintCountByChains(out, pdb);
-            }
-            else
-            {
-               DoCount(pdb, &nchain, &nres, &natom, &nhyd, &nhet, NULL);
-               fprintf(out,"Chains: %d Residues: %d Atoms: %d Het \
-Atoms: %d Total Hydrogens: %d\n", nchain, nres, natom, nhet, nhyd);
-            }
+            DoCountAndPrint(out, pdb, byChain);
          }
       }
       else
@@ -145,14 +134,6 @@ Atoms: %d Total Hydrogens: %d\n", nchain, nres, natom, nhet, nhyd);
    
    return(0);
 }
-
-/************************************************************************/
-void PrintCountByChains(FILE *out, PDB *pdb)
-{
-
-}
-
-
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
@@ -247,70 +228,66 @@ used.\n");
 }
 
 /************************************************************************/
-/*>void DoCount(PDB *pdb, int *nchain, int *nres, int *natom, int *nhyd,
-                int *nhet, char *chain)
-   ---------------------------------------------------------------------
+/*>void DoCountAndPrint(FILE *out, PDB *pdb, BOOL *byChain)
+   --------------------------------------------------------
 *//**
 
    Does the actual work of counting 
 
 -  16.08.94 Original    By: ACRM
 -  12.03.15 Changed to allow multi-character chain names
--  21.10.20 Added chain paramater
+-  21.10.20 Now does the printing too - Added byChain paramater
 */
-void DoCount(PDB *pdb, int *nchain, int *nres, int *natom, int *nhyd,
-             int *nhet, char *chain)
+void DoCountAndPrint(FILE *out, PDB *pdb, BOOL *byChain)
 {
    PDB *p;
    char LastChain[9],
         LastIns;
    int  LastRes;
-
+   int nchain   = 0;
+   int nres     = 0;
+   int natom    = 0;
+   int nhyd     = 0;
+   int nhet     = 0;
+   
    strcpy(LastChain, "-");
    LastIns   = '-';
    LastRes   = -999;
 
-   *nchain   = 0;
-   *nres     = 0;
-   *natom    = 0;
-   *nhyd     = 0;
-   *nhet     = 0;
-   
    for(p=pdb; p!=NULL; NEXT(p))
    {
-      if((chain == NULL) || CHAINMATCH(p->chain, chain))
+      if(!strncmp(p->record_type,"ATOM  ",6))
+         (natom)++;
+      else if(!strncmp(p->record_type,"HETATM",6))
+         (nhet)++;
+      
+      if(p->atnam[0] == 'H') 
+         (nhyd)++;
+      
+      if(!CHAINMATCH(p->chain, LastChain))
+      {
+         /* Chain has changed & so, by definition has the residue    */
+         if(!strncmp(p->record_type,"ATOM  ",6))
+         {
+            (nchain)++;
+            (nres)++;
+         }
+         
+         strncpy(LastChain, p->chain, 8);
+         LastRes   = p->resnum;
+         LastIns   = p->insert[0];
+      }
+      else if((p->insert[0] != LastIns) ||
+              (p->resnum    != LastRes))
       {
          if(!strncmp(p->record_type,"ATOM  ",6))
-            (*natom)++;
-         else if(!strncmp(p->record_type,"HETATM",6))
-            (*nhet)++;
+            (nres)++;
          
-         if(p->atnam[0] == 'H') 
-            (*nhyd)++;
-         
-         if(!CHAINMATCH(p->chain, LastChain))
-         {
-            /* Chain has changed & so, by definition has the residue    */
-            if(!strncmp(p->record_type,"ATOM  ",6))
-            {
-               (*nchain)++;
-               (*nres)++;
-            }
-            
-            strncpy(LastChain, p->chain, 8);
-            LastRes   = p->resnum;
-            LastIns   = p->insert[0];
-         }
-         else if((p->insert[0] != LastIns) ||
-                 (p->resnum    != LastRes))
-         {
-            if(!strncmp(p->record_type,"ATOM  ",6))
-               (*nres)++;
-            
-            LastRes   = p->resnum;
-            LastIns   = p->insert[0];
-         }
+         LastRes   = p->resnum;
+         LastIns   = p->insert[0];
       }
-      
    }
+
+   fprintf(out,"Chains: %d Residues: %d Atoms: %d Het Atoms: %d \
+Total Hydrogens: %d\n", nchain, nres, natom, nhet, nhyd);
 }
