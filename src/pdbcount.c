@@ -53,7 +53,7 @@
                   Added doxygen annotation. By: CTP
 -  V1.4  06.11.14 Renamed from countpdb  By: ACRM
 -  V1.5  12.03.15 Changed to allow multi-character chain names
--  V1.6  21.10.20 Added -c for by chain calculation
+-  V1.6  21.10.20 Added -c for by-chain calculation
 
 *************************************************************************/
 /* Includes
@@ -84,7 +84,7 @@ int  main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   BOOL *byChain);
 void Usage(void);
-void DoCountAndPrint(FILE *out, PDB *pdb, BOOL byChain);
+void CountAndPrint(FILE *out, PDB *pdb, BOOL byChain);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -117,7 +117,7 @@ int main(int argc, char **argv)
          }
          else
          {
-            DoCountAndPrint(out, pdb, byChain);
+            CountAndPrint(out, pdb, byChain);
          }
       }
       else
@@ -202,6 +202,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    return(TRUE);
 }
 
+
 /************************************************************************/
 /*>void Usage(void)
    ----------------
@@ -227,36 +228,34 @@ used.\n");
    fprintf(stderr,"Counts chains, residues & atoms in a PDB file.\n\n");
 }
 
+
 /************************************************************************/
-/*>void DoCountAndPrint(FILE *out, PDB *pdb, BOOL byChain)
+/*>void CountAndPrint(FILE *out, PDB *pdb, BOOL byChain)
    --------------------------------------------------------
 *//**
 
-   Does the actual work of counting 
+   Does the actual work of counting and printing
 
 -  16.08.94 Original    By: ACRM
 -  12.03.15 Changed to allow multi-character chain names
 -  21.10.20 Now does the printing too - Added byChain paramater
 */
-void DoCountAndPrint(FILE *out, PDB *pdb, BOOL byChain)
+void CountAndPrint(FILE *out, PDB *pdb, BOOL byChain)
 {
    PDB *p;
    char LastChain[9],
-        LastIns;
-   int  LastRes;
-   int nchainTotal   = 0;
-   int nresTotal     = 0;
-   int natomTotal    = 0;
-   int nhydTotal     = 0;
-   int nhetTotal     = 0;
-
-   int nres     = 0;
-   int natom    = 0;
-   int nhyd     = 0;
+        LastIns = '-';
+   int  LastRes = -9999,
+        nchainTotal = 0,
+        nresTotal   = 0,
+        natomTotal  = 0,
+        nhydTotal   = 0,
+        nhetTotal   = 0,
+        nres        = 0,
+        natom       = 0,
+        nhyd        = 0;
    
    strcpy(LastChain, "-");
-   LastIns   = '-';
-   LastRes   = -999;
 
    for(p=pdb; p!=NULL; NEXT(p))
    {
@@ -264,26 +263,28 @@ void DoCountAndPrint(FILE *out, PDB *pdb, BOOL byChain)
       {
          if(!CHAINMATCH(p->chain, LastChain))
          {
-            /* Chain has changed    */
+            /* Chain has changed
 
-            /* Print information for the previous chain */
+               Print information for the previous chain 
+            */
             if(nres && byChain)
             {
-
+               fprintf(out,"Chain: %s Residues: %d Atoms: %d \
+Hydrogens: %d\n", LastChain, nres, natom, nhyd);
             }
 
-            /* Update total counts */
+            /* Update total counts                                      */
             (nchainTotal)++;
             nresTotal  += nres;
             natomTotal += natom;
             nhydTotal  += nhyd;
 
-            /* Reset counts for new chain*/
+            /* Reset counts for new chain                               */
             nres  = 1;
             natom = 0;
             nhyd  = 0;
 
-            /* Update current chain and residue info */
+            /* Update current chain and residue info                    */
             strncpy(LastChain, p->chain, 8);
             LastRes   = p->resnum;
             LastIns   = p->insert[0];
@@ -291,31 +292,48 @@ void DoCountAndPrint(FILE *out, PDB *pdb, BOOL byChain)
          else if((p->insert[0] != LastIns) ||
                  (p->resnum    != LastRes))
          {
-            /* Residue has changed */
+            /* Residue has changed                                      */
             nres++;
          
             LastRes   = p->resnum;
             LastIns   = p->insert[0];
          }
 
-         /* Update hydrogen and atom counts */
+         /* Update hydrogen and atom counts                             */
          if(p->atnam[0] == 'H') 
-            (nhyd)++;
+            nhyd++;
       
-         (natom)++;
+         natom++;
       }
       else if(!strncmp(p->record_type,"HETATM",6))
       {
-         
-         (nhetTotal)++;
+         nhetTotal++;
       }
    }
-   /* Add data for last chain */
-            nresTotal  += nres;
-            natomTotal += natom;
-            nhydTotal  += nhyd;
    
+   /* Print information for the last chain                              */
+   if(nres && byChain)
+   {
+      fprintf(out,"Chain: %s Residues: %d Atoms: %d Total Hydrogens: \
+%d\n", LastChain, nres, natom, nhyd);
+   }
+   
+   /* Add data for last chain                                           */
+   nresTotal  += nres;
+   natomTotal += natom;
+   nhydTotal  += nhyd;
 
-   fprintf(out,"Chains: %d Residues: %d Atoms: %d Het Atoms: %d \
-Total Hydrogens: %d\n", nchainTotal, nresTotal, natomTotal, nhetTotal, nhydTotal);
+   /* Print total counts                                                */
+   if(byChain)
+   {
+      fprintf(out,"TOTALS: Chains: %d Residues: %d Atoms: %d \
+HetAtoms: %d Hydrogens: %d\n",
+              nchainTotal, nresTotal, natomTotal, nhetTotal, nhydTotal);
+   }
+   else
+   {
+      fprintf(out,"Chains: %d Residues: %d Atoms: %d Het Atoms: %d \
+Total Hydrogens: %d\n",
+              nchainTotal, nresTotal, natomTotal, nhetTotal, nhydTotal);
+   }
 }
