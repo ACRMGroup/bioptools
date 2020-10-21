@@ -3,12 +3,12 @@
 
    \file       pdbcount.c
    
-   \version    V1.5
-   \date       12.03.15
+   \version    V1.6
+   \date       21.10.20
    \brief      Count residues and atoms in a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1994-2015
-   \author     Dr. Andrew C. R. Martin
+   \copyright  (c) Prof. Andrew C. R. Martin 1994-2020
+   \author     Prof. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -53,6 +53,7 @@
                   Added doxygen annotation. By: CTP
 -  V1.4  06.11.14 Renamed from countpdb  By: ACRM
 -  V1.5  12.03.15 Changed to allow multi-character chain names
+-  V1.6  21.10.20 Added -c for by chain calculation
 
 *************************************************************************/
 /* Includes
@@ -80,10 +81,12 @@
 /* Prototypes
 */
 int  main(int argc, char **argv);
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile);
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+                  BOOL *byChain);
 void Usage(void);
 void DoCount(PDB *pdb, int *nchain, int *nres, int *natom, int *nhyd,
-             int *nhet);
+             int *nhet, char *chain);
+void PrintCountByChains(FILE *out, PDB *pdb);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -104,8 +107,9 @@ int main(int argc, char **argv)
         outfile[MAXBUFF];
    PDB  *pdb;
    int  nchain, nres, natom, nhyd, nhet;
+   BOOL byChain = FALSE;
         
-   if(ParseCmdLine(argc, argv, infile, outfile))
+   if(ParseCmdLine(argc, argv, infile, outfile, &byChain))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
@@ -115,9 +119,16 @@ int main(int argc, char **argv)
          }
          else
          {
-            DoCount(pdb, &nchain, &nres, &natom, &nhyd, &nhet);
-            fprintf(out,"Chains: %d Residues: %d Atoms: %d Het Atoms: %d \
-Total Hydrogens: %d\n", nchain, nres, natom, nhet, nhyd);
+            if(byChain)
+            {
+               PrintCountByChains(out, pdb);
+            }
+            else
+            {
+               DoCount(pdb, &nchain, &nres, &natom, &nhyd, &nhet, NULL);
+               fprintf(out,"Chains: %d Residues: %d Atoms: %d Het \
+Atoms: %d Total Hydrogens: %d\n", nchain, nres, natom, nhet, nhyd);
+            }
          }
       }
       else
@@ -136,7 +147,16 @@ Total Hydrogens: %d\n", nchain, nres, natom, nhet, nhyd);
 }
 
 /************************************************************************/
-/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
+void PrintCountByChains(FILE *out, PDB *pdb)
+{
+
+}
+
+
+
+/************************************************************************/
+/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+                     BOOL *byChain)
    ----------------------------------------------------------------------
 *//**
 
@@ -144,13 +164,16 @@ Total Hydrogens: %d\n", nchain, nres, natom, nhet, nhyd);
    \param[in]      **argv      Argument array
    \param[out]     *infile     Input filename (or blank string)
    \param[out]     *outfile    Output filename (or blank string)
+   \param[out]     *byChain    Calculate for each chain separately
    \return                     Success
 
    Parse the command line
 
 -  16.08.94 Original    By: ACRM
+-  21.10.20 Added byChain
 */
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+                  BOOL *byChain)
 {
    argc--;
    argv++;
@@ -163,6 +186,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
       {
          switch(argv[0][1])
          {
+         case 'c':
+            *byChain = TRUE;
+            break;
          case 'h':
             return(FALSE);
             break;
@@ -206,12 +232,15 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 -  22.07.14 V1.3 By: CTP
 -  06.11.14 V1.4 By: ACRM
 -  12.03.15 V1.5
+-  21.10.20 V1.6
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbcount V1.5 (c) 1994-2015 Dr. Andrew C.R. \
+   fprintf(stderr,"\npdbcount V1.6 (c) 1994-2020 Prof. Andrew C.R. \
 Martin, UCL\n");
-   fprintf(stderr,"\nUsage: pdbcount [in.pdb [out.txt]]\n\n");
+   fprintf(stderr,"\nUsage: pdbcount [-c] [in.pdb [out.txt]]\n");
+   fprintf(stderr,"       -c Calculate for each chain separately\n\n");
+   
    fprintf(stderr,"If files are not specified, stdin and stdout are \
 used.\n");
    fprintf(stderr,"Counts chains, residues & atoms in a PDB file.\n\n");
@@ -219,7 +248,7 @@ used.\n");
 
 /************************************************************************/
 /*>void DoCount(PDB *pdb, int *nchain, int *nres, int *natom, int *nhyd,
-                int *nhet)
+                int *nhet, char *chain)
    ---------------------------------------------------------------------
 *//**
 
@@ -227,9 +256,10 @@ used.\n");
 
 -  16.08.94 Original    By: ACRM
 -  12.03.15 Changed to allow multi-character chain names
+-  21.10.20 Added chain paramater
 */
 void DoCount(PDB *pdb, int *nchain, int *nres, int *natom, int *nhyd,
-             int *nhet)
+             int *nhet, char *chain)
 {
    PDB *p;
    char LastChain[9],
@@ -248,35 +278,39 @@ void DoCount(PDB *pdb, int *nchain, int *nres, int *natom, int *nhyd,
    
    for(p=pdb; p!=NULL; NEXT(p))
    {
-      if(!strncmp(p->record_type,"ATOM  ",6))
-         (*natom)++;
-      else if(!strncmp(p->record_type,"HETATM",6))
-         (*nhet)++;
-      
-      if(p->atnam[0] == 'H') 
-         (*nhyd)++;
-      
-      if(!CHAINMATCH(p->chain, LastChain))
-      {
-         /* Chain has changed & so, by definition has the residue       */
-         if(!strncmp(p->record_type,"ATOM  ",6))
-         {
-            (*nchain)++;
-            (*nres)++;
-         }
-
-         strncpy(LastChain, p->chain, 8);
-         LastRes   = p->resnum;
-         LastIns   = p->insert[0];
-      }
-      else if((p->insert[0] != LastIns) ||
-              (p->resnum    != LastRes))
+      if((chain == NULL) || CHAINMATCH(p->chain, chain))
       {
          if(!strncmp(p->record_type,"ATOM  ",6))
-            (*nres)++;
+            (*natom)++;
+         else if(!strncmp(p->record_type,"HETATM",6))
+            (*nhet)++;
          
-         LastRes   = p->resnum;
-         LastIns   = p->insert[0];
+         if(p->atnam[0] == 'H') 
+            (*nhyd)++;
+         
+         if(!CHAINMATCH(p->chain, LastChain))
+         {
+            /* Chain has changed & so, by definition has the residue    */
+            if(!strncmp(p->record_type,"ATOM  ",6))
+            {
+               (*nchain)++;
+               (*nres)++;
+            }
+            
+            strncpy(LastChain, p->chain, 8);
+            LastRes   = p->resnum;
+            LastIns   = p->insert[0];
+         }
+         else if((p->insert[0] != LastIns) ||
+                 (p->resnum    != LastRes))
+         {
+            if(!strncmp(p->record_type,"ATOM  ",6))
+               (*nres)++;
+            
+            LastRes   = p->resnum;
+            LastIns   = p->insert[0];
+         }
       }
+      
    }
 }
