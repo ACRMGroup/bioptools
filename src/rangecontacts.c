@@ -506,7 +506,7 @@ void Usage(void)
 Martin, UCL\n");
    fprintf(stderr,"Usage: rangecontacts [-r radius][-i][-c] startres \
 stopres [in.pdb [out.dat]]\n");
-   fprintf(stderr,"       -r Specify contact radius (Default: %.3f)\n\n",
+   fprintf(stderr,"       -r Specify contact radius (Default: %.3f)\n",
            DEF_RAD);
    fprintf(stderr,"       -i Do internal contacts within the range as \
 well\n");
@@ -515,12 +515,16 @@ made by each residue\n");
    fprintf(stderr,"       -m Include mainchain as well as sidechain \
 atoms\n");
    
-   fprintf(stderr,"I/O is through stdin/stdout if files are not \
+   fprintf(stderr,"\nI/O is through stdin/stdout if files are not \
 specified.\n\n");
    fprintf(stderr,"Performs a contact analysis at the residue level to \
 find residues whose\n");
    fprintf(stderr,"sidechains contact any atom of the residues specified \
-in the given range.\n\n");
+in the given range.\n");
+   fprintf(stderr,"When used with -m, C-N bonds between adjacent residues \
+are ignored.\n");
+   fprintf(stderr,"When used with -i, contacts within a residue are \
+ignored.\n\n");
 }
       
 
