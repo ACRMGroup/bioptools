@@ -3,8 +3,8 @@
 
    \file       pdbcount.c
    
-   \version    V1.6
-   \date       21.10.20
+   \version    V1.6.1
+   \date       24.11.20
    \brief      Count residues and atoms in a PDB file
    
    \copyright  (c) Prof. Andrew C. R. Martin 1994-2020
@@ -46,14 +46,15 @@
 
    Revision History:
    =================
--  V1.0  16.08.94 Original
--  V1.1  24.08.94 Changed to call OpenStdFiles()
--  V1.2  30.05.02 Changed PDB field from 'junk' to 'record_type'
--  V1.3  22.07.14 Renamed deprecated functions with bl prefix.
-                  Added doxygen annotation. By: CTP
--  V1.4  06.11.14 Renamed from countpdb  By: ACRM
--  V1.5  12.03.15 Changed to allow multi-character chain names
--  V1.6  21.10.20 Added -c for by-chain calculation
+-  V1.0   16.08.94 Original
+-  V1.1   24.08.94 Changed to call OpenStdFiles()
+-  V1.2   30.05.02 Changed PDB field from 'junk' to 'record_type'
+-  V1.3   22.07.14 Renamed deprecated functions with bl prefix.
+                   Added doxygen annotation. By: CTP
+-  V1.4   06.11.14 Renamed from countpdb  By: ACRM
+-  V1.5   12.03.15 Changed to allow multi-character chain names
+-  V1.6   21.10.20 Added -c for by-chain calculation
+-  V1.6.1 24.11.20 Fixed display of by-chain calculations
 
 *************************************************************************/
 /* Includes
@@ -215,10 +216,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  06.11.14 V1.4 By: ACRM
 -  12.03.15 V1.5
 -  21.10.20 V1.6
+-  24.11.20 V1.6.1
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbcount V1.6 (c) 1994-2020 Prof. Andrew C.R. \
+   fprintf(stderr,"\npdbcount V1.6.1 (c) 1994-2020 Prof. Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"\nUsage: pdbcount [-c] [in.pdb [out.txt]]\n");
    fprintf(stderr,"       -c Calculate for each chain separately\n\n");
@@ -314,8 +316,8 @@ Hydrogens: %d\n", LastChain, nres, natom, nhyd);
    /* Print information for the last chain                              */
    if(nres && byChain)
    {
-      fprintf(out,"Chain: %s Residues: %d Atoms: %d Total Hydrogens: \
-%d\n", LastChain, nres, natom, nhyd);
+      fprintf(out,"Chain: %s Residues: %d Atoms: %d Hydrogens: %d\n",
+              LastChain, nres, natom, nhyd);
    }
    
    /* Add data for last chain                                           */
@@ -326,8 +328,8 @@ Hydrogens: %d\n", LastChain, nres, natom, nhyd);
    /* Print total counts                                                */
    if(byChain)
    {
-      fprintf(out,"TOTALS: Chains: %d Residues: %d Atoms: %d \
-HetAtoms: %d Hydrogens: %d\n",
+      fprintf(out,"NChains: %d TotResidues: %d TotAtoms: %d \
+TotHetAtoms: %d TotHydrogens: %d\n",
               nchainTotal, nresTotal, natomTotal, nhetTotal, nhydTotal);
    }
    else

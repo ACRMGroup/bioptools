@@ -3,11 +3,11 @@
    Program:    rangecontacts
    File:       rangecontacts.c
    
-   Version:    V1.3
-   Date:       28.10.15
+   Version:    V1.1
+   Date:       12.01.21
    Function:   Finds residues contacting a specified range of residues
    
-   Copyright:  (c) Prof. Andrew C. R. Martin 2020
+   Copyright:  (c) Prof. Andrew C. R. Martin 2020-21
    Author:     Prof. Andrew C. R. Martin
    Address:    Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -46,6 +46,8 @@
    Revision History:
    =================
    V1.0  26.03.20 Original
+   V1.1  12.01.21 Added -i for internal contacts, -c to show
+                  counts of contacts and -m for mainchain contacts
 
 *************************************************************************/
 /* Includes
@@ -65,6 +67,9 @@
 */
 #define MAXBUFF 160
 #define DEF_RAD 3.0
+#define BONDED_NOT 0
+#define BONDED_NTER 1
+#define BONDED_CTER 2
 
 /************************************************************************/
 /* Globals
@@ -76,12 +81,14 @@
 int main(int argc, char **argv);
 void Usage(void);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  REAL *radsq, char *startres, char *stopres);
+                  REAL *radsq, char *startres, char *stopres,
+                  BOOL *doMainChain, BOOL *doInternal, BOOL *showCounts);
 void DoAnalysis(FILE *out, PDB *pdb, REAL RadSq, char *startres,
-                char *stopres);
-BOOL MakesContact(PDB *res, PDB *nextRes, PDB *pStart, PDB *pStop,
-                  REAL RadSq);
-void PrintContact(FILE *out, PDB *p);
+                char *stopres, BOOL doMainChain, BOOL doInternal,
+                BOOL showCounts);
+int MakesContact(PDB *res, PDB *nextRes, PDB *pStart, PDB *pStop,
+                 BOOL doMainChain, BOOL showCounts, REAL RadSq);
+void PrintContact(FILE *out, PDB *p, BOOL showCounts, int nContacts);
 BOOL IsSidechain(PDB *p);
 
 
@@ -91,6 +98,7 @@ BOOL IsSidechain(PDB *p);
    Main program for performing contact analysis
 
    26.03.20 Original    By: ACRM
+   12.01.21 Added -m -c -i
 */
 int main(int argc, char **argv)
 {
@@ -103,15 +111,20 @@ int main(int argc, char **argv)
    FILE *in        = stdin,
         *out       = stdout;
    REAL radsq      = DEF_RAD * DEF_RAD;
+   BOOL doMainChain = FALSE,
+        doInternal  = FALSE,
+        showCounts  = FALSE;
    
    if(ParseCmdLine(argc, argv, infile, outfile, &radsq,
-                   startres, stopres))
+                   startres, stopres, &doMainChain, &doInternal,
+                   &showCounts))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
          if((pdb = blReadPDBAtoms(in, &natom))!=NULL)
          {
-            DoAnalysis(out, pdb, radsq, startres, stopres);
+            DoAnalysis(out, pdb, radsq, startres, stopres,
+                       doMainChain, doInternal, showCounts);
          }
          else
          {
@@ -133,19 +146,24 @@ int main(int argc, char **argv)
    ----------------
    Print usage message.
 
-   17.10.95 Original    By: ACRM
-   04.03.15 V1.2
-   28.10.15 V1.3
+   26.03.20 Original    By: ACRM
+   12.01.21 V1.1
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nRangeContacts V1.0 (c) 2020, Andrew C.R. \
+   fprintf(stderr,"\nRangeContacts V1.1 (c) 2020-21, Andrew C.R. \
 Martin, UCL\n");
-   fprintf(stderr,"Usage: rangecontacts [-r radius] startres stopres \
-[in.pdb [out.dat]]\n");
+   fprintf(stderr,"Usage: rangecontacts [-r radius][-i][-c] startres \
+stopres [in.pdb [out.dat]]\n");
    fprintf(stderr,"       -r Specify contact radius (Default: %.3f)\n\n",
            DEF_RAD);
-
+   fprintf(stderr,"       -i Do internal contacts within the range as \
+well\n");
+   fprintf(stderr,"       -c Count and display the number of contacts \
+made by each residue\n");
+   fprintf(stderr,"       -m Include mainchain as well as sidechain \
+atoms\n");
+   
    fprintf(stderr,"I/O is through stdin/stdout if files are not \
 specified.\n\n");
    fprintf(stderr,"Performs a contact analysis at the residue level to \
@@ -157,23 +175,31 @@ in the given range.\n\n");
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                     REAL *radsq, char *startres, char *stopres)
-   ---------------------------------------------------------------------
-   Input:   int      argc        Argument count
-            char     **argv      Argument array
-   Output:  char     *infile     Input filename (or blank string)
-            char     *outfile    Output filename (or blank string)
-            REAL     *radsq      Contact radius squared
-            char     *startres   Starting residue of range
-            char     *stopres    Starting residue of range
-   Returns: BOOL                 Success
+                     REAL *radsq, char *startres, char *stopres,
+                     BOOL *doMainChain, BOOL *doInternal, 
+                     BOOL *showCounts)
+   -----------------------------------------------------------------------
+   Input:   int      argc         Argument count
+            char     **argv       Argument array
+   Output:  char     *infile      Input filename (or blank string)
+            char     *outfile     Output filename (or blank string)
+            REAL     *radsq       Contact radius squared
+            char     *startres    Starting residue of range
+            char     *stopres     Starting residue of range
+            BOOL     *doMainChain Include mainchain atoms
+            BOOL     *doInternal  Include internal atoms in the range
+            BOOL     *showCounts  Show counts of contacts
+
+   Returns: BOOL                  Success
 
    Parse the command line
 
    26.03.20 Original    By: ACRM
+   12.01.21 Added -m -i -c
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  REAL *radsq, char *startres, char *stopres)
+                  REAL *radsq, char *startres, char *stopres,
+                  BOOL *doMainChain, BOOL *doInternal, BOOL *showCounts)
 {
    argc--;
    argv++;
@@ -187,6 +213,15 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
       {
          switch(argv[0][1])
          {
+         case 'i':
+            *doInternal = TRUE;
+            break;
+         case 'm':
+            *doMainChain = TRUE;
+            break;
+         case 'c':
+            *showCounts = TRUE;
+            break;
          case 'r':
             argv++;
             argc--;
@@ -229,86 +264,88 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
 /************************************************************************/
 /*>void DoAnalysis(FILE *out, PDB *pdb, REAL RadSq, char *startres,
-                   char *stopres)
+                   char *stopres, BOOL doMainChain, BOOL doInternal,
+                   BOOL showCounts)
    ----------------------------------------------------------------
-   Input:   FILE    *out       Output file pointer
-            PDB     *pdb       PDB linked list
-            REAL    RadSq      Squared radius for contact
-            char    *startres  Start residue for range
-            char    *stopres   Stop residue for range
+   Input:   FILE    *out        Output file pointer
+            PDB     *pdb        PDB linked list
+            REAL    RadSq       Squared radius for contact
+            char    *startres   Start residue for range
+            char    *stopres    Stop residue for range
+            BOOL    doMainChain Include mainchain atoms
+            BOOL    doInternal  Include residues within the range
+            BOOL    showCounts  Display the contact
 
    Main routine to do the contacts analysis between the range and the 
    rest of the protein
 
-   26.03.20 Original (based on code from rangecontacts.c)   By: ACRM
+   26.03.20 Original   By: ACRM
+   12.01.21 Added doMainChain, doInternal and showCounts
 */   
 void DoAnalysis(FILE *out, PDB *pdb, REAL RadSq, char *startres,
-                char *stopres)
+                char *stopres, BOOL doMainChain, BOOL doInternal,
+                BOOL showCounts)
 {
    PDB  *p,
-      *pStart, *pStop,
-      *nextRes;
-   
-
-
-
-
-
+        *pStart, *pLast, *pStop,
+        *nextRes;
 
    /* Find the first residue of the range                               */
-   pStart = blFindResidueSpec(pdb, startres);
+   if((pStart = blFindResidueSpec(pdb, startres))==NULL)
+   {
+      fprintf(stderr,"Error (rangecontacts) - Residue not found: %s\n",
+              startres);
+      return;
+   }
+   
    /* and the one after the last residue                                */
-   pStop  = blFindResidueSpec(pdb, stopres);
-   pStop  = blFindNextResidue(pStop);
+   if((pLast = blFindResidueSpec(pdb, stopres))==NULL)
+   {
+      fprintf(stderr,"Error (rangecontacts) - Residue not found: %s\n",
+              stopres);
+      return;
+   }
+   
+   pStop  = blFindNextResidue(pLast);
    
    /* Run through the linked list a residue at a time                   */
    for(p=pdb; p!=NULL; p = nextRes)
    {
       nextRes = blFindNextResidue(p);
 
-      if(!blInPDBZoneSpec(p, startres, stopres))
+      if(doInternal || !blInPDBZoneSpec(p, startres, stopres))
       {
-         if(MakesContact(p, nextRes, pStart, pStop, RadSq))
+         int  nContacts;
+
+         if((nContacts = MakesContact(p, nextRes, pStart, pStop,
+                                      doMainChain, showCounts,
+                                      RadSq)) > 0)
          {
-            PrintContact(out, p);
+            PrintContact(out, p, showCounts, nContacts);
          }
       }
    }
 }
 
 /************************************************************************/
-BOOL MakesContact(PDB *res, PDB *nextRes, PDB *pStart, PDB *pStop,
-                  REAL RadSq)
-{
-   PDB *p, *q;
-   
-   for(p=res; p!=nextRes; NEXT(p))
-   {
-      if(IsSidechain(p))
-      {
-         for(q=pStart; q!=pStop; NEXT(q))
-         {
-            if(DISTSQ(p, q) <= RadSq)
-            {
-               return(TRUE);
-            }
-         }
-      }
-      
-   }
-   return(FALSE);
-   
-}
-
-/************************************************************************/
-/*>void PrintContact(FILE *out, PDB *p)
-   ---------------------------------------------------------------
+/*>void PrintContact(FILE *out, PDB *p, BOOL showCounts, int nContacts)
+   ----------------------------------------------------------------------
    Input:   FILE    *out       Output file pointer
-            PDB     *p         Residue which maes contact
+            PDB     *p         Residue which makes contact
+            BOOL    showCounts Print number of contacts made
+            int     nContacts  Number of contacts made
 */
-void PrintContact(FILE *out, PDB *p)
+void PrintContact(FILE *out, PDB *p, BOOL showCounts, int nContacts)
 {
-   fprintf(out,"%s%d%s\n", p->chain, p->resnum, p->insert);
+   if(showCounts)
+   {
+      fprintf(out,"%s%d%s %d\n",
+              p->chain, p->resnum, p->insert, nContacts);
+   }
+   else
+   {
+      fprintf(out,"%s%d%s\n", p->chain, p->resnum, p->insert);
+   }
 }
 
 /************************************************************************/
@@ -327,3 +364,94 @@ BOOL IsSidechain(PDB *p)
 
    return(TRUE);
 }
+
+
+/************************************************************************/
+/*>int MakesContact(PDB *testResStart, PDB *testResStop, PDB *rangeStart, PDB *rangeStop,
+                    BOOL doMainChain, BOOL showCounts, REAL RadSq)
+   -----------------------------------------------------------------
+
+testResStart/testResStop  is the residue we are looking at for contacts
+pStart/rangeStop is the residue range with which we are looking for contacts
+
+*/
+int MakesContact(PDB *testResStart, PDB *testResStop, PDB *rangeStart, PDB *rangeStop,
+                 BOOL doMainChain, BOOL showCounts, REAL RadSq)
+{
+   PDB *p, *q,
+       *rangeRes     = NULL,
+       *nextRangeRes = NULL;
+   int NContacts     = 0;
+   int bonded        = BONDED_NOT;
+
+   if(1)
+   {
+      /* Step through atoms in the residue of interest                  */
+      for(p=testResStart; p!=testResStop; NEXT(p))
+      {
+         if(doMainChain || IsSidechain(p))
+         {
+            /* Step through residues in the range we are looking at     */
+            for(rangeRes=rangeStart;
+                rangeRes!=rangeStop;
+                rangeRes=nextRangeRes)
+            {
+               nextRangeRes = blFindNextResidue(rangeRes);
+               
+               /* If this range residue is the one after the current test 
+                  residue and they are in the same chain then it's the
+                  residue bonded to the N-terminus of the range
+               */
+               if((rangeRes == testResStop) &&
+                  PDBCHAINMATCH(rangeRes, testResStop))
+               {
+                  bonded = BONDED_NTER;
+               }
+               /* If the current test residue is the one after this range
+                  residue and they are in the same chain then it's the
+                  residue bonded to the C-terminus of the range
+               */
+               else if(testResStart == nextRangeRes)
+               {
+                  bonded = BONDED_CTER;
+               }
+               
+               /* Step through atoms in this residue from the range     */
+               for(q=rangeRes; q!=nextRangeRes; NEXT(q))
+               {
+                  /* If the current test residue is bonded to the 
+                     N-terminus and it's the C of this test residue and
+                     the N of the range residue then ignore the 
+                     interaction
+                  */
+                  if((bonded == BONDED_NTER) &&
+                     !strncmp(p->atnam, "C   ", 4) &&
+                     !strncmp(q->atnam, "N   ", 4)) 
+                     continue;
+                  
+                  /* If the current test residue is bonded to the 
+                     C-terminus and it's the N of this test residue and
+                     the C of the range residue then ignore the 
+                     interaction
+                  */
+                  if((bonded == BONDED_CTER) &&
+                     !strncmp(p->atnam, "N   ", 4) &&
+                     !strncmp(q->atnam, "C   ", 4))
+                     continue;
+                  
+                  /* Otherwise check the distance for a contact         */
+                  if(DISTSQ(p, q) <= RadSq)
+                  {
+                     if(!showCounts)
+                        return(1);
+                     NContacts++;
+                  }
+               }
+            }
+         }
+      }
+   }
+
+   return(NContacts);
+}
+
