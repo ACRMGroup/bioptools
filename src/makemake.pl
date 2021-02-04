@@ -110,12 +110,33 @@ foreach my $cFile (@cFiles)
 {
     WriteRule($makefp, $cFile);
 }
-
 close $makefp;
 
+PrintWarning() if(defined($::bioplib));
+
 #*************************************************************************
-# Uses git submodule to obtain the BiopLib code if you have downloaded
-# this as a git 
+# Prints a warning message if you have used -bioplib
+sub PrintWarning
+{
+    print STDERR <<__EOF;
+
+WARNING! If you have downloaded BiopTools using 'git clone', when you run
+'make' the code may not compile correctly as it may require BiopLib 
+functions that have not yet been released in BiopLib V$::{biopversion}.
+
+If it does not compile properly you have two choices:
+
+1. Download a release version of BiopTools - e.g.
+   wget https://github.com/ACRMGroup/bioptools/archive/V1.10.tar.gz
+2. Use 'git clone' to build and install the latest BiopLib code and
+   then re-run './makemake.pl' without the '-bioplib' flag to use
+   the separately installed BiopLib.
+
+__EOF
+}
+
+#*************************************************************************
+# Obtains the BiopLib code
 #
 # 07.11.14 Original   By: ACRM
 # 15.02.16 Added making the libsrc directory
