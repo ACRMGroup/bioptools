@@ -69,9 +69,10 @@
 #                     Bumped to require BiopLib V3.8.1
 #   V1.8    14.08.18  Bumped to require BiopLib V3.10
 #   V1.9    13.03.19  Added -Wno-stringop-truncation
+#   V1.10   04.02.21  Bumped to require BiopLib V3.11
 #
 #*************************************************************************
-$::biopversion = "3.10";
+$::biopversion = "3.11";
 #*************************************************************************
 $::biopgit     = "https://github.com/ACRMGroup/bioplib/archive/V";
 $::biopext     = ".tar.gz";
