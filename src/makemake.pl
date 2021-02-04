@@ -120,8 +120,9 @@ sub PrintWarning
 {
     print STDERR <<__EOF;
 
-WARNING! If you have downloaded BiopTools using 'git clone', when you run
-'make' the code may not compile correctly as it may require BiopLib 
+WARNING! If you have downloaded BiopTools using 'git clone', or you have
+downloaded 'master.zip' rather than an official release, when you run
+'make', the code may not compile correctly as it may require BiopLib 
 functions that have not yet been released in BiopLib V$::{biopversion}.
 
 If it does not compile properly you have two choices:
