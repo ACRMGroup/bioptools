@@ -4,11 +4,11 @@
 #   Program:    makemake
 #   File:       makemake.pl
 #   
-#   Version:    V1.9
-#   Date:       13.03.19
+#   Version:    V1.10
+#   Date:       04.02.21
 #   Function:   Build the Makefile for BiopTools
 #   
-#   Copyright:  (c) Dr. Andrew C. R. Martin, UCL, 2014-2019
+#   Copyright:  (c) Dr. Andrew C. R. Martin, UCL, 2014-2021
 #   Author:     Dr. Andrew C. R. Martin
 #   Address:    Institute of Structural and Molecular Biology
 #               Division of Biosciences
