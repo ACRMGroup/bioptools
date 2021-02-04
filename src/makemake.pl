@@ -112,7 +112,7 @@ foreach my $cFile (@cFiles)
 }
 close $makefp;
 
-PrintWarning() if(defined($::bioplib));
+PrintWarning() if($::bioplib);
 
 #*************************************************************************
 # Prints a warning message if you have used -bioplib
