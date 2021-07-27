@@ -558,7 +558,14 @@ char *FixSequence(char *seqres, char *sequence, char **seqchains,
 
 
    if((seqres == NULL) || (sequence == NULL))
-      return(sequence);
+   {
+      for(i=0; i<nAtomChains; i++)
+      {
+         strcpy(outchains[i], atomchains[i]);
+      }
+      return(strdup(sequence));
+   }
+   
    
    /* Set flags to say we haven't handled the sequences yet             */
    for(i=0; i<MAXCHAINS; i++)
