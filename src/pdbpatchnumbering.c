@@ -3,13 +3,13 @@
 
    \file       pdbpatchnumbering.c
    
-   \version    V1.9
-   \date       30.09.17
+   \version    V1.10
+   \date       27.07.21
    \brief      Patch the numbering of a PDB file from a file of numbers
                and sequence (as created by KabatSeq, etc)
    
-   \copyright  (c) Dr. Andrew C. R. Martin / UCL 1995-2017
-   \author     Dr. Andrew C. R. Martin
+   \copyright  (c) Prof. Andrew C. R. Martin / UCL 1995-2021
+   \author     Prof. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -63,12 +63,15 @@
 -  V1.9  30.09.17 Now allows the patch file to skip the first few residues.
                   i.e. if there is an N-terminal extension to the known
                   numbering, this will be removed from the file.
+-  V1.10 27.07.21 Now exits if there is an Error in the patch file and
+                  correctly deals with not skipping enough Nter residues
 
 *************************************************************************/
 /* Includes
 */
 #include <stdio.h>
 #include <stdlib.h>
+#include <strings.h>
 #include <ctype.h>
 #include "bioplib/SysDefs.h"
 #include "bioplib/MathType.h"
@@ -266,6 +269,8 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  07.11.14 Initialized p
 -  12.03.15 Changed to allow multi-character chain names and
             to allow three-letter code
+-  27.07.21 If patch file contains an error message or comment, 
+            returns NULL
 */
 PATCH *ReadPatchFile(FILE *fp)
 {
@@ -285,55 +290,76 @@ PATCH *ReadPatchFile(FILE *fp)
       TERMINATE(buffer);
       
       /* If it's not a blank line or a comment                          */
-      if(strlen(buffer) && buffer[0] != '!' && buffer[0] != '#')
+      if(strlen(buffer))
       {
-         /* If it's a warning or error, echo to stderr                  */
-         if(!strncmp(buffer,"WARNING:",8) ||
-            !strncmp(buffer,"ERROR:",6))
+         if((buffer[0] != '!') && (buffer[0] != '#'))
          {
-            fprintf(stderr,"Patch file %s\n",buffer);
-         }
-         else
-         {
-            /* Get the first two words out of the buffer                */
-            chp = blGetWord(buffer,resid,MAXBUFF);
-            blGetWord(chp,aacode,MAXBUFF);
-
-            if(isupper(aacode[0]))   /* 14.06.06                        */
+            /* If it's a warning or error, echo to stderr               */
+            if(!strncasecmp(buffer,"WARNING",7) ||
+               !strncasecmp(buffer,"ERROR",5))
             {
-               /* If the first word is a valid residue specification    */
-               if(blParseResSpec(resid, chain, &resnum, insert))
+               fprintf(stderr,"Patch file: %s\n",buffer);
+               if(!strncmp(buffer,"ERROR",5))
                {
-                  /* Allocate an item in the linked list                */
-                  if(patch==NULL)
+                  FREELIST(patch, PATCH);
+                  return(NULL);
+               }
+            }
+            else
+            {
+               /* Get the first two words out of the buffer             */
+               chp = blGetWord(buffer,resid,MAXBUFF);
+               blGetWord(chp,aacode,MAXBUFF);
+               
+               if(isupper(aacode[0]))   /* 14.06.06                     */
+               {
+                  /* If the first word is a valid residue specification */
+                  if(blParseResSpec(resid, chain, &resnum, insert))
                   {
-                     INIT(patch,PATCH);
-                     p = patch;
-                  }
-                  else
-                  {
-                     ALLOCNEXT(p,PATCH);
-                  }
-                  if(p==NULL)
-                  {
-                     if(patch!=NULL) FREELIST(patch, PATCH);
-                     return(NULL);
-                  }
-                  
-                  /* Copy the data into the linked list entry           */
-                  strncpy(p->chain, chain, 8);
-                  p->resnum = resnum;
-                  strncpy(p->insert, insert, 8);
-                  if(strlen(aacode) > 1)
-                  {
-                     p->aacode = blThrone(aacode);
-                  }
-                  else
-                  {
-                     p->aacode = aacode[0];
+                     /* Allocate an item in the linked list             */
+                     if(patch==NULL)
+                     {
+                        INIT(patch,PATCH);
+                        p = patch;
+                     }
+                     else
+                     {
+                        ALLOCNEXT(p,PATCH);
+                     }
+                     if(p==NULL)
+                     {
+                        if(patch!=NULL) FREELIST(patch, PATCH);
+                        return(NULL);
+                     }
+                     
+                     /* Copy the data into the linked list entry        */
+                     strncpy(p->chain, chain, 8);
+                     p->resnum = resnum;
+                     strncpy(p->insert, insert, 8);
+                     if(strlen(aacode) > 1)
+                     {
+                        p->aacode = blThrone(aacode);
+                     }
+                     else
+                     {
+                        p->aacode = aacode[0];
+                     }
                   }
                }
             }
+         }
+         else /* It is a comment - check for error message              */
+         {
+            char *chp;
+            KILLLEADSPACES(chp,buffer+1); /* Skip the comment char      */
+            
+            if(!strncasecmp(chp,"ERROR",5))
+            {
+               fprintf(stderr,"Patch file: %s\n",buffer);
+               FREELIST(patch, PATCH);
+               return(NULL);
+            }
+            
          }
       }
    }
@@ -357,11 +383,12 @@ PATCH *ReadPatchFile(FILE *fp)
 -  13.02.15 V1.7 By: ACRM
 -  12.03.15 V1.8
 -  30.09.17 V1.9
+-  27.07.21 V1.10
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbpatchnumbering V1.9 (c) 1995-2017, Dr. Andrew \
-C.R. Martin, UCL\n");
+   fprintf(stderr,"\npdbpatchnumbering V1.10 (c) 1995-2021, Prof. \
+Andrew C.R. Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: pdbpatchnumbering patchfile [in.pdb \
 [out.pdb]]\n");
@@ -425,7 +452,7 @@ BOOL ApplyPatches(PDB **pPDB, PATCH *patches)
          NewPDBChain   = TRUE;    /* Indicates new chain in PDB file    */
    int   resnum,                  /* Current patch residue number       */
          skippedResidues = 0,     /* Count Nter skipped residues        */
-         maxSkippedResidues = 5;  /* Max Nter residues to skip          */
+         maxSkippedResidues = 10; /* Max Nter residues to skip          */
    
    pdb = *pPDB;
 
@@ -498,6 +525,7 @@ for patches\n",pdbchain);
 
             /* 30.09.17 Skip up to the first maxSkippedResidues if the 
                amino acids don't match
+               27.07.21 Fixed if we run out of skipped residues
             */
             while(NewPDBChain && blThrone(p->resnam) != a->aacode)
             {
@@ -505,6 +533,10 @@ for patches\n",pdbchain);
                {
                   p = blDeleteResiduePDB(pPDB, p);
                   pdb = *pPDB;
+               }
+               else
+               {
+                  break;
                }
             }
 
