@@ -3,12 +3,12 @@
 
    \file       pdbaddhet.c
    
-   \version    V2.4
-   \date       12.02.15
+   \version    V2.5
+   \date       27.07.21
    \brief      Add HETATMs back into a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 2002-2015
-   \author     Dr. Andrew C. R. Martin
+   \copyright  (c) Prof. Andrew C. R. Martin 2002-2021
+   \author     Prof. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -86,10 +86,11 @@ int main (int argc, char *argv[])
    FILE *fp1;
    FILE *fp2;
    FILE *fp3;
-   
-   PDB *pdbDomain;
-   PDB *pdbHetatm;
-   int natoms;
+
+   WHOLEPDB *wpdbDomain;
+   PDB      *pdbDomain;
+   PDB      *pdbHetatm;
+   int      natoms;
    
    REAL xmin, xmax, ymin, ymax, zmin, zmax;
    
@@ -117,13 +118,13 @@ SCOP\n\n");
    
    if((fp1= fopen(argv[1], "r")) == NULL)
    {
-      fprintf(stderr, "Error opening pdb file\n");
+      fprintf(stderr, "Error opening complete pdb file\n");
       exit(1);
    }
    
    if((fp2= fopen(argv[2], "r")) == NULL)
    {
-      fprintf(stderr, "Error opening domain file\n");
+      fprintf(stderr, "Error opening partial file\n");
       exit(1);
    }
    
@@ -133,12 +134,12 @@ SCOP\n\n");
       exit(1);
    }
    
-   
-   if((pdbDomain =  blReadPDB(fp2, &natoms))!=NULL)
+   if((wpdbDomain =  blReadWholePDB(fp2))!=NULL)
    {
+      pdbDomain =  wpdbDomain->pdb;
       DetermineBoundingBox(pdbDomain, &xmin, &xmax, &ymin, &ymax,  
                            &zmin, &zmax);
-      blWritePDB(fp3, pdbDomain);
+      blWriteWholePDB(fp3, wpdbDomain);
       if((pdbHetatm=ReadPDBHetAtoms(fp1, &natoms))!=NULL)
       {
          PrintBoundedHets(fp3, pdbDomain, pdbHetatm, xmin, xmax, 
