@@ -52,6 +52,7 @@
 -  V2.2  06.11.14    Changed name from addhet to pdbaddhet
 -  V2.3  25.11.14    Initialized a variable  By: ACRM
 -  V2.4  12.02.15    Updated usage message
+-  V2.5  27.02.21    Now keeps PDB header
 
 *************************************************************************/
 /* Includes */
@@ -74,6 +75,11 @@ void PrintBoundedHets(FILE *fp3, PDB *pdb, PDB *pdb2,
                       REAL xmin, REAL xmax, 
                       REAL ymin, REAL ymax, 
                       REAL zmin, REAL zmax);
+void AddBoundedHets(PDB *pdb, PDB *pdbHetatm, 
+                    REAL xmin, REAL xmax, 
+                    REAL ymin, REAL ymax, 
+                    REAL zmin, REAL zmax);
+
 
 /***********************************************************************/
 #define MAXDISTSQ 36
@@ -97,7 +103,7 @@ int main (int argc, char *argv[])
    /* check correct number of files are specified on command line */
    if(argc !=4)
    {
-      fprintf(stderr, "\npdbaddhet V2.4 (c) 2002-2015, UCL, \
+      fprintf(stderr, "\npdbaddhet V2.5 (c) 2002-2015, UCL, \
 Dr. Andrew C.R. Martin\n\n");
       fprintf(stderr, "Usage: pdbaddhet whole.pdb part.pdb \
 out.pdb\n");
@@ -139,12 +145,12 @@ SCOP\n\n");
       pdbDomain =  wpdbDomain->pdb;
       DetermineBoundingBox(pdbDomain, &xmin, &xmax, &ymin, &ymax,  
                            &zmin, &zmax);
-      blWriteWholePDB(fp3, wpdbDomain);
       if((pdbHetatm=ReadPDBHetAtoms(fp1, &natoms))!=NULL)
       {
-         PrintBoundedHets(fp3, pdbDomain, pdbHetatm, xmin, xmax, 
-                          ymin, ymax, zmin, zmax);
+         AddBoundedHets(pdbDomain, pdbHetatm,
+                        xmin, xmax, ymin, ymax, zmin, zmax);
       }
+      blWriteWholePDB(fp3, wpdbDomain);
       /* This isn't always an error (there may have been no HETATMs)   */
 /* ACRM--- 03.07.02
 //    else
@@ -230,15 +236,13 @@ PDB *ReadPDBHetAtoms(FILE *fp1, int *natoms)
             }
             if(q==NULL)
             {
+               /* 03.07.02 Needs to exit here as NULL can be a valid 
+                  return
+               */
                FREELIST(pdb, PDB);
                FREELIST(pdbHetatm, PDB);
-               /* ACRM+++ 03.07.02 Report error here and exit(1) as 
-                  NULL may be a valid return
-//                return(NULL);
-               */
                fprintf(stderr,"No memory for HETATM list\n");
                exit(1);
-               /* ACRM-END 03.07.02                                    */
             }
             
             blCopyPDB(q, p);
@@ -252,13 +256,12 @@ PDB *ReadPDBHetAtoms(FILE *fp1, int *natoms)
 }
 
 /***********************************************************************/
-/*>void PrintBoundedHets(FILE *fp3, PDB *pdb, PDB *pdbHetatm, 
-                         REAL xmin, REAL xmax, 
-                         REAL ymin, REAL ymax, 
-                         REAL zmin, REAL zmax)
+/*>void AddBoundedHets(PDB *pdb, PDB *pdbHetatm, 
+                       REAL xmin, REAL xmax, 
+                       REAL ymin, REAL ymax, 
+                       REAL zmin, REAL zmax)
    -----------------------------------------------------------
 *//**
-   \param[in]      *fp3       File pointer for output
    \param[in]      *pdb       PDB linked list of protein atoms
    \param[in]      *pdbHetatm PDB linked list of HET atoms
 
@@ -266,15 +269,19 @@ PDB *ReadPDBHetAtoms(FILE *fp1, int *natoms)
 
 -  08.07.02 Original By: ALC
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  27.07.21 Now adds the hets into the PDB linked list rather than
+            printing them
 */
-void PrintBoundedHets(FILE *fp3, PDB *pdb, PDB *pdbHetatm, 
-                      REAL xmin, REAL xmax, 
-                      REAL ymin, REAL ymax, 
-                      REAL zmin, REAL zmax)
+void AddBoundedHets(PDB *pdb, PDB *pdbHetatm, 
+                    REAL xmin, REAL xmax, 
+                    REAL ymin, REAL ymax, 
+                    REAL zmin, REAL zmax)
 {
    PDB  *start, 
         *stop, 
-        *p, *q;
+        *p, *q, *h = NULL,
+        *addedHets = NULL;
+   
    BOOL isNeighbour,
         isNonStdAA,
         inBounds,
@@ -357,19 +364,32 @@ void PrintBoundedHets(FILE *fp3, PDB *pdb, PDB *pdbHetatm,
             {
                for(p=start; p!=stop; NEXT(p))
                {
-                  blWritePDBRecord(fp3, p);
+                  if(addedHets == NULL)
+                  {
+                     INIT(addedHets, PDB);
+                     h = addedHets;
+                  }
+                  else
+                  {
+                     ALLOCNEXT(h, PDB);
+                  }
+                  if(h==NULL)
+                  {
+                     FREELIST(addedHets, PDB);
+                     fprintf(stderr, "No memory for added HETATMs\n");
+                     exit(1);
+                  }
+                  blCopyPDB(h,p);
                }
             }
          }  /* Is not a non-standard AA group                          */
       }  /* Is within boundaries                                       */
    }  /* loop over HET groups                                          */
+
+   /* Append the hetatom list onto the end of the PDB list             */
+   blAppendPDB(pdb, addedHets);
 }
 
 /***********************************************************************/
-
-  
-
-
-
 
 
