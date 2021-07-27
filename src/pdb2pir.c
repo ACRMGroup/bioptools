@@ -3,12 +3,12 @@
 
    \file       pdb2pir.c
    
-   \version    V2.15
-   \date       13.03.19
+   \version    V2.16
+   \date       27.07.21
    \brief      Convert PDB to PIR sequence file
    
-   \copyright  (c) Dr. Andrew C. R. Martin, UCL 1994-2019
-   \author     Dr. Andrew C. R. Martin
+   \copyright  (c) Prof. Andrew C. R. Martin, UCL 1994-2021
+   \author     Prof. Andrew C. R. Martin
    \par
                Biomolecular Structure and Modelling,
                University College London,
@@ -75,6 +75,7 @@
 -  V2.13 10.03.15 Improved multi-character chain support
 -  V2.14 11.06.15 Moved generally useful code into Bioplib
 -  V2.15 13.03.19 Now valgrind clean
+-  V2.16 27.07.21 Returns the sequence with -s if SEQRES not read
 
 *************************************************************************/
 /* Includes
@@ -417,11 +418,12 @@ int main(int argc, char **argv)
 -  10.03.15 V2.13
 -  11.06.15 V2.14
 -  13.03.19 V2.15
+-  27.07.21 V2.16
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdb2pir V2.15 (c) 1994-2019 Dr. Andrew C.R. Martin, \
-UCL\n");
+   fprintf(stderr,"\npdb2pir V2.16 (c) 1994-2021 Prof. Andrew C.R. \
+Martin, UCL\n");
    fprintf(stderr,"\nUsage: pdb2pir [-h][-l label][-t title][-s][-c][-x]\
 [-u][-p][-q]\n");
    fprintf(stderr,"               [-f][-n][-i] [infile [outfile]]\n");
@@ -532,6 +534,7 @@ int GetPDBChains(PDB *pdb, char *chains)
 -  22.05.09 Added IgnoreSEQRES to ignore chains that are in SEQRES but
             not in ATOM records
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
+-  27.07.21 Returns the sequence if SEQRES not read
 */
 char *FixSequence(char *seqres, char *sequence, char **seqchains, 
                   char **atomchains, char **outchains, BOOL IgnoreSEQRES,
@@ -553,6 +556,10 @@ char *FixSequence(char *seqres, char *sequence, char **seqchains,
         DoneATOM[MAXCHAINS],
         DoInit;
 
+
+   if((seqres == NULL) || (sequence == NULL))
+      return(sequence);
+   
    /* Set flags to say we haven't handled the sequences yet             */
    for(i=0; i<MAXCHAINS; i++)
    {
