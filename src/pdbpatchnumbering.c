@@ -3,8 +3,8 @@
 
    \file       pdbpatchnumbering.c
    
-   \version    V1.10
-   \date       27.07.21
+   \version    V1.11
+   \date       13.09.21
    \brief      Patch the numbering of a PDB file from a file of numbers
                and sequence (as created by KabatSeq, etc)
    
@@ -65,6 +65,8 @@
                   numbering, this will be removed from the file.
 -  V1.10 27.07.21 Now exits if there is an Error in the patch file and
                   correctly deals with not skipping enough Nter residues
+-  V1.11 13.09.21 Makes a check of 10 residues (instead of 1) when 
+                  skipping over the start of a sequence.
 
 *************************************************************************/
 /* Includes
@@ -109,6 +111,8 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 PATCH *ReadPatchFile(FILE *fp);
 void Usage(void);
 BOOL ApplyPatches(PDB **pPDB, PATCH *patches);
+BOOL SeqMatch(PDB *pdb, PATCH *patchseq, int nRes);
+
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -195,7 +199,7 @@ file\n");
    \param[out]     *infile      Input file (or blank string)
    \param[out]     *outfile     Output file (or blank string)
    \param[out]     *patchfile   Output file (or blank string)
-   \return                     Success?
+   \return                      Success?
 
    Parse the command line
    
@@ -384,10 +388,11 @@ PATCH *ReadPatchFile(FILE *fp)
 -  12.03.15 V1.8
 -  30.09.17 V1.9
 -  27.07.21 V1.10
+-  13.09.21 V1.11
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbpatchnumbering V1.10 (c) 1995-2021, Prof. \
+   fprintf(stderr,"\npdbpatchnumbering V1.11 (c) 1995-2021, Prof. \
 Andrew C.R. Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: pdbpatchnumbering patchfile [in.pdb \
@@ -524,10 +529,12 @@ for patches\n",pdbchain);
             }
 
             /* 30.09.17 Skip up to the first maxSkippedResidues if the 
-               amino acids don't match
+                        amino acids don't match
                27.07.21 Fixed if we run out of skipped residues
+               13.09.21 Now checks 10 residues instead of 1 by calling
+                        SeqMatch()
             */
-            while(NewPDBChain && blThrone(p->resnam) != a->aacode)
+            while(NewPDBChain && !SeqMatch(p, a, 10))
             {
                if(skippedResidues++ < maxSkippedResidues)
                {
@@ -589,4 +596,41 @@ record is:\n",a->aacode);
    return(TRUE);
 }
 
+/************************************************************************/
+/*>BOOL SeqMatch(PDB *pdb, PATCH *patch, int nRes)
+   -----------------------------------------------
+*//**
+   \param[in]     *pdb    PDB linked list
+   \param[in]     *patch  Patching list
+   \param[in]     nRes    Number of residues to check
+   \return                Match?
 
+   Looks to see if the first nRes residues of the PDB linked list match
+   the first nRes residues of the patch list
+
+- 13.09.21 Original   By: ACRM
+*/
+BOOL SeqMatch(PDB *pdb, PATCH *patch, int nRes)
+{
+   char patchseq[MAXBUFF];
+   int i;
+   PDB *p;
+   PATCH *pp;
+
+   /* Get the sequence from the patchfile information                   */
+   for(i=0, pp=patch; i<nRes && pp!=NULL; i++, NEXT(pp))
+   {
+      patchseq[i] = pp->aacode;
+   }
+   patchseq[i] = '\0';
+
+   /* Now compare the residues in the PDB linked list with the patching */
+   for(i=0, p=pdb; i<nRes && p!=NULL; i++)
+   {
+      if(blThrone(p->resnam) != patchseq[i])
+         return(FALSE);
+      p = blFindNextResidue(p);
+   }
+
+   return(TRUE);
+}
