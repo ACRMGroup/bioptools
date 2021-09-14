@@ -3,8 +3,8 @@
 
    \file       pdbpatchnumbering.c
    
-   \version    V1.11
-   \date       13.09.21
+   \version    V1.12
+   \date       14.09.21
    \brief      Patch the numbering of a PDB file from a file of numbers
                and sequence (as created by KabatSeq, etc)
    
@@ -60,13 +60,16 @@
 -  V1.7  13.02.15 Added whole PDB support
 -  V1.8  12.03.15 Changed to allow multi-character chain names and
                   three-letter code in patch file
--  V1.9  30.09.17 Now allows the patch file to skip the first few residues.
-                  i.e. if there is an N-terminal extension to the known
-                  numbering, this will be removed from the file.
+-  V1.9  30.09.17 Now allows the patch file to skip the first few 
+                  residues. i.e. if there is an N-terminal extension to
+                  the known numbering, this will be removed from the file.
 -  V1.10 27.07.21 Now exits if there is an Error in the patch file and
                   correctly deals with not skipping enough Nter residues
 -  V1.11 13.09.21 Makes a check of 10 residues (instead of 1) when 
                   skipping over the start of a sequence.
+-  V1.12 14.09.21 Checks the start of the patch sequence is actually
+                  found to give a more sensible error message and 
+                  increased max number of residues skipped to 50
 
 *************************************************************************/
 /* Includes
@@ -86,6 +89,7 @@
 /************************************************************************/
 /* Defines and macros
 */
+#define MAXSKIP 50
 #define MAXBUFF 160
 
 typedef struct _patch
@@ -389,10 +393,11 @@ PATCH *ReadPatchFile(FILE *fp)
 -  30.09.17 V1.9
 -  27.07.21 V1.10
 -  13.09.21 V1.11
+-  14.09.21 V1.12
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbpatchnumbering V1.11 (c) 1995-2021, Prof. \
+   fprintf(stderr,"\npdbpatchnumbering V1.12 (c) 1995-2021, Prof. \
 Andrew C.R. Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: pdbpatchnumbering patchfile [in.pdb \
@@ -440,6 +445,8 @@ abynum which applies\n");
 -  12.02.97 Fixed NULL pointer reference on first entry round loop
             (prevchain was set from r which was not initialised)
 -  12.03.15 Changed to allow multi-character chain names
+-  13.09.21 Added check on 10 residue match instead of 1
+-  14.09.21 Added check that start of patch sequence is found
 */
 BOOL ApplyPatches(PDB **pPDB, PATCH *patches)
 {
@@ -457,7 +464,7 @@ BOOL ApplyPatches(PDB **pPDB, PATCH *patches)
          NewPDBChain   = TRUE;    /* Indicates new chain in PDB file    */
    int   resnum,                  /* Current patch residue number       */
          skippedResidues = 0,     /* Count Nter skipped residues        */
-         maxSkippedResidues = 10; /* Max Nter residues to skip          */
+         maxSkippedResidues = MAXSKIP; /* Max Nter residues to skip     */
    
    pdb = *pPDB;
 
@@ -533,20 +540,25 @@ for patches\n",pdbchain);
                27.07.21 Fixed if we run out of skipped residues
                13.09.21 Now checks 10 residues instead of 1 by calling
                         SeqMatch()
+               14.09.21 Added check that it actually is found!
             */
-            while(NewPDBChain && !SeqMatch(p, a, 10))
+            if(NewPDBChain)
             {
-               if(skippedResidues++ < maxSkippedResidues)
+               while(!SeqMatch(p, a, 10))
                {
+                  if(skippedResidues++ >= maxSkippedResidues)
+                  {
+                     fprintf(stderr,"Start of patch sequence not found \
+within the first %d residues ", maxSkippedResidues);
+                     fprintf(stderr,"of the PDB file\n");
+                     return(FALSE);
+                  }
+                  
                   p = blDeleteResiduePDB(pPDB, p);
                   pdb = *pPDB;
                }
-               else
-               {
-                  break;
-               }
             }
-
+            
             NewPDBChain = FALSE;
 
             if(blThrone(p->resnam) != a->aacode)
