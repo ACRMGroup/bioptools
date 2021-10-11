@@ -89,13 +89,17 @@
 int main(int argc, char **argv);
 void Usage(void);
 void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb);
-int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], 
+int ReadBioSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], 
                      char chains[MAXCHAINS][8]);
 BOOL IsIdentityMatrix(REAL matrix[3][3], REAL trans[3]);
 char GetNextChainLabel(char chainLabel);
 void ApplyMatrixAndWriteCopy(FILE *out, PDB *pdb, char oldChain[8], 
                              char newChain[8],
                              REAL matrix[3][3], REAL trans[3]);
+PDB *ApplyMatrixAndAddToPDB(PDB *pdb, REAL matrix[3][3], REAL trans[3]);
+BOOL ReadXtalSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3],
+                          REAL trans[3]);
+
 char FindLastChainLabel(PDB *pdb);
 
 
@@ -244,10 +248,18 @@ void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb)
 
    pdb=wpdb->pdb;
 
+   while(ReadXtalSymmetryData(wpdb, matrix, trans))
+   {
+      if(!IsIdentityMatrix(matrix, trans))
+      {
+         pdb = ApplyMatrixAndAddToPDB(pdb, matrix, trans);
+      }
+   }
+
    lastChainLabel = FindLastChainLabel(pdb);
    chainLabel     = GetNextChainLabel(lastChainLabel);
 
-   while((nchains=ReadSymmetryData(wpdb, matrix, trans, chains))!=0)
+   while((nchains=ReadBioSymmetryData(wpdb, matrix, trans, chains))!=0)
    {
       if(!IsIdentityMatrix(matrix, trans))
       {
@@ -270,7 +282,7 @@ void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb)
 
 
 /************************************************************************/
-/*>int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], 
+/*>int ReadBioSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], 
                         char chains[MAXCHAINS][8])
    -----------------------------------------------------------------------
 *//**
@@ -298,7 +310,7 @@ void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb)
  
 -  09.02.17  Original   By: ACRM
 */
-int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], 
+int ReadBioSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], 
                      char chains[MAXCHAINS][8])
 {
    static STRINGLIST *sSymOp = NULL;
@@ -401,6 +413,105 @@ int ReadSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3],
    }
 
    return(sNChains);
+}
+
+
+/************************************************************************/
+/*>BOOL ReadXtalSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], 
+                             REAL trans[3])
+   ------------------------------------------------------------
+*//**
+   \param[in]    *wpdb      Pointer to WHOLEPDB structure
+   \param[out]   matrix[][] 3x3 rotation matrix
+   \param[out]   trans[]    translation vector
+   \return                  Are data found?
+
+   Reads the symmetry data from
+   REMARK 290   SMTRY1   1  1.000000  0.000000  0.000000        0.00000
+   12345612341231234511234123456789012345678901234567890123451234567890
+   %6s   %4d %3x%5s%1d%4d %10.6f    %10.6f    %10.6f    %5x  %10.6f
+   records which specify the rotatation matrix and translation vector.
+
+   A static variable is used to keep track of where we are in the header
+   data. Successive calls will give the next set of operations. The 
+   routine returns TRUE if there are data or FALSE when there are
+   no more crystallographic symmetry records.
+ 
+-  11.10.21  Original based on ReadBioSymmetryData()   By: ACRM
+*/
+BOOL ReadXtalSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3],
+                          REAL trans[3])
+{
+   static STRINGLIST *sSymOp = NULL;
+   static BOOL       called  = FALSE;
+   int               i;
+
+   /* First call - step to the start of the symmertry operators         */
+   if((sSymOp == NULL) && !called)
+   {
+      called = TRUE;
+
+      sSymOp = wpdb->header;
+   }
+   
+   /* Not first call and we have run out of records                     */
+   if(sSymOp == NULL)
+      return(0);
+
+   /* Step on until the next 'SMTRY1'                                   */
+   while((sSymOp != NULL) &&
+         (sSymOp->string != NULL) &&
+         strncmp(sSymOp->string, "REMARK 290   SMTRY1", 19))
+   {
+      NEXT(sSymOp);
+   }
+   
+   /* The list has ended                                                */
+   if((sSymOp == NULL) || (sSymOp->string == NULL))
+      return(FALSE);
+
+   /* We are now pointing to the first symmetry operator                */
+   if((sSymOp != NULL) && (sSymOp->string != NULL))
+   {
+      /* This should not happen!                                        */
+      if(strncmp(sSymOp->string, "REMARK 290   SMTRY1", 19))
+         return(FALSE);
+
+      /* Read the three REMARK 290 SMTRYx lines                         */
+      for(i=0; i<3; i++)
+      {
+         if((sSymOp != NULL) && (sSymOp->string != NULL))
+         {
+            char recordType[8],
+                 subType[8];
+            int  recordNum,
+                 subTypeNum,
+                 instanceNum;
+            REAL x,y,z,t;
+
+            fsscanf(sSymOp->string, "%6s%4d%3x%5s%1d%4d%10lf%10lf%10lf%5x%10lf",
+                    recordType, &recordNum, subType, &subTypeNum,
+                    &instanceNum, &x, &y, &z, &t);
+            if(!strncmp(recordType, "REMARK", 6) &&
+               (recordNum == 290) &&
+               !strncmp(subType, "SMTRY", 5))
+            {
+               matrix[i][0] = x;
+               matrix[i][1] = y;
+               matrix[i][2] = z;
+               trans[i]     = t;
+            }
+            else
+            {
+               fprintf(stderr,"Warning (pdbsymm): Unexpected record - %s\n",
+                       sSymOp->string);
+            }
+         }
+         NEXT(sSymOp);
+      }
+   }
+
+   return(TRUE);
 }
 
 
@@ -550,6 +661,67 @@ void ApplyMatrixAndWriteCopy(FILE *out, PDB *pdb, char oldChain[8],
 
       FREELIST(pdb2, PDB);
    }
+}
+
+   
+/************************************************************************/
+/*>PDB *ApplyMatrixAndAddToPDB(PDB *pdb, REAL matrix[3][3], REAL trans[3])
+   --------------------------------------------------------------------
+*//**
+   \param[in]    *out       Output file pointer
+   \param[in]    *pdb       PDB linked list
+   \param[in]    oldChain   The name of the chain that we are moving and 
+                            writing
+   \param[in]    newChain   The name that we will use for the new chain
+   \param[in]    matrix[][] The rotation matrix
+   \param[in]    trans[]    The translation vector
+
+   Applies the rotation matrix followed by the translation vector to the
+   specified chain writing it out with the new chain label.
+
+-  11.10.21  Original   By: ACRM
+*/
+PDB *ApplyMatrixAndAddToPDB(PDB *pdb, REAL matrix[3][3], REAL trans[3])
+{
+   PDB *pdb2 = NULL;
+   char chainLabel;
+   char prevChain = '\0';
+
+   chainLabel = FindLastChainLabel(pdb);
+   
+   if((pdb2 = blDupePDB(pdb))!=NULL)
+   {
+      VEC3F transVec;
+      PDB   *p;
+      
+      transVec.x = trans[0];
+      transVec.y = trans[1];
+      transVec.z = trans[2];
+      
+      /* Apply the rotations                                            */
+      blApplyMatrixPDB(pdb2, matrix);
+      /* And the translation                                            */
+      blTranslatePDB(pdb2, transVec);
+      
+      /* Reset the chain labels                                         */
+/*
+      for(p=pdb2; p!=NULL; NEXT(p))
+      {
+         if(p->chain[0] != prevChain)
+         {
+            chainLabel = GetNextChainLabel(chainLabel);
+         }
+         
+         p->chain[0] = chainLabel;
+      }
+*/
+
+      /* Append the new list onto the old one                           */
+      p = pdb;
+      LAST(p);
+      p->next = pdb2;
+   }
+   return(pdb);
 }
 
    
