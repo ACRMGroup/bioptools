@@ -3,13 +3,13 @@
 
    \file       pdbsymm.c
    
-   \version    V1.0
-   \date       06.02.17
+   \version    V1.1
+   \date       12.10.21
    \brief      Program to apply non-crystollographic symmetry operations
                from the REMARK 350 data in a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin / UCL 2017
-   \author     Dr. Andrew C. R. Martin
+   \copyright  (c) Prof. Andrew C. R. Martin / UCL 2017-21
+   \author     Prof. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -56,6 +56,7 @@
    Revision History:
    =================
 -  V1.0  06.02.17 Original
+-  V1.1  12.10.21 Added -x and -b options
 
 *************************************************************************/
 /* Includes
@@ -73,7 +74,7 @@
 #include "bioplib/fsscanf.h"
 #include "bioplib/general.h"
 
-#define MAXCHAINS 62
+#define MAXCHAINS 240
 
 /************************************************************************/
 /* Defines and macros
@@ -88,7 +89,8 @@
 */
 int main(int argc, char **argv);
 void Usage(void);
-void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb);
+void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb, BOOL doXtal,
+                         BOOL doBio);
 int ReadBioSymmetryData(WHOLEPDB *wpdb, REAL matrix[3][3], REAL trans[3], 
                      char chains[MAXCHAINS][8]);
 BOOL IsIdentityMatrix(REAL matrix[3][3], REAL trans[3]);
@@ -117,6 +119,8 @@ int main(int argc, char **argv)
    FILE     *in      = stdin,
             *out     = stdout;
    WHOLEPDB *wpdb;
+   BOOL     doXtal   = TRUE,
+            doBio    = TRUE;
 
    argc--;
    argv++;
@@ -130,6 +134,14 @@ int main(int argc, char **argv)
          {
          case 'h':
             Usage();
+            return(0);
+         case 'x':
+            doXtal = TRUE;
+            doBio  = FALSE;
+            return(0);
+         case 'b':
+            doXtal = FALSE;
+            doBio  = TRUE;
             return(0);
          default:
             Usage();
@@ -177,11 +189,10 @@ int main(int argc, char **argv)
       return(1);
    }
 
-   /* Write the initial copy (unmodified)                               */
+   /* Write the header                                                  */
    blWriteWholePDBHeader(out, wpdb);
-   blWritePDB(out, wpdb->pdb);
-   
-   WriteSymmetryCopies(out, wpdb);
+   /* And write the data                                                */
+   WriteSymmetryCopies(out, wpdb, doXtal, doBio);
 
    /* Need to build everything into one PDB linked list and rebuild conect
       data to do this properly
@@ -225,18 +236,24 @@ char FindLastChainLabel(PDB *pdb)
 
 
 /************************************************************************/
-/*>void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb)
-   ---------------------------------------------------
+/*>void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb, BOOL doXtal,
+                            BOOL doBio)
+   ----------------------------------------------------------------
 *//**
-   \param[in]    *out   Output file pointer
-   \param[in]    *wpdb  Pointer to WHOLEPDB structure
+   \param[in]    *out    Output file pointer
+   \param[in]    *wpdb   Pointer to WHOLEPDB structure
+   \param[in]    *doXtal Do crystallographic symmetry
+   \param[in]    *doBio  Do biological symmetry
 
    Does the work of writing non-crystallographic symmetry related copies
    of the structure.
 
 -  09.02.17  Original   By: ACRM
+-  12.10.21  Moved writing into here and added xtal symmetry. Added
+             parameters to specify which symmetries to use
 */
-void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb)
+void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb, BOOL doXtal,
+                         BOOL doBio)
 {
    REAL  matrix[3][3];
    char  chains[MAXCHAINS][8];
@@ -256,6 +273,10 @@ void WriteSymmetryCopies(FILE *out, WHOLEPDB *wpdb)
       }
    }
 
+   /* Write the initial copy (unmodified)                               */
+   blWritePDB(out, pdb);
+
+   
    lastChainLabel = FindLastChainLabel(pdb);
    chainLabel     = GetNextChainLabel(lastChainLabel);
 
@@ -684,10 +705,12 @@ void ApplyMatrixAndWriteCopy(FILE *out, PDB *pdb, char oldChain[8],
 PDB *ApplyMatrixAndAddToPDB(PDB *pdb, REAL matrix[3][3], REAL trans[3])
 {
    PDB *pdb2 = NULL;
+/*
    char chainLabel;
    char prevChain = '\0';
 
    chainLabel = FindLastChainLabel(pdb);
+*/
    
    if((pdb2 = blDupePDB(pdb))!=NULL)
    {
@@ -735,9 +758,11 @@ PDB *ApplyMatrixAndAddToPDB(PDB *pdb, REAL matrix[3][3], REAL trans[3])
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbsymm V1.0 (c) 2017 Andrew C.R. \
+   fprintf(stderr,"\npdbsymm V1.1 (c) 2017-21 Andrew C.R. \
 Martin, UCL\n");
-   fprintf(stderr,"Usage: pdbsymm [in.pdb [out.pdb]]\n");
+   fprintf(stderr,"Usage: pdbsymm [-b|-x] [in.pdb [out.pdb]]\n");
+   fprintf(stderr,"       -b Only do biological symmetry\n");
+   fprintf(stderr,"       -x Only do crystallographic symmetry\n");
 
    fprintf(stderr,"\nI/O is to stdin/stdout if not specified\n\n");
    fprintf(stderr,"Applies non crystollographic symmetry to a PDB file \
@@ -755,6 +780,10 @@ file\n");
    fprintf(stderr,"Note 2: this code only works with single character \
 chain names. It \n");
    fprintf(stderr,"needs updating to deal with multi-character names!\n");
+   fprintf(stderr,"\n");
+   fprintf(stderr,"Note 3: New chain labels are not applied to \
+crystallographic symmetry\n");
+   
    fprintf(stderr,"\n");
 }
 
