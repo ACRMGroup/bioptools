@@ -4,8 +4,6 @@
 
 TODO:
 
--t option to trim sequences (I.e. ignore lower case letters at the ends of the alignments)
-
 Maybe need a local sequence alignment and/or option to accept the ATOM residues rather than SEQRES
 
 Code to rewrite SEQRES based on coordinates.
@@ -133,7 +131,7 @@ RESTYPE gResTypes[] =
 /* Prototypes
 */
 int  main(int argc, char **argv);
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile);
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, BOOL *trimSeqs);
 void Usage(void);
 PDB *RepairPDB(PDB *pdb, char *fixedSequence, MODRES *modres);
 int GetPDBChains(PDB *pdb, char *chains);
@@ -151,6 +149,8 @@ void AppendFixedResidue(PDB **ppdbOut, PDB **ppOut,
                         char restype);
 void AppendRemainingAtoms(PDB **ppdbOut, PDB **ppOut,
                           PDB *pdbIn);
+char *TrimSequence(char *sequence);
+
 
 
 
@@ -169,8 +169,10 @@ int main(int argc, char **argv)
 {
    char infile[MAXBUFF],
         outfile[MAXBUFF];
+   BOOL trimSequences = FALSE;
+   
         
-   if(ParseCmdLine(argc, argv, infile, outfile))
+   if(ParseCmdLine(argc, argv, infile, outfile, &trimSequences))
    {
       FILE *in  = stdin,
            *out = stdout;
@@ -261,11 +263,22 @@ data\n");
                                             nAtomChains))
                ==NULL)
                return(1);
-            
+
 #ifdef DEBUG
             fprintf(stderr, "Fixed sequence:\n");
             fprintf(stderr, "%s\n", fixedSequence);
 #endif
+            if(trimSequences)
+            {
+               if((fixedSequence = TrimSequence(fixedSequence))
+                  ==NULL)
+                  return(1);
+#ifdef DEBUG
+               fprintf(stderr, "Trimmed sequence:\n");
+               fprintf(stderr, "%s\n", fixedSequence);
+#endif
+            }
+            
             fixedPDB = RepairPDB(pdb, fixedSequence, modres);
             wpdb->pdb = fixedPDB;
             blWriteWholePDB(out, wpdb);
@@ -288,20 +301,24 @@ data\n");
 
 
 /************************************************************************/
-/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
+/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+                     BOOL *trimSeqs)
    ----------------------------------------------------------------------
 *//**
    \param[in]      argc        Argument count
    \param[in]      **argv      Argument array
    \param[out]     *infile     Input filename (or blank string)
    \param[out]     *outfile    Output filename (or blank string)
+   \param[out]     *trimSeqs   Trim missing residues from the end of the
+                               SEQRES records
    \return                     Success
 
    Parse the command line
 
 -  29.10.21 Original    By: ACRM
 */
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+                  BOOL *trimSeqs)
 {
    argc--;
    argv++;
@@ -314,6 +331,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
       {
          switch(argv[0][1])
          {
+         case 't':
+            *trimSeqs = TRUE;
+            break;
          case 'h':
             return(FALSE);
             break;
@@ -360,9 +380,13 @@ void Usage(void)
 {
    fprintf(stderr,"\npdbrepair V1.0 (c) 2021 Prof. Andrew C.R. \
 Martin, UCL\n");
-   fprintf(stderr,"\nUsage: pdbrepair [in.pdb [out.pdb]]\n");
+   fprintf(stderr,"\nUsage: pdbrepair [-t] [in.pdb [out.pdb]]\n");
+   fprintf(stderr,"       -t Trim SEQRES data for missing resiudes at \
+the start or end\n");
+   fprintf(stderr,"          of a chain\n");
    
-   fprintf(stderr,"If files are not specified, stdin and stdout are \
+   
+   fprintf(stderr,"\nIf files are not specified, stdin and stdout are \
 used.\n");
    fprintf(stderr,"Currently just adds missing ATOM records for atoms \
 based on the\n");
@@ -1022,8 +1046,7 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
          pdbRes = blThrone(tmpthree);
       }
 
-      /* If the residue is in lower case, it's an insertion
-      */
+      /* If the residue is in lower case, it's an insertion             */
       if(islower(*fixedRes))
       {
 #ifdef DEBUG
@@ -1036,10 +1059,10 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
       }
       else
       {
-         /* If they match, append this residue */
+         /* If they match, append this residue                          */
          if(pdbRes == *fixedRes)
          {
-#if (DEBUG > 1)
+#if (DEBUG > 2)
          fprintf(stderr,"APPEND: PDB %c, SEQ %c\n",
                  pdbRes, *fixedRes);
 #endif
@@ -1047,7 +1070,7 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
          }
          else
          {
-#ifdef DEBUG
+#if (DEBUG > 1)
             fprintf(stderr,"FIXING: PDB %c, SEQ %c\n",
                     pdbRes, *fixedRes);
 #endif
@@ -1057,7 +1080,7 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
          if(pdbOut == NULL)
             return(NULL);
 
-         /* Move on to the next PDB residue */
+         /* Move on to the next PDB residue                             */
          resIn = nextResIn;
       }
    }
@@ -1067,4 +1090,48 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
    return(pdbOut);
 }
 
+
+char *TrimSequence(char *inSeq)
+{
+   char *startPtr,
+      *outSeq,
+      *outPtr,
+      *boundaryPtr,
+      *endPtr;
+
+   /* Allocate space for trimmed sequence                               */
+   if((outSeq = (char *)malloc((1+strlen(inSeq))*sizeof(char))) == NULL)
+      return(NULL);
+   outPtr = outSeq;
+
+   startPtr = inSeq;
+   /* While we have a sequence left to process                          */
+   while((*startPtr != '\0') && (boundaryPtr = strchr(startPtr, '*'))
+         != NULL)
+   {
+      /* Skip over leading lower-case characters                        */
+      while(islower(*startPtr)) startPtr++;
+      /* Skip back over trailing lower-case characters                  */
+      endPtr = boundaryPtr-1;
+      while(islower(*endPtr) && (endPtr > startPtr)) endPtr--;
+
+#if (DEBUG > 10)
+      fprintf(stderr, "Trimmed start: %c; Trimmed end: %c\n",
+              *startPtr, *endPtr);
+#endif
+      
+      /* Copy to the output                                             */
+      do {
+         *outPtr++ = *startPtr++;
+      } while(startPtr <= endPtr);
+      *outPtr++ = '*';
+
+      /* Skip over the *                                                */
+      startPtr = boundaryPtr+1;
+   }
+   *outPtr = '\0';
+
+   free(inSeq);
+   return(outSeq);
+}
 
