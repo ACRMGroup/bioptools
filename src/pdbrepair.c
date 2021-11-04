@@ -161,7 +161,7 @@ void AppendNewResidue(PDB **ppdbOut, PDB **ppOut,
 void AppendFixedResidue(PDB **ppdbOut, PDB **ppOut,
                         PDB *resIn,    PDB *nextResIn,
                         char restype);
-void AppendRemainingAtoms(PDB **ppdbOut, PDB **ppOut,
+BOOL AppendRemainingAtoms(PDB **ppdbOut, PDB **ppOut,
                           PDB *pdbIn);
 char *TrimSequence(char *sequence);
 
@@ -169,6 +169,9 @@ char *TrimSequence(char *sequence);
 
 
 char *strdup(const char *s);
+STRINGLIST *blCreateSEQRES(PDB *pdb);
+void blRenumResiduesPDB(PDB *pdb, int offset);
+
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -298,6 +301,7 @@ data\n");
             fixedPDB = RepairPDB(pdb, fixedSequence, modres);
             wpdb->pdb = fixedPDB;
             blWriteWholePDB(out, wpdb);
+            blCreateSEQRES(fixedPDB);
          }
       }
       else
@@ -913,7 +917,9 @@ void  AppendNewResidue(PDB **ppdbOut, PDB **ppOut, char restype)
       
       strcpy(pOut->record_type,
              gResTypes[resOffset].hetatm?"HETATM":"ATOM  ");
+#ifdef BREAKSSEQRES
       strcpy(pOut->record_type, "INSERT");
+#endif
       strcpy(pOut->atnam,
              gResTypes[resOffset].atnams[atomOffset]);
 
@@ -1001,10 +1007,11 @@ void AppendFixedResidue(PDB **ppdbOut, PDB **ppOut,
 }
 
 
-void AppendRemainingAtoms(PDB **ppdbOut, PDB **ppOut, PDB *pdbIn)
+BOOL AppendRemainingAtoms(PDB **ppdbOut, PDB **ppOut, PDB *pdbIn)
 {
-   PDB *pOut = *ppOut;
-   PDB *pIn  = NULL;
+   PDB  *pOut = *ppOut,
+        *pIn  = NULL;
+   BOOL repaired = FALSE;
    
    for(pIn = pdbIn; pIn != NULL; NEXT(pIn))
    {
@@ -1024,12 +1031,15 @@ void AppendRemainingAtoms(PDB **ppdbOut, PDB **ppOut, PDB *pdbIn)
          *ppdbOut = NULL;
          *ppOut   = NULL;
          
-         return;
+         return(FALSE);
       }
 
       blCopyPDB(pOut, pIn);
+      repaired = TRUE;
    }
    *ppOut = pOut;
+
+   return(repaired);
 }
 
 
@@ -1041,6 +1051,7 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
         *nextResIn = NULL;
    char *fixedRes  = fixedSequence,
         pdbRes;
+   BOOL repaired   = FALSE;
 
    /* Initialize pointer to PDB residues                                */
    resIn=pdbIn;
@@ -1075,6 +1086,7 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
          AppendNewResidue(&pdbOut, &pOut, toupper(*fixedRes));
          if(pdbOut == NULL)
             return(NULL);
+         repaired = TRUE;
       }
       else
       {
@@ -1086,6 +1098,7 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
                  pdbRes, *fixedRes);
 #endif
             AppendThisResidue(&pdbOut, &pOut, resIn, nextResIn);
+            repaired = TRUE;
          }
          else
          {
@@ -1095,6 +1108,7 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
 #endif
             AppendFixedResidue(&pdbOut, &pOut, resIn, nextResIn,
                                toupper(*fixedRes));
+            repaired = TRUE;
          }
          if(pdbOut == NULL)
             return(NULL);
@@ -1104,7 +1118,14 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
       }
    }
 
-   AppendRemainingAtoms(&pdbOut, &pOut, resIn);
+   if(AppendRemainingAtoms(&pdbOut, &pOut, resIn))
+      repaired = TRUE;
+      
+   if(repaired)
+   {
+      blRenumAtomsPDB(pdbOut, 0);
+      blRenumResiduesPDB(pdbOut, 0);
+   }
    
    return(pdbOut);
 }
@@ -1152,5 +1173,79 @@ char *TrimSequence(char *inSeq)
 
    free(inSeq);
    return(outSeq);
+}
+
+void blRenumResiduesPDB(PDB *pdb, int offset)
+{
+   PDB *p;
+   int  resnum=0;
+   
+   for(p=pdb; p!=NULL; NEXT(p))
+   {
+      if(!strncmp(p->atnam, "N   ", 4))
+      {
+         resnum++;
+      }
+         
+      p->resnum = resnum;
+      strcpy(p->insert, " ");
+   }
+}
+
+
+STRINGLIST *blCreateSEQRES(PDB *pdb)
+{
+   HASHTABLE  *seqByChain = NULL;
+   char       **chains    = NULL;
+   STRINGLIST *seqres     = NULL;
+   int        nChains     = 0;
+   
+   if((seqByChain = blPDB2SeqXByChain(pdb))!=NULL)
+   {
+      if((chains = blGetPDBChainLabels(pdb, &nChains))==NULL)
+      {
+         return(NULL);
+      }
+      else
+      {
+         int i;
+         
+         for(i=0; i<nChains; i++)
+         {
+            int  chainLen;
+            int  lineNum   = 1;
+            int  resNum    = 0;
+            char *sequence = NULL;
+            BOOL LFPrinted = 1;
+
+            sequence = blGetHashValueString(seqByChain, chains[i]);
+            if(sequence != NULL)
+            {
+               chainLen = strlen(sequence);
+               for(resNum=0; resNum<chainLen; resNum++)
+               {
+                  if(!(resNum%13))
+                  {
+                     if(!LFPrinted)
+                        fprintf(stderr, "\n");
+
+                     fprintf(stderr, "SEQRES%4d %c%5d  ",
+                             lineNum++,
+                             chains[i][0],
+                             chainLen);
+                  }
+                  fprintf(stderr, "%-4s", blOnethr(sequence[resNum]));
+                  LFPrinted = FALSE;
+               }
+               fprintf(stderr, "\n");
+            }
+         }
+      }
+   }
+   
+   if(seqByChain != NULL)
+      blFreeHash(seqByChain);
+   
+   return(seqres);
 }
 
