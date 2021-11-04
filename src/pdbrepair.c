@@ -1,11 +1,27 @@
 /************************************************************************/
 /**
 
+
+TODO:
+
+-t option to trim sequences (I.e. ignore lower case letters at the ends of the alignments)
+
+Maybe need a local sequence alignment and/or option to accept the ATOM residues rather than SEQRES
+
+Code to rewrite SEQRES based on coordinates.
+
+Implement the fix sequence code by calling routines from mutmodel
+
+Need to fill in missing atoms
+
+Check with other modified residues
+
+
    \file       pdbrepair.c
    
    \version    V0.1
    \date       29.10.21
-   \brief      Count residues and atoms in a PDB file
+   \brief      Add missing ATOM records based on SEQRES
    
    \copyright  (c) Prof. Andrew C. R. Martin 2021
    \author     Prof. Andrew C. R. Martin
@@ -72,10 +88,46 @@
 #define safetoupper(x) ((islower(x))?toupper(x):(x))
 #define safetolower(x) ((isupper(x))?tolower(x):(x))
 
+typedef struct _restype
+{
+   char resnam[8],
+        aa;
+   int  hetatm;
+   char atnams[MAXATINAA+1][8];
+}  RESTYPE;
+   
 
 /************************************************************************/
 /* Globals
 */
+
+RESTYPE gResTypes[] =
+{
+   {"ALA",'A',0,{"N   ","CA  ","C   ","O   ","CB  ",""}},
+   {"CYS",'C',0,{"N   ","CA  ","C   ","O   ","CB  ","SG  ",""}},
+   {"ASP",'D',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","OD1 ","OD2 ",""}},
+   {"GLU",'E',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ","OE1 ","OE2 ",""}},
+   {"PHE",'F',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ","CD2 ","CE1 ","CE2 ","CZ  ",""}},
+   {"GLY",'G',0,{"N   ","CA  ","C   ","O   ",""}},
+   {"HIS",'H',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","ND1 ","CD2 ","CE1 ","NE2 ",""}},
+   {"ILE",'I',0,{"N   ","CA  ","C   ","O   ","CB  ","CG1 ","CG2 ","CD1 ",""}},
+   {"LYS",'K',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ","CE  ","NZ  ",""}},
+   {"LEU",'L',0,{"N   ","CA  ","C   ","O   ","CB  ","CD1 ","CD2 ",""}},
+   {"MET",'M',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","SD  ","CE  ",""}},
+   {"ASN",'N',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","OD1 ","ND2 ",""}},
+   {"PRO",'P',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ",""}},
+   {"GLN",'Q',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ","OE1 ","NE2 ",""}},
+   {"ARG",'R',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ","NE  ","CZ  ","NH1 ","NH2 ",""}},
+   {"SER",'S',0,{"N   ","CA  ","C   ","O   ","CB  ","OG  ",""}},
+   {"THR",'T',0,{"N   ","CA  ","C   ","O   ","CB  ","OG1 ","CG2 ",""}},
+   {"VAL",'V',0,{"N   ","CA  ","C   ","O   ","CB  ","CG1 ","CG2 ",""}},
+   {"TRP",'W',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ","CD2 ","NE1 ","CE2 ","CE3 ","CZ2 ","CZ3 ","CH2",""}},
+   {"TYR",'Y',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ","CD2 ","CE1 ","CE2 ","CZ  ","OH  ",""}},
+   {"PCA",'E',1,{"N   ","CA  ","CB  ","CG  ","CD  ","OE  ","C   ","O   ",""}},
+   {""  ,'\0',0,{""}}
+};
+
+   
 
 /************************************************************************/
 /* Prototypes
@@ -83,16 +135,26 @@
 int  main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile);
 void Usage(void);
-PDB *RepairPDB(PDB *pdb, char *fixedseq);
+PDB *RepairPDB(PDB *pdb, char *fixedSequence, MODRES *modres);
 int GetPDBChains(PDB *pdb, char *chains);
-char *FixSequence(char *seqres, char *sequence, char **seqchains, 
-                  char **atomchains, char **outchains, BOOL IgnoreSEQRES,
+char *FixSequence(char *seqresSequence, char *atomSequence, char **seqresChains, 
+                  char **atomChains, char **outchains, BOOL IgnoreSEQRES,
                   int nAtomChains);
 char *CombineSequence(char *align1, char *align2, int align_len);
 void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres);
+void AppendThisResidue(PDB **ppdbOut, PDB **ppOut,
+                       PDB *resIn,    PDB *nextResIn);
+void AppendNewResidue(PDB **ppdbOut, PDB **ppOut,
+                       char restype);
+void AppendFixedResidue(PDB **ppdbOut, PDB **ppOut,
+                        PDB *resIn,    PDB *nextResIn,
+                        char restype);
+void AppendRemainingAtoms(PDB **ppdbOut, PDB **ppOut,
+                          PDB *pdbIn);
+
+
+
 char *strdup(const char *s);
-
-
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -126,64 +188,87 @@ int main(int argc, char **argv)
             PDB  *fixedPDB,
                  *pdb;
             MODRES *modres = NULL;
-            char *seqres = NULL,
-               *sequence = NULL,
-               *fixedsequence = NULL,
-               **seqchains = NULL,
+            char *seqresSequence = NULL,
+               *atomSequence = NULL,
+               *fixedSequence = NULL,
+               **seqresChains = NULL,
                **outchains = NULL,
-               **atomchains = NULL;
+               **atomChains = NULL;
             int nAtomChains, len1;
             
             pdb = wpdb->pdb;
             
-            if((seqchains = (char **)blArray2D(sizeof(char), MAXCHAINS, blMAXCHAINLABEL))==NULL)
+            if((outchains = (char **)blArray2D(sizeof(char),
+                                               MAXCHAINS,
+                                               blMAXCHAINLABEL))==NULL)
             {
-               fprintf(stderr,"Error: No memory for seqchains array\n");
+               fprintf(stderr,"Error: No memory for outchains array\n");
+               return(1);
+            }
+            if((seqresChains = (char **)blArray2D(sizeof(char),
+                                               MAXCHAINS,
+                                               blMAXCHAINLABEL))==NULL)
+            {
+               fprintf(stderr,"Error: No memory for seqresChains array\n");
                return(1);
             }
 
-            /* Read MODRES and SEQRES records                                 */
+            /* Read MODRES and SEQRES records                           */
             modres = blGetModresWholePDB(wpdb);
-            seqres = blGetSeqresAsStringWholePDB(wpdb, seqchains, modres, TRUE);
+            seqresSequence = blGetSeqresAsStringWholePDB(wpdb, seqresChains,
+                                                 modres, TRUE);
 
-            /* Extract sequence from PDB linked list                             */
-            if((atomchains = blGetPDBChainLabels(pdb, &nAtomChains)) == NULL)
+            /* Get list of chains from the PDB linked list              */
+            if((atomChains = blGetPDBChainLabels(pdb, &nAtomChains))
+               == NULL)
             {
                fprintf(stderr,"Error: No memory for atom chain labels\n");
                return(1);
             }
             
-            /* Convert PDB linked list to a sequence                             */
-            if((sequence = blPDB2SeqX(pdb))==NULL)
+            /* Convert PDB linked list to a sequence                    */
+            if((atomSequence = blPDB2SeqX(pdb))==NULL)
             {
                fprintf(stderr,"Error: No memory for sequence data\n");
                return(1);
             }
-            /* Append a * since blPDB2Seq() doesn't do this; note that this 
-               will have to change if we fix blPDB2Seq() in future
+            /* Append a * since blPDB2Seq() doesn't do this; note that
+               this will have to change if we fix blPDB2Seq() in future
             */
-            len1 = strlen(sequence);
-            if((sequence=(char *)realloc((void *)sequence,
+            len1 = strlen(atomSequence);
+            if((atomSequence=(char *)realloc((void *)atomSequence,
                                          (len1+2)*sizeof(char)))==NULL)
             {
-               fprintf(stderr,"Error: No memory to expand sequence data\n");
+               fprintf(stderr,"Error: No memory to expand sequence \
+data\n");
                return(1);
             }
-            strcat(sequence,"*");
+            strcat(atomSequence,"*");
 
-            /* Fiddle with sequences to combine information from SEQRES and ATOM
-               records
+#ifdef DEBUG
+            fprintf(stderr,"\nSEQRES sequence:\n");
+            fprintf(stderr,"%s\n", seqresSequence);
+            fprintf(stderr,"\nATOM sequence:\n");
+            fprintf(stderr,"%s\n", atomSequence);
+#endif
+            
+            /* Fiddle with sequences to combine information from SEQRES
+               and ATOM records
             */
-            if((fixedsequence = FixSequence(seqres,sequence,seqchains,
-                                            atomchains,outchains,FALSE,
+            if((fixedSequence = FixSequence(seqresSequence,atomSequence,
+                                            seqresChains,
+                                            atomChains,outchains,FALSE,
                                             nAtomChains))
                ==NULL)
                return(1);
-
-
             
-            fixedPDB = RepairPDB(pdb, fixedsequence);
-            blWritePDB(out, fixedPDB);
+#ifdef DEBUG
+            fprintf(stderr, "Fixed sequence:\n");
+            fprintf(stderr, "%s\n", fixedSequence);
+#endif
+            fixedPDB = RepairPDB(pdb, fixedSequence, modres);
+            wpdb->pdb = fixedPDB;
+            blWriteWholePDB(out, wpdb);
          }
       }
       else
@@ -201,11 +286,11 @@ int main(int argc, char **argv)
    return(0);
 }
 
+
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
    ----------------------------------------------------------------------
 *//**
-
    \param[in]      argc        Argument count
    \param[in]      **argv      Argument array
    \param[out]     *infile     Input filename (or blank string)
@@ -323,8 +408,8 @@ int GetPDBChains(PDB *pdb, char *chains)
 
 
 /************************************************************************/
-/*>char *FixSequence(char *seqres, char *sequence, char **seqchains, 
-                     char **atomchains, char **outchains, 
+/*>char *FixSequence(char *seqresSequence, char *atomSequence, char **seqresChains, 
+                     char **atomChains, char **outchains, 
                      BOOL IgnoreSEQRES, int nAtomChains)
    -----------------------------------------------------------------
 *//**
@@ -339,10 +424,10 @@ int GetPDBChains(PDB *pdb, char *chains)
 -  22.05.09 Added IgnoreSEQRES to ignore chains that are in SEQRES but
             not in ATOM records
 -  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
--  27.07.21 Returns the sequence if SEQRES not read
+-  27.07.21 Returns the atomSequence if SEQRES not read
 */
-char *FixSequence(char *seqres, char *sequence, char **seqchains, 
-                  char **atomchains, char **outchains, BOOL IgnoreSEQRES,
+char *FixSequence(char *seqresSequence, char *atomSequence, char **seqresChains, 
+                  char **atomChains, char **outchains, BOOL IgnoreSEQRES,
                   int nAtomChains)
 {
    int  i, j, len, len1, len2,
@@ -362,13 +447,13 @@ char *FixSequence(char *seqres, char *sequence, char **seqchains,
         DoInit;
 
 
-   if((seqres == NULL) || (sequence == NULL))
+   if((seqresSequence == NULL) || (atomSequence == NULL))
    {
       for(i=0; i<nAtomChains; i++)
       {
-         strcpy(outchains[i], atomchains[i]);
+         strcpy(outchains[i], atomChains[i]);
       }
-      return(strdup(sequence));
+      return(strdup(atomSequence));
    }
    
    
@@ -382,18 +467,18 @@ char *FixSequence(char *seqres, char *sequence, char **seqchains,
    /* If the sequences and chains are identical just copy one of them
       and return
    */
-   if(!strcmp(seqres,sequence) && !strcmp(seqchains[0],atomchains[0])) /* FIXME! */
+   if(!strcmp(seqresSequence,atomSequence) && !strcmp(seqresChains[0],atomChains[0])) /* FIXME! */
    {
       for(i=0; i<nAtomChains; i++)
       {
-         strcpy(outchains[i], seqchains[i]);
+         strcpy(outchains[i], seqresChains[i]);
       }
-      return(strdup(sequence));
+      return(strdup(atomSequence));
    }
 
    /* Create a temporary buffer to store a sequence                     */
-   len1 = strlen(seqres);
-   len2 = strlen(sequence);
+   len1 = strlen(seqresSequence);
+   len2 = strlen(atomSequence);
    if((buffer = (char *)malloc((1+MAX(len1, len2))
                                * sizeof(char)))==NULL)
    {
@@ -403,11 +488,11 @@ char *FixSequence(char *seqres, char *sequence, char **seqchains,
    /* See how many chains there are and create arrays of char pointers
       to store the separate chains
    */
-   nchain[0] = blCountchar(seqres,   '*');        /* SEQRES sequence    */
-   if(len1 && seqres[len1-1] != '*')
+   nchain[0] = blCountchar(seqresSequence,   '*');        /* SEQRES sequence    */
+   if(len1 && seqresSequence[len1-1] != '*')
       nchain[0]++;
-   nchain[1] = blCountchar(sequence, '*');        /* ATOM sequence      */
-   if(len2 && sequence[len2-1] != '*')
+   nchain[1] = blCountchar(atomSequence, '*');        /* ATOM sequence      */
+   if(len2 && atomSequence[len2-1] != '*')
       nchain[1]++;
    for(i=0; i<2; i++)
    {
@@ -418,7 +503,7 @@ char *FixSequence(char *seqres, char *sequence, char **seqchains,
    /* Transfer the individual chains into the split arrays              */
    for(i=0; i<2; i++)
    {
-      strcpy(buffer,((i==0)?seqres:sequence));
+      strcpy(buffer,((i==0)?seqresSequence:atomSequence));
       ptr = buffer;
       
       for(j=0; j<nchain[i]; j++)
@@ -434,16 +519,17 @@ char *FixSequence(char *seqres, char *sequence, char **seqchains,
       }
    }
 
+
    /* Now align the sequences of the matching chains                    */
    for(i=0; i<nchain[0]; i++)
    {
       for(j=0; j<nchain[1]; j++)
       {
-         if(CHAINMATCH(seqchains[i], atomchains[j]))
+         if(CHAINMATCH(seqresChains[i], atomChains[j]))
          {
             DoneSEQRES[i] = TRUE;
             DoneATOM[j]   = TRUE;
-            strcpy(outchains[NOutChain++], seqchains[i]);
+            strcpy(outchains[NOutChain++], seqresChains[i]);
             
             if(!strcmp(seqs[0][i], seqs[1][j]))
             {
@@ -460,7 +546,7 @@ char *FixSequence(char *seqres, char *sequence, char **seqchains,
                }
                if(DoInit)
                   outseq[0] = '\0';
-               
+
                strcat(outseq,seqs[0][i]);
                strcat(outseq,"*");
             }
@@ -545,7 +631,7 @@ char *FixSequence(char *seqres, char *sequence, char **seqchains,
          
          strcat(outseq,seqs[1][i]);
          strcat(outseq,"*");
-         strcpy(outchains[NOutChain++], atomchains[i]);
+         strcpy(outchains[NOutChain++], atomChains[i]);
       }
    }
 
@@ -579,13 +665,20 @@ char *FixSequence(char *seqres, char *sequence, char **seqchains,
                outseq[ArraySize-1] = '\0';
             }
 
+            /* 22.05.09 Added this                                      */
+            LOWER(seqs[0][i]);
+            
             strcat(outseq,seqs[0][i]);
             strcat(outseq,"*");
-            strcpy(outchains[NOutChain++], seqchains[i]);
+            strcpy(outchains[NOutChain++], seqresChains[i]);
             
          }
       }
    }
+
+#ifdef DEBUG
+   fprintf(stderr, "\n=================================================\n\n");
+#endif
 
    /*** NEEDS TO FREE seqs[][] too                                    ***/
    free(buffer);         /*  11.06.15                                   */
@@ -611,6 +704,8 @@ char *CombineSequence(char *align1, char *align2, int align_len)
       return(NULL);
 
 #ifdef DEBUG
+   fprintf(stderr,"\n-----------------------------------------------\n");
+   fprintf(stderr,"Alignment:\n");
    align1[align_len] = '\0';
    fprintf(stderr,"%s\n", align1);
    align2[align_len] = '\0';
@@ -626,10 +721,24 @@ char *CombineSequence(char *align1, char *align2, int align_len)
       }
       else
       {
-         outseq[i] = safetoupper(align1[i]);
+#ifdef DEBUG
+         fprintf(stderr, "AL1: %c AL2: %c\n", align1[i], align2[i]);
+#endif
+         if(align2[i] == '-')
+         {
+            outseq[i] = safetolower(align1[i]);
+         }
+         else
+         {
+            outseq[i] = safetoupper(align2[i]);
+         }
       }
    }
    outseq[align_len] = '\0';
+
+#ifdef DEBUG
+   fprintf(stderr, "\n(Sequence now assembled)\n");
+#endif
    
    return(outseq);
 }
@@ -700,8 +809,262 @@ void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres)
 
 
 
-PDB *RepairPDB(PDB *pdb, char *fixedseq)
+void  AppendNewResidue(PDB **ppdbOut, PDB **ppOut,
+                       char restype)
 {
-   return(pdb);
+   PDB *pOut = *ppOut;
+   int resOffset,
+       atomOffset;
+   char prevChain[8];
+
+   for(resOffset=0; gResTypes[resOffset].aa != '\0'; resOffset++)
+   {
+      if(gResTypes[resOffset].aa == restype)
+         break;
+   }
+   
+   for(atomOffset=0; gResTypes[resOffset].atnams[atomOffset][0] != '\0'; atomOffset++)
+   {
+      if(*ppdbOut == NULL)
+      {
+         INIT((*ppdbOut), PDB);
+         pOut = *ppdbOut;
+         strcpy(prevChain, " ");
+      }
+      else
+      {
+         strcpy(prevChain, pOut->chain);
+         ALLOCNEXT(pOut, PDB);
+      }
+         
+      if(pOut == NULL)
+      {
+         FREELIST(*ppdbOut, PDB);
+         *ppdbOut = NULL;
+         *ppOut   = NULL;
+         
+         return;
+      }
+
+      /* Initialize this PDB item  */
+      pOut->x              = 9999.999;
+      pOut->y              = 9999.999;
+      pOut->z              = 9999.999;
+      pOut->occ            = 0.0;
+      pOut->bval           = 99.0;
+      pOut->access         = 0.0;
+      pOut->radius         = 0.0;
+      pOut->partial_charge = 0.0;
+
+      pOut->atnum          = 0;
+      pOut->resnum         = 0;
+      pOut->formal_charge  = 0;
+      pOut->nConect        = 0;
+      pOut->entity_id      = 0;
+      pOut->atomtype       = 0;
+      
+      pOut->element[0]     = gResTypes[resOffset].atnams[atomOffset][0];
+      pOut->element[1]     = '\0';
+      
+      pOut->altpos         = ' ';
+      pOut->secstr         = ' ';
+      
+      strcpy(pOut->record_type, gResTypes[resOffset].hetatm?"HETATM":"ATOM  ");
+      strcpy(pOut->record_type, "INSERT");
+      strcpy(pOut->atnam,       gResTypes[resOffset].atnams[atomOffset]);
+
+      pOut->atnam_raw[0]   = ' ';
+      strcpy(pOut->atnam_raw+1, gResTypes[resOffset].atnams[atomOffset]);
+      pOut->atnam_raw[4]   = '\0';
+      
+      strcpy(pOut->resnam,      gResTypes[resOffset].resnam);
+      strcpy(pOut->insert,      " ");
+      strcpy(pOut->chain,       prevChain);
+      strcpy(pOut->segid,       " ");
+
+   }
+
+   *ppOut = pOut;
 }
+
+
+void AppendThisResidue(PDB **ppdbOut, PDB **ppOut,
+                       PDB *resIn,    PDB *nextResIn)
+{
+   PDB *pOut = *ppOut;
+   PDB *pIn  = NULL;
+   
+   for(pIn = resIn; pIn != nextResIn; NEXT(pIn))
+   {
+      if(*ppdbOut == NULL)
+      {
+         INIT((*ppdbOut), PDB);
+         pOut = *ppdbOut;
+      }
+      else
+      {
+         ALLOCNEXT(pOut, PDB);
+      }
+         
+      if(pOut == NULL)
+      {
+         FREELIST(*ppdbOut, PDB);
+         *ppdbOut = NULL;
+         *ppOut   = NULL;
+         
+         return;
+      }
+
+      blCopyPDB(pOut, pIn);
+   }
+   *ppOut = pOut;
+}
+
+
+void AppendFixedResidue(PDB **ppdbOut, PDB **ppOut,
+                        PDB *resIn,    PDB *nextResIn,
+                        char restype)
+{
+   PDB *pOut = *ppOut;
+   PDB *pIn  = NULL;
+   
+   for(pIn = resIn; pIn != nextResIn; NEXT(pIn))
+   {
+      if(*ppdbOut == NULL)
+      {
+         INIT((*ppdbOut), PDB);
+         pOut = *ppdbOut;
+      }
+      else
+      {
+         ALLOCNEXT(pOut, PDB);
+      }
+         
+      if(pOut == NULL)
+      {
+         FREELIST(*ppdbOut, PDB);
+         *ppdbOut = NULL;
+         *ppOut   = NULL;
+         
+         return;
+      }
+
+      blCopyPDB(pOut, pIn);
+      strcpy(pOut->record_type, "FIXED ");
+      
+   }
+   *ppOut = pOut;
+}
+
+
+void AppendRemainingAtoms(PDB **ppdbOut, PDB **ppOut,
+                          PDB *pdbIn)
+{
+   PDB *pOut = *ppOut;
+   PDB *pIn  = NULL;
+   
+   for(pIn = pdbIn; pIn != NULL; NEXT(pIn))
+   {
+      if(*ppdbOut == NULL)
+      {
+         INIT((*ppdbOut), PDB);
+         pOut = *ppdbOut;
+      }
+      else
+      {
+         ALLOCNEXT(pOut, PDB);
+      }
+         
+      if(pOut == NULL)
+      {
+         FREELIST(*ppdbOut, PDB);
+         *ppdbOut = NULL;
+         *ppOut   = NULL;
+         
+         return;
+      }
+
+      blCopyPDB(pOut, pIn);
+   }
+   *ppOut = pOut;
+}
+
+
+PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
+{
+   PDB  *pdbOut    = NULL,
+        *resIn     = NULL,
+        *pOut      = NULL,
+        *nextResIn = NULL;
+   char *fixedRes  = fixedSequence,
+        pdbRes;
+
+   /* Initialize pointer to PDB residues                                */
+   resIn=pdbIn;
+   
+   /* Step through the fixedSequence                                    */
+   for(fixedRes=fixedSequence; *fixedRes!='\0'; fixedRes++)
+   {
+      /* Skip chain break indications in fixedSequence                  */
+      while(*fixedRes == '*') fixedRes++;
+      /* Catch skipping beyond the final *                              */
+      if(*fixedRes == '\0') break;
+
+      /* Find next residue                                              */
+      nextResIn = blFindNextResidue(resIn);
+
+      /* Find the amino acid type for this residue                      */
+      pdbRes = blThrone(resIn->resnam);
+      if(pdbRes == 'X')
+      {
+         char tmpthree[8];
+         blFindOriginalResType(resIn->resnam, tmpthree, modres);
+         pdbRes = blThrone(tmpthree);
+      }
+
+      /* If the residue is in lower case, it's an insertion
+      */
+      if(islower(*fixedRes))
+      {
+#ifdef DEBUG
+         fprintf(stderr,"INSERT: PDB %c, SEQ %c\n",
+                 pdbRes, *fixedRes);
+#endif
+         AppendNewResidue(&pdbOut, &pOut, toupper(*fixedRes));
+         if(pdbOut == NULL)
+            return(NULL);
+      }
+      else
+      {
+         /* If they match, append this residue */
+         if(pdbRes == *fixedRes)
+         {
+#if (DEBUG > 1)
+         fprintf(stderr,"APPEND: PDB %c, SEQ %c\n",
+                 pdbRes, *fixedRes);
+#endif
+            AppendThisResidue(&pdbOut, &pOut, resIn, nextResIn);
+         }
+         else
+         {
+#ifdef DEBUG
+            fprintf(stderr,"FIXING: PDB %c, SEQ %c\n",
+                    pdbRes, *fixedRes);
+#endif
+            AppendFixedResidue(&pdbOut, &pOut, resIn, nextResIn,
+                               toupper(*fixedRes));
+         }
+         if(pdbOut == NULL)
+            return(NULL);
+
+         /* Move on to the next PDB residue */
+         resIn = nextResIn;
+      }
+   }
+
+   AppendRemainingAtoms(&pdbOut, &pOut, resIn);
+   
+   return(pdbOut);
+}
+
 
