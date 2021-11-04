@@ -1193,12 +1193,12 @@ void blRenumResiduesPDB(PDB *pdb, int offset)
 }
 
 
-STRINGLIST *blCreateSEQRES(PDB *pdb)
+STRINGLIST *OLDblCreateSEQRES(PDB *pdb)
 {
    HASHTABLE  *seqByChain = NULL;
    char       **chains    = NULL;
-   STRINGLIST *seqres     = NULL;
    int        nChains     = 0;
+   
    
    if((seqByChain = blPDB2SeqXByChain(pdb))!=NULL)
    {
@@ -1238,6 +1238,74 @@ STRINGLIST *blCreateSEQRES(PDB *pdb)
                   LFPrinted = FALSE;
                }
                fprintf(stderr, "\n");
+            }
+         }
+      }
+   }
+   
+   if(seqByChain != NULL)
+      blFreeHash(seqByChain);
+
+   return(NULL);
+}
+
+STRINGLIST *blCreateSEQRES(PDB *pdb)
+{
+   HASHTABLE  *seqByChain = NULL;
+   STRINGLIST *seqres     = NULL;
+   char       **chains    = NULL,
+              buffer[MAXBUFF],
+              aa[8];
+   int        nChains     = 0;
+   
+   if((seqByChain = blPDB2SeqXByChain(pdb))!=NULL)
+   {
+      if((chains = blGetPDBChainLabels(pdb, &nChains))==NULL)
+      {
+         return(NULL);
+      }
+      else
+      {
+         int i;
+         
+         for(i=0; i<nChains; i++)
+         {
+            int  chainLen;
+            int  lineNum   = 1;
+            int  resNum    = 0;
+            char *sequence = NULL;
+            BOOL LFPrinted = 1;
+
+            sequence = blGetHashValueString(seqByChain, chains[i]);
+            if(sequence != NULL)
+            {
+               chainLen = strlen(sequence);
+               for(resNum=0; resNum<chainLen; resNum++)
+               {
+                  if(!(resNum%13))
+                  {
+                     if(!LFPrinted)
+                     {
+                        strcat(buffer, "\n");
+                        seqres = blStoreString(seqres, buffer);
+                        LFPrinted = TRUE;
+                     }
+                     
+                     sprintf(buffer, "SEQRES%4d %c%5d  ",
+                             lineNum++,
+                             chains[i][0],
+                             chainLen);
+                  }
+                  sprintf(aa, "%-4s", blOnethr(sequence[resNum]));
+                  strcat(buffer, aa);
+                  LFPrinted = FALSE;
+               }
+               if(!LFPrinted)
+               {
+                  strcat(buffer, "\n");
+                  seqres = blStoreString(seqres, buffer);
+                  LFPrinted = TRUE;
+               }
             }
          }
       }
