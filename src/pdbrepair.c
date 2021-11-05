@@ -4,8 +4,6 @@
 
 TODO:
 
-Code to rewrite SEQRES based on coordinates.
-
 Implement the fix sequence code by calling routines from mutmodel
 
 Need to fill in missing atoms
@@ -171,7 +169,8 @@ char *TrimSequence(char *sequence);
 char *strdup(const char *s);
 STRINGLIST *blCreateSEQRES(PDB *pdb);
 void blRenumResiduesPDB(PDB *pdb, int offset);
-
+void blReplacePDBHeader(WHOLEPDB *wpdb, char *recordType,
+                        STRINGLIST *replacement);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -204,16 +203,17 @@ int main(int argc, char **argv)
          }
          else
          {
-            PDB  *fixedPDB,
-                 *pdb;
-            MODRES *modres = NULL;
-            char *seqresSequence = NULL,
-               *atomSequence = NULL,
-               *fixedSequence = NULL,
-               **seqresChains = NULL,
-               **outchains = NULL,
-               **atomChains = NULL;
-            int nAtomChains, len1;
+            PDB        *fixedPDB,
+                       *pdb;
+            MODRES     *modres         = NULL;
+            char       *seqresSequence = NULL,
+                       *atomSequence   = NULL,
+                       *fixedSequence  = NULL,
+                       **seqresChains  = NULL,
+                       **outchains     = NULL,
+                       **atomChains    = NULL;
+            int        nAtomChains,
+                       len1;
             
             pdb = wpdb->pdb;
             
@@ -300,8 +300,15 @@ data\n");
             
             fixedPDB = RepairPDB(pdb, fixedSequence, modres);
             wpdb->pdb = fixedPDB;
+            if(trimSequences)
+            {
+               STRINGLIST *seqres         = NULL;
+               seqres = blCreateSEQRES(fixedPDB);
+               blReplacePDBHeader(wpdb, "SEQRES", seqres);
+            }
+            
             blWriteWholePDB(out, wpdb);
-            blCreateSEQRES(fixedPDB);
+            
          }
       }
       else
@@ -1193,62 +1200,6 @@ void blRenumResiduesPDB(PDB *pdb, int offset)
 }
 
 
-STRINGLIST *OLDblCreateSEQRES(PDB *pdb)
-{
-   HASHTABLE  *seqByChain = NULL;
-   char       **chains    = NULL;
-   int        nChains     = 0;
-   
-   
-   if((seqByChain = blPDB2SeqXByChain(pdb))!=NULL)
-   {
-      if((chains = blGetPDBChainLabels(pdb, &nChains))==NULL)
-      {
-         return(NULL);
-      }
-      else
-      {
-         int i;
-         
-         for(i=0; i<nChains; i++)
-         {
-            int  chainLen;
-            int  lineNum   = 1;
-            int  resNum    = 0;
-            char *sequence = NULL;
-            BOOL LFPrinted = 1;
-
-            sequence = blGetHashValueString(seqByChain, chains[i]);
-            if(sequence != NULL)
-            {
-               chainLen = strlen(sequence);
-               for(resNum=0; resNum<chainLen; resNum++)
-               {
-                  if(!(resNum%13))
-                  {
-                     if(!LFPrinted)
-                        fprintf(stderr, "\n");
-
-                     fprintf(stderr, "SEQRES%4d %c%5d  ",
-                             lineNum++,
-                             chains[i][0],
-                             chainLen);
-                  }
-                  fprintf(stderr, "%-4s", blOnethr(sequence[resNum]));
-                  LFPrinted = FALSE;
-               }
-               fprintf(stderr, "\n");
-            }
-         }
-      }
-   }
-   
-   if(seqByChain != NULL)
-      blFreeHash(seqByChain);
-
-   return(NULL);
-}
-
 STRINGLIST *blCreateSEQRES(PDB *pdb)
 {
    HASHTABLE  *seqByChain = NULL;
@@ -1270,11 +1221,11 @@ STRINGLIST *blCreateSEQRES(PDB *pdb)
          
          for(i=0; i<nChains; i++)
          {
-            int  chainLen;
-            int  lineNum   = 1;
-            int  resNum    = 0;
+            int  chainLen,
+                 lineNum   = 1,
+                 resNum    = 0;
             char *sequence = NULL;
-            BOOL LFPrinted = 1;
+            BOOL Stored    = TRUE;
 
             sequence = blGetHashValueString(seqByChain, chains[i]);
             if(sequence != NULL)
@@ -1284,11 +1235,11 @@ STRINGLIST *blCreateSEQRES(PDB *pdb)
                {
                   if(!(resNum%13))
                   {
-                     if(!LFPrinted)
+                     if(!Stored)
                      {
                         strcat(buffer, "\n");
                         seqres = blStoreString(seqres, buffer);
-                        LFPrinted = TRUE;
+                        Stored = TRUE;
                      }
                      
                      sprintf(buffer, "SEQRES%4d %c%5d  ",
@@ -1298,13 +1249,13 @@ STRINGLIST *blCreateSEQRES(PDB *pdb)
                   }
                   sprintf(aa, "%-4s", blOnethr(sequence[resNum]));
                   strcat(buffer, aa);
-                  LFPrinted = FALSE;
+                  Stored = FALSE;
                }
-               if(!LFPrinted)
+               if(!Stored)
                {
                   strcat(buffer, "\n");
                   seqres = blStoreString(seqres, buffer);
-                  LFPrinted = TRUE;
+                  Stored = TRUE;
                }
             }
          }
@@ -1315,5 +1266,79 @@ STRINGLIST *blCreateSEQRES(PDB *pdb)
       blFreeHash(seqByChain);
    
    return(seqres);
+}
+
+void blReplacePDBHeader(WHOLEPDB *wpdb, char *recordType,
+                        STRINGLIST *replacement)
+{
+   STRINGLIST *s,
+              *previousRecord = NULL,
+              *firstRecord = NULL,
+              *prev = NULL,
+              *next = NULL,
+              *nextRecord = NULL;
+   BOOL       gotHeader = FALSE;
+
+   /* Find the records before and after the type we are looking for     */
+   for(s=wpdb->header; s!=NULL; NEXT(s))
+   {
+      if(!strncmp(s->string, recordType, 6))
+      {
+         if(!gotHeader)
+         {
+            /* This is the first record of the header type we are
+               looking for
+            */
+            firstRecord    = s;
+            previousRecord = prev;
+            gotHeader      = TRUE;
+         }
+      }
+      else if(gotHeader)
+      {
+         /* This is the first record after the geader type we are
+            looking for
+         */
+         nextRecord = s;
+         break;
+      }
+      prev = s;
+   }
+
+   /* Free the ones we don't need                                       */
+   for(s=firstRecord; s!=nextRecord; s=next)
+   {
+      next = s->next;
+      FREE(s->string);
+      FREE(s);
+   }
+
+   /* Patch in the replacement                                          */
+   if(replacement != NULL)
+   {
+      if(previousRecord == NULL)
+      {
+         wpdb->header = replacement;
+      }
+      else
+      {
+         previousRecord->next = replacement;
+      }
+      
+      s=replacement;
+      LAST(s);
+      s->next = nextRecord;
+   }
+   else
+   {
+      if(previousRecord == NULL)
+      {
+         wpdb->header = nextRecord;
+      }
+      else
+      {
+         previousRecord->next = nextRecord;
+      }
+   }
 }
 
