@@ -66,7 +66,6 @@ residues rather than SEQRES
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-/* #include <ctype.h> */
 #include "bioplib/macros.h"
 #include "bioplib/SysDefs.h"
 #include "bioplib/MathType.h"
@@ -83,6 +82,7 @@ residues rather than SEQRES
 #define GAPPEN    2
 #define safetoupper(x) ((islower(x))?toupper(x):(x))
 #define safetolower(x) ((isupper(x))?tolower(x):(x))
+#define CONECT_TOL 0.2
 
 typedef struct _restype
 {
@@ -145,7 +145,8 @@ int  main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   BOOL *trimSeqs);
 void Usage(void);
-PDB *RepairPDB(PDB *pdb, char *fixedSequence, MODRES *modres);
+PDB *RepairPDB(PDB *pdb, char *fixedSequence, MODRES *modres,
+               BOOL *repaired);
 int GetPDBChains(PDB *pdb, char *chains);
 char *FixSequence(char *seqresSequence, char *atomSequence,
                   char **seqresChains, char **atomChains,
@@ -158,8 +159,8 @@ void AppendNewResidue(PDB **ppdbOut, PDB **ppOut,
 void AppendFixedResidue(PDB **ppdbOut, PDB **ppOut,
                         PDB *resIn,    PDB *nextResIn,
                         char restype);
-BOOL AppendRemainingAtoms(PDB **ppdbOut, PDB **ppOut,
-                          PDB *pdbIn);
+BOOL AppendRemainingAtomRecords(PDB **ppdbOut, PDB **ppOut,
+                                PDB *pdbIn);
 char *TrimSequence(char *sequence);
 
 
@@ -213,6 +214,7 @@ int main(int argc, char **argv)
                        **atomChains    = NULL;
             int        nAtomChains,
                        len1;
+            BOOL       repaired        = FALSE;
             
             pdb = wpdb->pdb;
             
@@ -297,7 +299,7 @@ data\n");
 #endif
             }
             
-            fixedPDB = RepairPDB(pdb, fixedSequence, modres);
+            fixedPDB = RepairPDB(pdb, fixedSequence, modres, &repaired);
             wpdb->pdb = fixedPDB;
             if(trimSequences)
             {
@@ -305,6 +307,9 @@ data\n");
                seqres = blCreateSEQRES(fixedPDB);
                blReplacePDBHeader(wpdb, "SEQRES", seqres);
             }
+
+            if(repaired)
+               blBuildConectData(wpdb->pdb, CONECT_TOL);
             
             blWriteWholePDB(out, wpdb);
          }
@@ -798,12 +803,13 @@ char *CombineSequence(char *align1, char *align2, int align_len)
 
 
 /************************************************************************/
-void  AppendNewResidue(PDB **ppdbOut, PDB **ppOut, char restype)
+void AppendNewResidue(PDB **ppdbOut, PDB **ppOut, char restype)
 {
-   PDB *pOut = *ppOut;
-   int resOffset,
-       atomOffset;
+   PDB  *pOut = *ppOut;
+   int  resOffset,
+        atomOffset;
    char prevChain[8];
+   static int newResnum = -1;
 
    for(resOffset=0; gResTypes[resOffset].aa != '\0'; resOffset++)
    {
@@ -847,7 +853,7 @@ void  AppendNewResidue(PDB **ppdbOut, PDB **ppOut, char restype)
       pOut->partial_charge = 0.0;
 
       pOut->atnum          = 0;
-      pOut->resnum         = 0;
+      pOut->resnum         = newResnum;
       pOut->formal_charge  = 0;
       pOut->nConect        = 0;
       pOut->entity_id      = 0;
@@ -877,6 +883,7 @@ void  AppendNewResidue(PDB **ppdbOut, PDB **ppOut, char restype)
       strcpy(pOut->segid,       " ");
 
    }
+   newResnum--;
 
    *ppOut = pOut;
 }
@@ -917,6 +924,8 @@ void AppendThisResidue(PDB **ppdbOut, PDB **ppOut,
 
 
 /************************************************************************/
+/* Just behaves the same as AppendThisResidue
+ */
 void AppendFixedResidue(PDB **ppdbOut, PDB **ppOut,
                         PDB *resIn,    PDB *nextResIn,
                         char restype)
@@ -946,7 +955,9 @@ void AppendFixedResidue(PDB **ppdbOut, PDB **ppOut,
       }
 
       blCopyPDB(pOut, pIn);
+#ifdef DEBUG
       strcpy(pOut->record_type, "FIXED ");
+#endif
       
    }
    *ppOut = pOut;
@@ -954,7 +965,7 @@ void AppendFixedResidue(PDB **ppdbOut, PDB **ppOut,
 
 
 /************************************************************************/
-BOOL AppendRemainingAtoms(PDB **ppdbOut, PDB **ppOut, PDB *pdbIn)
+BOOL AppendRemainingAtomRecords(PDB **ppdbOut, PDB **ppOut, PDB *pdbIn)
 {
    PDB  *pOut = *ppOut,
         *pIn  = NULL;
@@ -991,7 +1002,8 @@ BOOL AppendRemainingAtoms(PDB **ppdbOut, PDB **ppOut, PDB *pdbIn)
 
 
 /************************************************************************/
-PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
+PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres,
+               BOOL *repaired)
 {
    PDB  *pdbOut    = NULL,
         *resIn     = NULL,
@@ -999,7 +1011,9 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
         *nextResIn = NULL;
    char *fixedRes  = fixedSequence,
         pdbRes;
-   BOOL repaired   = FALSE;
+
+   /* Assume nothing was done                                           */
+   *repaired = FALSE;
 
    /* Initialize pointer to PDB residues                                */
    resIn=pdbIn;
@@ -1034,7 +1048,7 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
          AppendNewResidue(&pdbOut, &pOut, toupper(*fixedRes));
          if(pdbOut == NULL)
             return(NULL);
-         repaired = TRUE;
+         *repaired = TRUE;
       }
       else
       {
@@ -1046,7 +1060,7 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
                  pdbRes, *fixedRes);
 #endif
             AppendThisResidue(&pdbOut, &pOut, resIn, nextResIn);
-            repaired = TRUE;
+            *repaired = TRUE;
          }
          else
          {
@@ -1056,7 +1070,7 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
 #endif
             AppendFixedResidue(&pdbOut, &pOut, resIn, nextResIn,
                                toupper(*fixedRes));
-            repaired = TRUE;
+            *repaired = TRUE;
          }
          if(pdbOut == NULL)
             return(NULL);
@@ -1066,13 +1080,13 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
       }
    }
 
-   if(AppendRemainingAtoms(&pdbOut, &pOut, resIn))
-      repaired = TRUE;
+   if(AppendRemainingAtomRecords(&pdbOut, &pOut, resIn))
+      *repaired = TRUE;
       
-   if(repaired)
+   if(*repaired)
    {
-      blRenumAtomsPDB(pdbOut, 0);
-      blRenumResiduesPDB(pdbOut, 0);
+      blRenumAtomsPDB(pdbOut,    1);
+      blRenumResiduesPDB(pdbOut, 1);
    }
    
    return(pdbOut);
@@ -1127,19 +1141,34 @@ char *TrimSequence(char *inSeq)
 /************************************************************************/
 void blRenumResiduesPDB(PDB *pdb, int offset)
 {
-   PDB *p;
-   int  resnum=0;
+   PDB *p,
+       *prev      = pdb;
+   int resnum     = offset,
+       prevResnum = pdb->resnum;
    
    for(p=pdb; p!=NULL; NEXT(p))
    {
-      if(!strncmp(p->atnam, "N   ", 4))
+      if(!CHAINMATCH(p->chain, prev->chain))
+      {
+         resnum = offset;
+      }
+      else if((p->resnum != prevResnum) ||
+              !INSERTMATCH(p->insert, prev->insert)
+             )
       {
          resnum++;
       }
-         
-      p->resnum = resnum;
-      strcpy(p->insert, " ");
+
+      prevResnum = p->resnum;
+      prev       = p;
+      p->resnum  = resnum;
    }
+   for(p=pdb; p!=NULL; NEXT(p))
+   {
+      p->insert[0] = ' ';
+      p->insert[1] = '\0';
+   }
+   
 }
 
 
