@@ -151,7 +151,6 @@ char *FixSequence(char *seqresSequence, char *atomSequence,
                   char **seqresChains, char **atomChains,
                   char **outchains, BOOL IgnoreSEQRES, int nAtomChains);
 char *CombineSequence(char *align1, char *align2, int align_len);
-void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres);
 void AppendThisResidue(PDB **ppdbOut, PDB **ppOut,
                        PDB *resIn,    PDB *nextResIn);
 void AppendNewResidue(PDB **ppdbOut, PDB **ppOut,
@@ -177,7 +176,7 @@ void blReplacePDBHeader(WHOLEPDB *wpdb, char *recordType,
    -------------------------------
 *//**
 
-   Main program for counting residues & atoms
+   Main program for filling in missing records 
 
 -  29.10.21 Original    By: ACRM
 */
@@ -308,7 +307,6 @@ data\n");
             }
             
             blWriteWholePDB(out, wpdb);
-            
          }
       }
       else
@@ -518,7 +516,8 @@ char *FixSequence(char *seqresSequence, char *atomSequence,
    /* If the sequences and chains are identical just copy one of them
       and return
    */
-   if(!strcmp(seqresSequence,atomSequence) && !strcmp(seqresChains[0],atomChains[0])) /* FIXME! */
+   if(!strcmp(seqresSequence,atomSequence) &&
+      !strcmp(seqresChains[0],atomChains[0])) /* FIXME! */
    {
       for(i=0; i<nAtomChains; i++)
       {
@@ -799,68 +798,6 @@ char *CombineSequence(char *align1, char *align2, int align_len)
 
 
 /************************************************************************/
-/*>void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres)
-   --------------------------------------------------------
-*//**
-
-   \param[in]      *out       File to which to send output
-   \param[in]      *pdb       PDB linked list
-   \param[in]      *modres    MODRES linked list
-
-   Simply works through the PDB linked list printing lines of the form
-   ># pos c.nnni aa
-   where pos is the position in the sequence (all chains numbered through
-   sequentially), c.nnni is the chain/resnum/insert code and aa is the
-   1-letter amino acid code.
-
--  08.03.01 Original   By: ACRM
--  07.03.07 Added modres stuff
--  22.07.14 Renamed deprecated functions with bl prefix. By: CTP
--  10.03.15 Updated for multicharacter and numeric chain labels By: ACRM
--  11.06.15 Changed to blFindOriginalResType()
-*/
-void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres)
-{
-   PDB  *p;
-   int  pos = 0;
-   int  lastresnum = -999999;
-   char lastchain[8],
-        lastinsert = ' ',
-        resid[16],
-        one;
-   
-   lastchain[0] = '\0';
-   
-   for(p=pdb; p!=NULL; NEXT(p))
-   {
-      if((p->resnum    != lastresnum) ||
-         (p->insert[0] != lastinsert) ||
-         !CHAINMATCH(p->chain, lastchain))
-      {
-         pos++;
-         lastresnum = p->resnum;
-         strcpy(lastchain, p->chain);
-         lastinsert = p->insert[0];
-         
-         sprintf(resid,"%s.%d%c", p->chain, p->resnum, p->insert[0]);
-         one = blThrone(p->resnam);
-
-         /* 07.03.07 Added code to check for modified amino acids       */
-         if(one == 'X')
-         {
-            char tmpthree[8];
-            blFindOriginalResType(p->resnam, tmpthree, modres);
-            one = blThrone(tmpthree);
-         }
-               
-         fprintf(out, "># %d %s %c\n", pos, resid, one);
-      }
-   }
-}
-
-
-
-
 void  AppendNewResidue(PDB **ppdbOut, PDB **ppOut, char restype)
 {
    PDB *pOut = *ppOut;
@@ -945,6 +882,7 @@ void  AppendNewResidue(PDB **ppdbOut, PDB **ppOut, char restype)
 }
 
 
+/************************************************************************/
 void AppendThisResidue(PDB **ppdbOut, PDB **ppOut,
                        PDB *resIn,    PDB *nextResIn)
 {
@@ -978,6 +916,7 @@ void AppendThisResidue(PDB **ppdbOut, PDB **ppOut,
 }
 
 
+/************************************************************************/
 void AppendFixedResidue(PDB **ppdbOut, PDB **ppOut,
                         PDB *resIn,    PDB *nextResIn,
                         char restype)
@@ -1014,6 +953,7 @@ void AppendFixedResidue(PDB **ppdbOut, PDB **ppOut,
 }
 
 
+/************************************************************************/
 BOOL AppendRemainingAtoms(PDB **ppdbOut, PDB **ppOut, PDB *pdbIn)
 {
    PDB  *pOut = *ppOut,
@@ -1050,6 +990,7 @@ BOOL AppendRemainingAtoms(PDB **ppdbOut, PDB **ppOut, PDB *pdbIn)
 }
 
 
+/************************************************************************/
 PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
 {
    PDB  *pdbOut    = NULL,
@@ -1138,6 +1079,7 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres)
 }
 
 
+/************************************************************************/
 char *TrimSequence(char *inSeq)
 {
    char *startPtr,
@@ -1182,6 +1124,7 @@ char *TrimSequence(char *inSeq)
    return(outSeq);
 }
 
+/************************************************************************/
 void blRenumResiduesPDB(PDB *pdb, int offset)
 {
    PDB *p;
@@ -1200,14 +1143,15 @@ void blRenumResiduesPDB(PDB *pdb, int offset)
 }
 
 
+/************************************************************************/
 STRINGLIST *blCreateSEQRES(PDB *pdb)
 {
    HASHTABLE  *seqByChain = NULL;
    STRINGLIST *seqres     = NULL;
+   int        nChains     = 0;
    char       **chains    = NULL,
               buffer[MAXBUFF],
               aa[8];
-   int        nChains     = 0;
    
    if((seqByChain = blPDB2SeqXByChain(pdb))!=NULL)
    {
@@ -1268,16 +1212,17 @@ STRINGLIST *blCreateSEQRES(PDB *pdb)
    return(seqres);
 }
 
+/************************************************************************/
 void blReplacePDBHeader(WHOLEPDB *wpdb, char *recordType,
                         STRINGLIST *replacement)
 {
    STRINGLIST *s,
               *previousRecord = NULL,
-              *firstRecord = NULL,
-              *prev = NULL,
-              *next = NULL,
-              *nextRecord = NULL;
-   BOOL       gotHeader = FALSE;
+              *firstRecord    = NULL,
+              *prev           = NULL,
+              *next           = NULL,
+              *nextRecord     = NULL;
+   BOOL       gotHeader       = FALSE;
 
    /* Find the records before and after the type we are looking for     */
    for(s=wpdb->header; s!=NULL; NEXT(s))
@@ -1305,6 +1250,10 @@ void blReplacePDBHeader(WHOLEPDB *wpdb, char *recordType,
       prev = s;
    }
 
+   /* Return if we didn't find the relevant header                      */
+   if(!gotHeader)
+      return;
+
    /* Free the ones we don't need                                       */
    for(s=firstRecord; s!=nextRecord; s=next)
    {
@@ -1329,7 +1278,7 @@ void blReplacePDBHeader(WHOLEPDB *wpdb, char *recordType,
       LAST(s);
       s->next = nextRecord;
    }
-   else
+   else  /* No replacement: just link the record before to the one after*/
    {
       if(previousRecord == NULL)
       {
