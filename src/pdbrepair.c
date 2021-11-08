@@ -1026,11 +1026,19 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres,
       /* Catch skipping beyond the final *                              */
       if(*fixedRes == '\0') break;
 
-      /* Find next residue                                              */
-      nextResIn = blFindNextResidue(resIn);
+      if(resIn!=NULL)
+      {
+         /* Find next residue                                           */
+         nextResIn = blFindNextResidue(resIn);
 
-      /* Find the amino acid type for this residue                      */
-      pdbRes = blThrone(resIn->resnam);
+         /* Find the amino acid type for this residue                   */
+         pdbRes = blThrone(resIn->resnam);
+      }
+      else
+      {
+         pdbRes = '-';
+      }
+      
       if(pdbRes == 'X')
       {
          char tmpthree[8];
@@ -1056,11 +1064,10 @@ PDB *RepairPDB(PDB *pdbIn, char *fixedSequence, MODRES *modres,
          if(pdbRes == *fixedRes)
          {
 #if (DEBUG > 2)
-         fprintf(stderr,"APPEND: PDB %c, SEQ %c\n",
-                 pdbRes, *fixedRes);
+            fprintf(stderr,"APPEND: PDB %c, SEQ %c\n",
+                    pdbRes, *fixedRes);
 #endif
             AppendThisResidue(&pdbOut, &pOut, resIn, nextResIn);
-            *repaired = TRUE;
          }
          else
          {
