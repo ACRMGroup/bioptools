@@ -91,7 +91,7 @@
 #include "bioplib/macros.h"
 #include "bioplib/general.h"
 #include "bioplib/array.h"
-
+#include "bioplibnew.h"
 
 /************************************************************************/
 /* Defines
@@ -118,10 +118,6 @@ char gLabel[blMAXPIRLABEL];
 */
 int  main(int argc, char **argv);
 void Usage(void);
-char *FixSequence(char *seqres,    char *sequence, 
-                  char **seqchains, char **atomchains,
-                  char **outchains, BOOL IgnoreSEQRES,
-                  int nAtomChains);
 char *CombineSequence(char *align1, char *align2, int align_len);
 int GetPDBChains(PDB *pdb, char *chains);
 void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres);
@@ -370,9 +366,10 @@ int main(int argc, char **argv)
       /* Fiddle with sequences to combine information from SEQRES and ATOM
          records
       */
-      if((fixedsequence = FixSequence(seqres,sequence,seqchains,
-                                      atomchains,outchains,IgnoreSEQRES,
-                                      nAtomChains))
+      if((fixedsequence = blFixSequence(seqres,sequence,seqchains,
+                                        atomchains,outchains,IgnoreSEQRES,
+                                        nAtomChains, gUpper, gQuiet,
+                                        gLabel))
          ==NULL)
          return(1);
 
@@ -802,49 +799,7 @@ not found in ATOM records%s%s\n",
 }
 
 
-/************************************************************************/
-/*>char *CombineSequence(char *align1, char *align2, int align_len)
-   ----------------------------------------------------------------
-*//**
 
-   Combine the information from the two sequences
-
--  22.08.97 Original   By: ACRM
-*/
-char *CombineSequence(char *align1, char *align2, int align_len)
-{
-   static char *outseq = NULL;
-   int         i;
-
-   if((outseq=(char *)malloc((align_len+1) + sizeof(char)))==NULL)
-      return(NULL);
-
-#ifdef DEBUG
-   align1[align_len] = '\0';
-   fprintf(stderr,"%s\n", align1);
-   align2[align_len] = '\0';
-   fprintf(stderr,"%s\n", align2);
-#endif
-   
-   
-   for(i=0; i<align_len; i++)
-   {
-      if((align1[i] == align2[i]) || (align1[i] == '-'))
-      {
-         outseq[i] = safetoupper(align2[i]);
-      }
-      else
-      {
-         if(gUpper)
-            outseq[i] = safetoupper(align1[i]);
-         else
-            outseq[i] = safetolower(align1[i]);
-      }
-   }
-   outseq[align_len] = '\0';
-   
-   return(outseq);
-}
 
 
 
