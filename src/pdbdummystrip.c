@@ -3,12 +3,12 @@
 
    \file       pdbdummystrip.c
    
-   \version    V1.3
-   \date       13.02.15
+   \version    V1.4
+   \date       09.11.21
    \brief      Strips atoms with NULL coordinates
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1996-2015
-   \author     Dr. Andrew C. R. Martin
+   \copyright  (c) Prof. Andrew C. R. Martin 1996-2021
+   \author     Prof. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -52,6 +52,7 @@
 -  V1.2  06.11.14 Renamed from nullstrip. This replaces an older program
                   called pdbstrip.   By: ACRM
 -  V1.3  13.02.15 Added whole PDB support
+-  V1.4  09.11.21 Now checks for >= 9999.0 instead of ==
 
 *************************************************************************/
 /* Includes
@@ -191,6 +192,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
    Strip NULL coordinate atoms from a PDB linked list
 
 -  13.11.96 Original   By: ACRM
+-  09.11.21 CHanged from == to >= 9999.0
 */
 PDB *StripNulls(PDB *pdb)
 {
@@ -199,9 +201,9 @@ PDB *StripNulls(PDB *pdb)
    /* Remove from start                                                 */
    for(p=pdb; p!=NULL;)
    {
-      if((p->x == (REAL)9999.0) &&
-         (p->y == (REAL)9999.0) &&
-         (p->z == (REAL)9999.0))
+      if((p->x >= (REAL)9999.0) &&
+         (p->y >= (REAL)9999.0) &&
+         (p->z >= (REAL)9999.0))
       {
          pdb = p->next;
          free(p);
@@ -217,9 +219,9 @@ PDB *StripNulls(PDB *pdb)
    prev = pdb;
    for(p=pdb; p!=NULL; NEXT(p))
    {
-      if((p->x == (REAL)9999.0) &&
-         (p->y == (REAL)9999.0) &&
-         (p->z == (REAL)9999.0))
+      if((p->x >= (REAL)9999.0) &&
+         (p->y >= (REAL)9999.0) &&
+         (p->z >= (REAL)9999.0))
       {
          prev->next = p->next;
          free(p);
@@ -241,16 +243,16 @@ PDB *StripNulls(PDB *pdb)
 -  13.11.96 Original    By: ACRM
 -  22.07.14 V1.1 By: CTP
 -  06.11.14 V1.2 By: ACRM
--  13.02.15 V1.3 By: ACRM
+-  13.02.15 V1.4 By: ACRM
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbdummystrip V1.3 (c) 1996-2015, Dr. Andrew C.R. \
-Martin, UCL\n");
+   fprintf(stderr,"\npdbdummystrip V1.4 (c) 1996-2021, Prof. Andrew \
+C.R. Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: pdbdummystrip [in.pdb [out.pdb]]\n");
 
    fprintf(stderr,"\nRemoves atoms from a PDB file which have NULL \
 coordinates (i.e.\n");
-   fprintf(stderr,"x = y = z = 9999.0)\n");
+   fprintf(stderr,"x,y,z >= 9999.0)\n");
 }
