@@ -119,7 +119,6 @@ char gLabel[blMAXPIRLABEL];
 int  main(int argc, char **argv);
 void Usage(void);
 void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres);
-char *strdup(const char *s);
 
 
 /************************************************************************/
