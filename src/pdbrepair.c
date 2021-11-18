@@ -1,7 +1,5 @@
 /************************************************************************/
 /**
-
-
 TODO:
 
 Implement the fix sequence code by calling routines from mutmodel
@@ -73,7 +71,6 @@ residues rather than SEQRES
 #include "bioplib/seq.h"
 #include "bioplib/general.h"
 #include "bioplib/array.h"
-#include "bioplibnew.h"
 
 /************************************************************************/
 /* Defines and macros

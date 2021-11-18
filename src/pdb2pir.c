@@ -91,7 +91,6 @@
 #include "bioplib/macros.h"
 #include "bioplib/general.h"
 #include "bioplib/array.h"
-#include "bioplibnew.h"
 
 /************************************************************************/
 /* Defines
