@@ -6,23 +6,31 @@ GUNZIP = -DGUNZIP_SUPPORT
 CC     = cc
 COPT   = -O3 $(XML) $(GUNZIP)
 LIBS   = $(XMLLIB) -lm
-LFILES = bioplib/BuildConect.o     \
-         bioplib/FreeStringList.o  \
-         bioplib/padterm.o         \
-         bioplib/chindex.o         \
-         bioplib/fsscanf.o         \
-         bioplib/ReadPDB.o         \
-         bioplib/WritePDB.o        \
-         bioplib/IndexPDB.o        \
-         bioplib/OpenStdFiles.o    \
-         bioplib/FindResidue.o     \
-         bioplib/FindNextResidue.o \
-         bioplib/StoreString.o     \
-         bioplib/filename.o        \
-         bioplib/GetWord.o         \
-         bioplib/array2.o 	   \
-         bioplib/throne.o 	   \
-	 bioplib/ParseRes.o        \
+LFILES = bioplib/BuildConect.o       \
+         bioplib/FreeStringList.o    \
+         bioplib/padterm.o           \
+         bioplib/chindex.o           \
+         bioplib/fsscanf.o           \
+         bioplib/ReadPDB.o           \
+         bioplib/WritePDB.o          \
+         bioplib/IndexPDB.o          \
+         bioplib/OpenStdFiles.o      \
+         bioplib/FindResidue.o       \
+         bioplib/FindNextResidue.o   \
+         bioplib/StoreString.o       \
+         bioplib/filename.o          \
+         bioplib/GetWord.o           \
+         bioplib/array2.o 	     \
+         bioplib/throne.o 	     \
+	 bioplib/ParseRes.o          \
+	 bioplib/PDBHeaderInfo.o     \
+	 bioplib/PDB2Seq.o           \
+	 bioplib/GetPDBChainLabels.o \
+	 bioplib/hash.o              \
+	 bioplib/stringcat.o         \
+	 bioplib/strcatalloc.o       \
+	 bioplib/stringutil.o        \
+	 bioplib/prime.o             \
 	 bioplib/KillPDB.o
 
 

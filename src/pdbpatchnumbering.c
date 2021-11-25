@@ -3,8 +3,8 @@
 
    \file       pdbpatchnumbering.c
    
-   \version    V1.12
-   \date       14.09.21
+   \version    V1.13
+   \date       25.11.21
    \brief      Patch the numbering of a PDB file from a file of numbers
                and sequence (as created by KabatSeq, etc)
    
@@ -70,6 +70,8 @@
 -  V1.12 14.09.21 Checks the start of the patch sequence is actually
                   found to give a more sensible error message and 
                   increased max number of residues skipped to 50
+-  V1.13 25.11.21 Added check on MODRES when checking that patch file 
+                  matches the ATOM sequence
 
 *************************************************************************/
 /* Includes
@@ -114,7 +116,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   char *patchfile);
 PATCH *ReadPatchFile(FILE *fp);
 void Usage(void);
-BOOL ApplyPatches(PDB **pPDB, PATCH *patches);
+BOOL ApplyPatches(PDB **pPDB, PATCH *patches, MODRES *modres);
 BOOL SeqMatch(PDB *pdb, PATCH *patchseq, int nRes);
 
 
@@ -160,8 +162,10 @@ file\n");
 
          if((wpdb = blReadWholePDB(in)) != NULL)
          {
+            MODRES *modres = NULL;
+            modres = blGetModresWholePDB(wpdb);
             pdb=wpdb->pdb;
-            if(ApplyPatches(&pdb, patches))
+            if(ApplyPatches(&pdb, patches, modres))
             {
                wpdb->pdb = pdb;
                blWriteWholePDB(out, wpdb);
@@ -171,13 +175,14 @@ file\n");
                fprintf(stderr,"pdbpatchnumbering: Patching failed\n");
                return(1);
             }
-
+            FREELIST(modres, MODRES);
             FREELIST(pdb, PDB);
          }
          else
          {
             fprintf(stderr,"pdbpatchnumbering: No atoms read from PDB \
 file\n");
+            return(1);
          }
 
          FREELIST(patches, PATCH);
@@ -394,10 +399,11 @@ PATCH *ReadPatchFile(FILE *fp)
 -  27.07.21 V1.10
 -  13.09.21 V1.11
 -  14.09.21 V1.12
+-  25.11.21 V1.13
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbpatchnumbering V1.12 (c) 1995-2021, Prof. \
+   fprintf(stderr,"\npdbpatchnumbering V1.13 (c) 1995-2021, Prof. \
 Andrew C.R. Martin, UCL\n");
 
    fprintf(stderr,"\nUsage: pdbpatchnumbering patchfile [in.pdb \
@@ -428,8 +434,8 @@ abynum which applies\n");
 
 
 /************************************************************************/
-/*>BOOL ApplyPatches(PDB **pPDB, PATCH *patches)
-   --------------------------------------------
+/*>BOOL ApplyPatches(PDB **pPDB, PATCH *patches, MODRES *modres)
+   -------------------------------------------------------------
 *//**
 
    Does the real work of applying the sequence numbering patches and
@@ -447,8 +453,9 @@ abynum which applies\n");
 -  12.03.15 Changed to allow multi-character chain names
 -  13.09.21 Added check on 10 residue match instead of 1
 -  14.09.21 Added check that start of patch sequence is found
+-  25.11.21 Added MODRES information
 */
-BOOL ApplyPatches(PDB **pPDB, PATCH *patches)
+BOOL ApplyPatches(PDB **pPDB, PATCH *patches, MODRES *modres)
 {
    PDB   *p,                      /* Start of a residue                 */
          *q,                      /* Start of next residue              */
@@ -459,7 +466,8 @@ BOOL ApplyPatches(PDB **pPDB, PATCH *patches)
    PATCH *a;                      /* Step through patches               */
    char  patchchain[8],           /* Current patch chain                */
          pdbchain[8],             /* Current pdb chain                  */
-         prevchain[8];            /* PDB chain before renaming          */
+         prevchain[8],            /* PDB chain before renaming          */
+         atomRes;                 /* 1-letter code of ATOM record res   */
    BOOL  NewPatchChain = FALSE,   /* Indicates new chain in patch list  */
          NewPDBChain   = TRUE;    /* Indicates new chain in PDB file    */
    int   resnum,                  /* Current patch residue number       */
@@ -561,7 +569,18 @@ within the first %d residues ", maxSkippedResidues);
             
             NewPDBChain = FALSE;
 
-            if(blThrone(p->resnam) != a->aacode)
+            atomRes = blThrone(p->resnam);
+            if(atomRes == 'X')
+            {
+               char tmpthree[8];
+               if(modres != NULL)
+               {
+                  blFindOriginalResType(p->resnam, tmpthree, modres);
+                  atomRes = blThrone(tmpthree);
+               }
+            }
+
+            if(atomRes != a->aacode)
             {
                fprintf(stderr,"Residue mismatch between patch file and \
 PDB file.\n");
