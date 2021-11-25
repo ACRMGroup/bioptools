@@ -3,8 +3,8 @@
 
    \file       pdb2pir.c
    
-   \version    V2.16
-   \date       27.07.21
+   \version    V2.16.1
+   \date       25.11.21
    \brief      Convert PDB to PIR sequence file
    
    \copyright  (c) Prof. Andrew C. R. Martin, UCL 1994-2021
@@ -48,34 +48,35 @@
 
    Revision History:
    =================
--  V1.0  10.05.94 Original   By: ACRM
--  V1.0a 11.02.97 Reformatted Usage message only
--  V2.0  22.08.97 Now also considers SEQRES records
--  V2.1  26.08.97 Reports the label (if specified) when a chain
-                  from SEQRES is not found in ATOM records. Added -p
-                  and fixed a few small bugs
--  V2.2  10.08.98 Rewrite of WritePIR() to fix bug with -p -c which
-                  resulted in nothing printed for header of a chain
-                  following a non-protein chain.
--  V2.3  02.10.00 Added -x option
--  V2.4  18.10.00 Added -f option
--  V2.5  08.02.01 Added -n option
--  V2.6  07.03.07 Now looks up MODRES records to find out original amino
-                  acids. Also no longer does a rewind after reading
-                  SEQRES so will work with stdin
--  V2.7  12.03.07 Revised gap penalty from 10 to 2
--  V2.8  22.05.09 Added -i option. Also chains in SEQRES but not in ATOM
-                  now appear in lower case if -u not specified
--  V2.9  22.07.14 Renamed deprecated functions with bl prefix.
-                  Added doxygen annotation. By: CTP
--  V2.10 26.08.14 Use renamed macros blPDB2SeqXNoX() and blPDB2SeqX(). 
-                  By: CTP
--  V2.11 07.11.14 Initialized a variable  By: ACRM
--  V2.12 25.11.14 Initialized a variable  By: ACRM
--  V2.13 10.03.15 Improved multi-character chain support
--  V2.14 11.06.15 Moved generally useful code into Bioplib
--  V2.15 13.03.19 Now valgrind clean
--  V2.16 27.07.21 Returns the sequence with -s if SEQRES not read
+-  V1.0    10.05.94 Original   By: ACRM
+-  V1.0a   11.02.97 Reformatted Usage message only
+-  V2.0    22.08.97 Now also considers SEQRES records
+-  V2.1    26.08.97 Reports the label (if specified) when a chain
+                    from SEQRES is not found in ATOM records. Added -p
+                    and fixed a few small bugs
+-  V2.2    10.08.98 Rewrite of WritePIR() to fix bug with -p -c which
+                    resulted in nothing printed for header of a chain
+                    following a non-protein chain.
+-  V2.3    02.10.00 Added -x option
+-  V2.4    18.10.00 Added -f option
+-  V2.5    08.02.01 Added -n option
+-  V2.6    07.03.07 Now looks up MODRES records to find out original amino
+                    acids. Also no longer does a rewind after reading
+                    SEQRES so will work with stdin
+-  V2.7    12.03.07 Revised gap penalty from 10 to 2
+-  V2.8    22.05.09 Added -i option. Also chains in SEQRES but not in ATOM
+                    now appear in lower case if -u not specified
+-  V2.9    22.07.14 Renamed deprecated functions with bl prefix.
+                    Added doxygen annotation. By: CTP
+-  V2.10   26.08.14 Use renamed macros blPDB2SeqXNoX() and blPDB2SeqX(). 
+                    By: CTP
+-  V2.11   07.11.14 Initialized a variable  By: ACRM
+-  V2.12   25.11.14 Initialized a variable  By: ACRM
+-  V2.13   10.03.15 Improved multi-character chain support
+-  V2.14   11.06.15 Moved generally useful code into Bioplib
+-  V2.15   13.03.19 Now valgrind clean
+-  V2.16   27.07.21 Returns the sequence with -s if SEQRES not read
+-  V2.16.1 25.11.21 Moved SEQRES fixing into Bioplib and changed GAPPEN
 
 *************************************************************************/
 /* Includes
@@ -167,12 +168,14 @@ int main(int argc, char **argv)
         DoNumbering  = FALSE;
    MODRES *modres = NULL;
    
-   if((outchains = (char **)blArray2D(sizeof(char), MAXCHAINS, blMAXCHAINLABEL))==NULL)
+   if((outchains = (char **)blArray2D(sizeof(char),
+                                      MAXCHAINS, blMAXCHAINLABEL))==NULL)
    {
       fprintf(stderr,"Error: No memory for outchains array\n");
       return(1);
    }
-   if((seqchains = (char **)blArray2D(sizeof(char), MAXCHAINS, blMAXCHAINLABEL))==NULL)
+   if((seqchains = (char **)blArray2D(sizeof(char),
+                                      MAXCHAINS, blMAXCHAINLABEL))==NULL)
    {
       fprintf(stderr,"Error: No memory for seqchains array\n");
       return(1);
@@ -412,18 +415,19 @@ int main(int argc, char **argv)
 -  11.06.15 V2.14
 -  13.03.19 V2.15
 -  27.07.21 V2.16
+-  25.11.21 V2.16.1
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdb2pir V2.16 (c) 1994-2021 Prof. Andrew C.R. \
+   fprintf(stderr,"\npdb2pir V2.16.1 (c) 1994-2021 Prof. Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"\nUsage: pdb2pir [-h][-l label][-t title][-s][-c][-x]\
 [-u][-p][-q]\n");
    fprintf(stderr,"               [-f][-n][-i] [infile [outfile]]\n");
    fprintf(stderr,"       -h      This help message\n");
    fprintf(stderr,"       -q      Quiet - no warning messages\n");
-   fprintf(stderr,"       -x      Do not include X characters for unknown \
-amino acids\n");
+   fprintf(stderr,"       -x      Do not include X characters for \
+unknown amino acids\n");
    fprintf(stderr,"               Simply skip them instead\n");
    fprintf(stderr,"       -c      Separate header for each chain\n");
    fprintf(stderr,"       -s      Use data from SEQRES records\n");
@@ -521,7 +525,7 @@ void PrintNumbering(FILE *out, PDB *pdb, MODRES *modres)
          sprintf(resid,"%s.%d%c", p->chain, p->resnum, p->insert[0]);
          one = blThrone(p->resnam);
 
-         /* 07.03.07 Added code to check for modified amino acids    */
+         /* 07.03.07 Added code to check for modified amino acids       */
          if(one == 'X')
          {
             char tmpthree[8];
