@@ -811,7 +811,8 @@ STRINGLIST *myCreateSEQRES(PDB *pdb)
 
          /* Reset chain info                                            */
          strcpy(lastChain, res->chain);
-         lineNum = 1;
+         resCount = 0;
+         lineNum  = 1;
          chainCount++;
 
          /* Initialize SEQRES record                                    */
