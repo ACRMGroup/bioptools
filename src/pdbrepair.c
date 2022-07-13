@@ -158,6 +158,8 @@ void AppendFixedResidue(PDB **ppdbOut, PDB **ppOut,
 BOOL AppendRemainingAtomRecords(PDB **ppdbOut, PDB **ppOut,
                                 PDB *pdbIn);
 char *TrimSequence(char *sequence);
+STRINGLIST *myCreateSEQRES(PDB *fixedPDB);
+
 
 
 
@@ -293,7 +295,7 @@ data\n");
             if(trimSequences)
             {
                STRINGLIST *seqres         = NULL;
-               seqres = blCreateSEQRES(fixedPDB);
+               seqres = myCreateSEQRES(fixedPDB);
                blReplacePDBHeader(wpdb, "SEQRES", seqres);
             }
 
@@ -755,5 +757,100 @@ char *TrimSequence(char *inSeq)
 
    free(inSeq);
    return(outSeq);
+}
+
+
+STRINGLIST *myCreateSEQRES(PDB *pdb)
+{
+   STRINGLIST *seqres = NULL;
+   PDB  *res,
+        *nextRes;
+   char buffer[MAXBUFF],
+        aa[8],
+        lastChain[8];
+   BOOL Stored     = TRUE;
+   int  lineNum    = 1,
+        chainCount = 0,
+        resCount   = 0,
+        chainLengths[MAXCHAINS];
+
+   strcpy(lastChain, pdb->chain);
+   resCount = 0;
+   chainCount = 0;
+
+   /* Run through the chains to find their lengths                      */
+   for(res=pdb; res!=NULL; res=nextRes)
+   {
+      nextRes = blFindNextResidue(res);
+      if(!CHAINMATCH(res->chain, lastChain))
+      {
+         chainLengths[chainCount++] = resCount;
+         resCount = 0;
+         strcpy(lastChain, res->chain);
+      }
+      resCount++;
+   }
+   chainLengths[chainCount++] = resCount;
+   
+   /* Now create the seqres records                                     */
+   lastChain[0] = '\0';
+   chainCount   = -1;
+   resCount     = 0;
+   for(res=pdb; res!=NULL; res=nextRes)
+   {
+      nextRes = blFindNextResidue(res);
+      if(!CHAINMATCH(res->chain, lastChain))
+      {
+         /* Start of a new chain                                        */
+         if(!Stored)
+         {
+            strcat(buffer, "\n");
+            seqres = blStoreString(seqres, buffer);
+            Stored = TRUE;
+         }
+
+         /* Reset chain info                                            */
+         strcpy(lastChain, res->chain);
+         lineNum = 1;
+         chainCount++;
+
+         /* Initialize SEQRES record                                    */
+         sprintf(buffer, "SEQRES%4d %c%5d  ",
+                 lineNum++,
+                 res->chain[0],
+                 chainLengths[chainCount]);
+      }
+
+      /* Save the current SEQRES if we have 13aa                        */
+      if(!(resCount%13))
+      {
+         if(!Stored)
+         {
+            strcat(buffer, "\n");
+            seqres = blStoreString(seqres, buffer);
+            Stored = TRUE;
+
+            /* Initialize SEQRES record                                 */
+            sprintf(buffer, "SEQRES%4d %c%5d  ",
+                    lineNum++,
+                    res->chain[0],
+                    chainLengths[chainCount]);
+         }
+      }
+
+      /* Add the amino acid                                             */
+      sprintf(aa, "%-4s", res->resnam);
+      strcat(buffer, aa);
+      Stored = FALSE;
+      resCount++;
+   }
+
+   /* Store the last one                                                */
+   if(!Stored)
+   {
+      strcat(buffer, "\n");
+      seqres = blStoreString(seqres, buffer);
+   }
+   return(seqres);
 }
 
