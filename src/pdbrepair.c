@@ -80,7 +80,7 @@ residues rather than SEQRES
 */
 #define MAXBUFF   160
 #define MAXCHAINS 240
-#define GAPPEN    2
+#define GAPPEN    1
 #define safetoupper(x) ((islower(x))?toupper(x):(x))
 #define safetolower(x) ((isupper(x))?tolower(x):(x))
 #define CONECT_TOL 0.2
@@ -217,8 +217,8 @@ int main(int argc, char **argv)
                return(1);
             }
             if((seqresChains = (char **)blArray2D(sizeof(char),
-                                               MAXCHAINS,
-                                               blMAXCHAINLABEL))==NULL)
+                                                  MAXCHAINS,
+                                                  blMAXCHAINLABEL))==NULL)
             {
                fprintf(stderr,"Error: No memory for seqresChains \
 array\n");
@@ -229,7 +229,7 @@ array\n");
             modres = blGetModresWholePDB(wpdb);
             seqresSequence = blGetSeqresAsStringWholePDB(wpdb,
                                                          seqresChains,
-                                                 modres, TRUE);
+                                                         modres, TRUE);
 
             /* Get list of chains from the PDB linked list              */
             if((atomChains = blGetPDBChainLabels(pdb, &nAtomChains))
