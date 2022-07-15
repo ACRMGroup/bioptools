@@ -3,12 +3,12 @@
 
    \file       pdbpatchnumbering.c
    
-   \version    V1.13
-   \date       25.11.21
+   \version    V1.14
+   \date       14.07.22
    \brief      Patch the numbering of a PDB file from a file of numbers
                and sequence (as created by KabatSeq, etc)
    
-   \copyright  (c) Prof. Andrew C. R. Martin / UCL 1995-2021
+   \copyright  (c) Prof. Andrew C. R. Martin / UCL 1995-2022
    \author     Prof. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
@@ -72,6 +72,8 @@
                   increased max number of residues skipped to 50
 -  V1.13 25.11.21 Added check on MODRES when checking that patch file 
                   matches the ATOM sequence
+-  V1.14 14.07.22 Now allows the number that can be skipped and the number
+                  to match to be specified with -s and -m
 
 *************************************************************************/
 /* Includes
@@ -91,8 +93,9 @@
 /************************************************************************/
 /* Defines and macros
 */
-#define MAXSKIP 50
-#define MAXBUFF 160
+#define MAXBUFF    160
+#define MAXSKIP    50   /* Number of residues to skip at start          */
+#define MATCHSTART 10   /* Number of residues to match at the start     */
 
 typedef struct _patch
 {
@@ -113,10 +116,12 @@ typedef struct _patch
 */
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  char *patchfile);
+                  char *patchfile, int *maxSkippedResidues,
+                  int *matchStartResidues);
 PATCH *ReadPatchFile(FILE *fp);
 void Usage(void);
-BOOL ApplyPatches(PDB **pPDB, PATCH *patches, MODRES *modres);
+BOOL ApplyPatches(PDB **pPDB, PATCH *patches, MODRES *modres,
+                  int maxSkippedResidues, int matchStartResidues);
 BOOL SeqMatch(PDB *pdb, PATCH *patchseq, int nRes);
 
 
@@ -141,8 +146,12 @@ int main(int argc, char **argv)
             patchfile[MAXBUFF];
    WHOLEPDB *wpdb;
    PDB      *pdb;
+   int      maxSkippedResidues = MAXSKIP,
+            matchStartResidues = MATCHSTART;
    
-   if(ParseCmdLine(argc, argv, infile, outfile, patchfile))
+   
+   if(ParseCmdLine(argc, argv, infile, outfile, patchfile,
+                   &maxSkippedResidues, &matchStartResidues))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
@@ -165,7 +174,8 @@ file\n");
             MODRES *modres = NULL;
             modres = blGetModresWholePDB(wpdb);
             pdb=wpdb->pdb;
-            if(ApplyPatches(&pdb, patches, modres))
+            if(ApplyPatches(&pdb, patches, modres,
+                            maxSkippedResidues, matchStartResidues))
             {
                wpdb->pdb = pdb;
                blWriteWholePDB(out, wpdb);
@@ -199,23 +209,28 @@ file\n");
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                     char *patchfile)
+                     char *patchfile, int *maxSkippedResidues,
+                     int *matchStartResidues)
    ---------------------------------------------------------------------
 *//**
 
-   \param[in]      argc         Argument count
-   \param[in]      **argv       Argument array
-   \param[out]     *infile      Input file (or blank string)
-   \param[out]     *outfile     Output file (or blank string)
-   \param[out]     *patchfile   Output file (or blank string)
-   \return                      Success?
+   \param[in]      argc                 Argument count
+   \param[in]      **argv               Argument array
+   \param[out]     *infile              Input file (or blank string)
+   \param[out]     *outfile             Output file (or blank string)
+   \param[out]     *patchfile           Patch file (or blank string)
+   \param[out]     *maxSkippedResidues  Max residues to skip at start
+   \param[out]     *matchStartResidues  Number of residues to match
+   \return                              Success?
 
    Parse the command line
    
 -  09.08.95 Original    By: ACRM
+-  14.07.22 Added -s and -m
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  char *patchfile)
+                  char *patchfile, int *maxSkippedResidues,
+                  int *matchStartResidues)
 {
    argc--;
    argv++;
@@ -228,6 +243,16 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
       {
          switch(argv[0][1])
          {
+         case 's':
+            argv--;
+            argc++;
+            sscanf(argv[0], "%d", maxSkippedResidues);
+            break;
+         case 'm':
+            argv--;
+            argc++;
+            sscanf(argv[0], "%d", matchStartResidues);
+            break;
          case 'h':
          default:
             return(FALSE);
@@ -400,14 +425,21 @@ PATCH *ReadPatchFile(FILE *fp)
 -  13.09.21 V1.11
 -  14.09.21 V1.12
 -  25.11.21 V1.13
+-  14.07.22 V1.14
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbpatchnumbering V1.13 (c) 1995-2021, Prof. \
+   fprintf(stderr,"\npdbpatchnumbering V1.14 (c) 1995-2022, Prof. \
 Andrew C.R. Martin, UCL\n");
 
-   fprintf(stderr,"\nUsage: pdbpatchnumbering patchfile [in.pdb \
-[out.pdb]]\n");
+   fprintf(stderr,"\nUsage: pdbpatchnumbering [-s skip][-m match] \
+patchfile [in.pdb [out.pdb]]\n");
+   fprintf(stderr,"       -s Maximum number of residues that can be \
+skipped at the start of a\n");
+   fprintf(stderr,"          sequence (%d)\n", MAXSKIP);
+   fprintf(stderr,"       -m Number of residues that must be matched \
+at the start of a sequence\n");
+   fprintf(stderr,"          to procede with numbering (%d)\n", MATCHSTART);
    fprintf(stderr,"PDB file I/O is through stdin/stdout if files are not \
 specified.\n");
 
@@ -434,7 +466,8 @@ abynum which applies\n");
 
 
 /************************************************************************/
-/*>BOOL ApplyPatches(PDB **pPDB, PATCH *patches, MODRES *modres)
+/*>BOOL ApplyPatches(PDB **pPDB, PATCH *patches, MODRES *modres,
+                  int maxSkippedResidues, int matchStartResidues)
    -------------------------------------------------------------
 *//**
 
@@ -454,8 +487,10 @@ abynum which applies\n");
 -  13.09.21 Added check on 10 residue match instead of 1
 -  14.09.21 Added check that start of patch sequence is found
 -  25.11.21 Added MODRES information
+-  14.07.22 Added maxSkippedResidues, matchStartResidues as parameters
 */
-BOOL ApplyPatches(PDB **pPDB, PATCH *patches, MODRES *modres)
+BOOL ApplyPatches(PDB **pPDB, PATCH *patches, MODRES *modres,
+                  int maxSkippedResidues, int matchStartResidues)
 {
    PDB   *p,                      /* Start of a residue                 */
          *q,                      /* Start of next residue              */
@@ -471,8 +506,7 @@ BOOL ApplyPatches(PDB **pPDB, PATCH *patches, MODRES *modres)
    BOOL  NewPatchChain = FALSE,   /* Indicates new chain in patch list  */
          NewPDBChain   = TRUE;    /* Indicates new chain in PDB file    */
    int   resnum,                  /* Current patch residue number       */
-         skippedResidues = 0,     /* Count Nter skipped residues        */
-         maxSkippedResidues = MAXSKIP; /* Max Nter residues to skip     */
+         skippedResidues = 0;     /* Count Nter skipped residues        */
    
    pdb = *pPDB;
 
@@ -552,7 +586,7 @@ for patches\n",pdbchain);
             */
             if(NewPDBChain)
             {
-               while(!SeqMatch(p, a, 10))
+               while(!SeqMatch(p, a, matchStartResidues))
                {
                   if(skippedResidues++ >= maxSkippedResidues)
                   {

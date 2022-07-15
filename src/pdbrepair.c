@@ -220,6 +220,7 @@ CHAINTYPE *GetChainTypes(PDB *pdb);
 STRINGLIST *CreateSEQRES(PDB *pdb, CHAINTYPE *chaintypes);
 char *OnethrRNA(char one);
 char *OnethrDNA(char one);
+STRINGLIST *myCreateSEQRES(PDB *fixedPDB);
 
 
 /************************************************************************/
@@ -289,8 +290,8 @@ int main(int argc, char **argv)
                return(1);
             }
             if((seqresChains = (char **)blArray2D(sizeof(char),
-                                               MAXCHAINS,
-                                               blMAXCHAINLABEL))==NULL)
+                                                  MAXCHAINS,
+                                                  blMAXCHAINLABEL))==NULL)
             {
                fprintf(stderr,"Error: No memory for seqresChains \
 array\n");
@@ -368,7 +369,7 @@ data\n");
             if(trimSequences)
             {
                STRINGLIST *seqres         = NULL;
-               seqres = CreateSEQRES(fixedPDB, chainTypes);
+               seqres = myCreateSEQRES(fixedPDB);
                blReplacePDBHeader(wpdb, "SEQRES", seqres);
             }
 
@@ -832,6 +833,7 @@ char *TrimSequence(char *inSeq)
    return(outSeq);
 }
 
+
 /************************************************************************/
 CHAINTYPE *GetChainTypes(PDB *pdb)
 {
@@ -1022,5 +1024,100 @@ char *OnethrDNA(char one)
       }
    }
    return("UNK");
+}
+
+STRINGLIST *myCreateSEQRES(PDB *pdb)
+{
+   STRINGLIST *seqres = NULL;
+   PDB  *res,
+        *nextRes;
+   char buffer[MAXBUFF],
+        aa[8],
+        lastChain[8];
+   BOOL Stored     = TRUE;
+   int  lineNum    = 1,
+        chainCount = 0,
+        resCount   = 0,
+        chainLengths[MAXCHAINS];
+
+   strcpy(lastChain, pdb->chain);
+   resCount = 0;
+   chainCount = 0;
+
+   /* Run through the chains to find their lengths                      */
+   for(res=pdb; res!=NULL; res=nextRes)
+   {
+      nextRes = blFindNextResidue(res);
+      if(!CHAINMATCH(res->chain, lastChain))
+      {
+         chainLengths[chainCount++] = resCount;
+         resCount = 0;
+         strcpy(lastChain, res->chain);
+      }
+      resCount++;
+   }
+   chainLengths[chainCount++] = resCount;
+   
+   /* Now create the seqres records                                     */
+   lastChain[0] = '\0';
+   chainCount   = -1;
+   resCount     = 0;
+   for(res=pdb; res!=NULL; res=nextRes)
+   {
+      nextRes = blFindNextResidue(res);
+      if(!CHAINMATCH(res->chain, lastChain))
+      {
+         /* Start of a new chain                                        */
+         if(!Stored)
+         {
+            strcat(buffer, "\n");
+            seqres = blStoreString(seqres, buffer);
+            Stored = TRUE;
+         }
+
+         /* Reset chain info                                            */
+         strcpy(lastChain, res->chain);
+         resCount = 0;
+         lineNum  = 1;
+         chainCount++;
+
+         /* Initialize SEQRES record                                    */
+         sprintf(buffer, "SEQRES%4d %c%5d  ",
+                 lineNum++,
+                 res->chain[0],
+                 chainLengths[chainCount]);
+      }
+
+      /* Save the current SEQRES if we have 13aa                        */
+      if(!(resCount%13))
+      {
+         if(!Stored)
+         {
+            strcat(buffer, "\n");
+            seqres = blStoreString(seqres, buffer);
+            Stored = TRUE;
+
+            /* Initialize SEQRES record                                 */
+            sprintf(buffer, "SEQRES%4d %c%5d  ",
+                    lineNum++,
+                    res->chain[0],
+                    chainLengths[chainCount]);
+         }
+      }
+
+      /* Add the amino acid                                             */
+      sprintf(aa, "%-4s", res->resnam);
+      strcat(buffer, aa);
+      Stored = FALSE;
+      resCount++;
+   }
+
+   /* Store the last one                                                */
+   if(!Stored)
+   {
+      strcat(buffer, "\n");
+      seqres = blStoreString(seqres, buffer);
+   }
+   return(seqres);
 }
 
