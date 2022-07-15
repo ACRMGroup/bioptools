@@ -1,7 +1,5 @@
 /************************************************************************/
 /**
-
-
 TODO:
 
 Implement the fix sequence code by calling routines from mutmodel
@@ -73,67 +71,126 @@ residues rather than SEQRES
 #include "bioplib/seq.h"
 #include "bioplib/general.h"
 #include "bioplib/array.h"
-#include "bioplibnew.h"
 
 /************************************************************************/
 /* Defines and macros
 */
-#define MAXBUFF   160
-#define MAXCHAINS 240
-#define GAPPEN    1
+#define MAXBUFF        160
+#define MAXCHAINS      240
+#define MAXATINRESBASE  40
+#define GAPPEN           2
 #define safetoupper(x) ((islower(x))?toupper(x):(x))
 #define safetolower(x) ((isupper(x))?tolower(x):(x))
 #define CONECT_TOL 0.2
+#define RESTYPE_PROTEIN 1
+#define RESTYPE_DNA     2
+#define RESTYPE_RNA     4
+#define RESTYPE_HET     8
+#define RESTYPE_WAT     16
+#define MAXRESTYPE      16
 
 typedef struct _restype
 {
    char resnam[8],
         aa;
-   int  hetatm;
-   char atnams[MAXATINAA+1][8];
+   int  type;
+   char atnams[MAXATINRESBASE+1][8];
 }  RESTYPE;
-   
+
+typedef struct _chaintype
+{
+   char chain[8];
+   int  type;
+   struct _chaintype *next;
+}  CHAINTYPE;
+
 
 /************************************************************************/
 /* Globals
 */
-
 RESTYPE gResTypes[] =
 {
-   {"ALA",'A',0,{"N   ","CA  ","C   ","O   ","CB  ",""}},
-   {"CYS",'C',0,{"N   ","CA  ","C   ","O   ","CB  ","SG  ",""}},
-   {"ASP",'D',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","OD1 ","OD2 ",
-                 ""}},
-   {"GLU",'E',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ","OE1 ",
-                 "OE2 ",""}},
-   {"PHE",'F',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ","CD2 ",
-                 "CE1 ","CE2 ","CZ  ",""}},
-   {"GLY",'G',0,{"N   ","CA  ","C   ","O   ",""}},
-   {"HIS",'H',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","ND1 ","CD2 ",
-                 "CE1 ","NE2 ",""}},
-   {"ILE",'I',0,{"N   ","CA  ","C   ","O   ","CB  ","CG1 ","CG2 ","CD1 ",
-                 ""}},
-   {"LYS",'K',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ","CE  ",
-                 "NZ  ",""}},
-   {"LEU",'L',0,{"N   ","CA  ","C   ","O   ","CB  ","CD1 ","CD2 ",""}},
-   {"MET",'M',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","SD  ","CE  ",
-                 ""}},
-   {"ASN",'N',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","OD1 ","ND2 ",
-                 ""}},
-   {"PRO",'P',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ",""}},
-   {"GLN",'Q',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ","OE1 ",
-                 "NE2 ",""}},
-   {"ARG",'R',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ","NE  ",
-                 "CZ  ","NH1 ","NH2 ",""}},
-   {"SER",'S',0,{"N   ","CA  ","C   ","O   ","CB  ","OG  ",""}},
-   {"THR",'T',0,{"N   ","CA  ","C   ","O   ","CB  ","OG1 ","CG2 ",""}},
-   {"VAL",'V',0,{"N   ","CA  ","C   ","O   ","CB  ","CG1 ","CG2 ",""}},
-   {"TRP",'W',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ","CD2 ",
-                 "NE1 ","CE2 ","CE3 ","CZ2 ","CZ3 ","CH2",""}},
-   {"TYR",'Y',0,{"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ","CD2 ",
-                 "CE1 ","CE2 ","CZ  ","OH  ",""}},
-   {"PCA",'E',1,{"N   ","CA  ","CB  ","CG  ","CD  ","OE  ","C   ","O   ",
-                 ""}},
+   {"ALA",'A',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ",""}},
+   {"CYS",'C',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","SG  ",""}},
+   {"ASP",'D',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CG  ","OD1 ","OD2 ",""}},
+   {"GLU",'E',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ","OE1 ","OE2 ",""}},
+   {"PHE",'F',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ","CD2 ","CE1 ",
+     "CE2 ","CZ  ",""}},
+   {"GLY",'G',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ",""}},
+   {"HIS",'H',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CG  ","ND1 ","CD2 ","CE1 ",
+     "NE2 ",""}},
+   {"ILE",'I',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CG1 ","CG2 ","CD1 ",""}},
+   {"LYS",'K',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ","CE  ","NZ  ",""}},
+   {"LEU",'L',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CD1 ","CD2 ",""}},
+   {"MET",'M',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CG  ","SD  ","CE  ",""}},
+   {"ASN",'N',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CG  ","OD1 ","ND2 ",""}},
+   {"PRO",'P',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ",""}},
+   {"GLN",'Q',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ","OE1 ","NE2 ",""}},
+   {"ARG",'R',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD  ","NE  ","CZ  ",
+     "NH1 ","NH2 ",""}},
+   {"SER",'S',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","OG  ",""}},
+   {"THR",'T',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","OG1 ","CG2 ",""}},
+   {"VAL",'V',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CG1 ","CG2 ",""}},
+   {"TRP",'W',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ","CD2 ","NE1 ",
+     "CE2 ","CE3 ","CZ2 ","CZ3 ","CH2",""}},
+   {"TYR",'Y',RESTYPE_PROTEIN,
+    {"N   ","CA  ","C   ","O   ","CB  ","CG  ","CD1 ","CD2 ","CE1 ",
+     "CE2 ","CZ  ","OH  ",""}},
+   {"PCA",'E',RESTYPE_HET,
+    {"N   ","CA  ","CB  ","CG  ","CD  ","OE  ","C   ","O   ",""}},
+   {"  U",'U',RESTYPE_RNA,
+    {"P   ","OP1 ","OP2 ","O5' ","C5' ","C4' ","O4' ","C3' ","O3' ",
+     "C2' ","O2' ","C1' ","N1  ","C2  ","O2  ","N3  ","C4  ","O4  ",
+     "C5  ","C6  ",""}},
+   {"  A",'A',RESTYPE_RNA,
+    {"P   ","OP1 ","OP2 ","O5' ","C5' ","C4' ","O4' ","C3' ","O3' ",
+     "C2' ","O2' ","C1' ","N1  ","C2  ","O2  ","N3  ","C4  ","O4  ",
+     "C5  ","C6  ",""}},
+   {"  C",'C',RESTYPE_RNA,
+    {"P   ","OP1 ","OP2 ","O5' ","C5' ","C4' ","O4' ","C3' ","O3' ",
+     "C2' ","O2' ","C1' ","N1  ","C2  ","O2  ","N3  ","C4  ","N4  ",
+     "C5  ","C6  ",""}},
+   {"  G",'G',RESTYPE_RNA,
+    {"P   ","OP1 ","OP2 ","O5' ","C5' ","C4' ","O4' ","C3' ","O3' ",
+     "C2' ","O2' ","C1' ","N9  ","C8  ","N7  ","C5  ","C6  ","O6  ",
+     "N1  ","C2  ","N2  ","N3  ","C4  ",""}},
+   {" DG",'G',RESTYPE_DNA,
+    {"O5' ","C5' ","C4' ","O4' ","C3' ","O3' ","C2' ","C1' ","N9  ",
+     "C8  ","N7  ","C5  ","C6  ","O6  ","N1  ","C2  ","N2  ","N3  ",
+     "C4  ",""}},
+   {" DT",'T',RESTYPE_DNA,
+    {"P   ","OP1 ","OP2 ","O5' ","C5' ","C4' ","O4' ","C3' ","O3' ",
+     "C2' ","C1' ","N1  ","C2  ","O2  ","N3  ","C4  ","O4  ","C5  ",
+     "C7  ","C6  ",""}},
+   {" DC",'C',RESTYPE_DNA,
+    {"P   ","OP1 ","OP2 ","O5' ","C5' ","C4' ","O4' ","C3' ","O3' ",
+     "C2' ","C1' ","N1  ","C2  ","O2  ","N3  ","C4  ","N4  ","C5  ",
+     "C6  ",""}},
+   {" DA",'A',RESTYPE_DNA,
+    {"P   ","OP1 ","OP2 ","O5' ","C5' ","C4' ","O4' ","C3' ","O3' ",
+     "C2' ","C1' ","N9  ","C8  ","N7  ","C5  ","C6  ","N6  ","N1  ",
+     "C2  ","N3  ","C4  ",""}},
+   {"HOH",'O',RESTYPE_WAT,
+    {"O   ",""}},
    {""  ,'\0',0,{""}}
 };
 
@@ -159,8 +216,11 @@ BOOL AppendRemainingAtomRecords(PDB **ppdbOut, PDB **ppOut,
                                 PDB *pdbIn);
 char *TrimSequence(char *sequence);
 STRINGLIST *myCreateSEQRES(PDB *fixedPDB);
-
-
+int FindResType(PDB *p);
+CHAINTYPE *GetChainTypes(PDB *pdb);
+STRINGLIST *CreateSEQRES(PDB *pdb, CHAINTYPE *chaintypes);
+char *OnethrRNA(char one);
+char *OnethrDNA(char one);
 
 
 /************************************************************************/
@@ -206,8 +266,21 @@ int main(int argc, char **argv)
             int        nAtomChains,
                        len1;
             BOOL       repaired        = FALSE;
+            CHAINTYPE  *chainTypes     = NULL;
+#ifdef DEBUG
+            CHAINTYPE  *ct             = NULL;
+#endif
             
             pdb = wpdb->pdb;
+
+            chainTypes = GetChainTypes(pdb);
+#ifdef DEBUG
+            for(ct=chainTypes; ct!=NULL; NEXT(ct))
+            {
+               printf("Chain %s Type %d\n", ct->chain, ct->type);
+            }
+            return(0);
+#endif
             
             if((outchains = (char **)blArray2D(sizeof(char),
                                                MAXCHAINS,
@@ -271,7 +344,8 @@ data\n");
             if((fixedSequence = blFixSequence(seqresSequence,atomSequence,
                                               seqresChains,
                                               atomChains,outchains,FALSE,
-                                              nAtomChains,FALSE,FALSE,NULL))
+                                              nAtomChains,
+                                              FALSE,FALSE,NULL))
                ==NULL)
                return(1);
 
@@ -480,7 +554,7 @@ void AppendNewResidue(PDB **ppdbOut, PDB **ppOut, char restype)
       pOut->secstr         = ' ';
       
       strcpy(pOut->record_type,
-             gResTypes[resOffset].hetatm?"HETATM":"ATOM  ");
+             gResTypes[resOffset].type==RESTYPE_HET?"HETATM":"ATOM  ");
 #ifdef BREAKSSEQRES
       strcpy(pOut->record_type, "INSERT");
 #endif
@@ -759,7 +833,6 @@ char *TrimSequence(char *inSeq)
    return(outSeq);
 }
 
-
 STRINGLIST *myCreateSEQRES(PDB *pdb)
 {
    STRINGLIST *seqres = NULL;
@@ -853,5 +926,197 @@ STRINGLIST *myCreateSEQRES(PDB *pdb)
       seqres = blStoreString(seqres, buffer);
    }
    return(seqres);
+}
+
+/************************************************************************/
+CHAINTYPE *GetChainTypes(PDB *pdb)
+{
+   CHAINTYPE *chaintypes = NULL,
+             *ct         = NULL;
+   PDB       *startChain = NULL,
+             *nextChain  = NULL,
+             *startRes   = NULL,
+             *nextRes    = NULL;
+   int       type        = 0;
+   
+   for(startChain=pdb; startChain!=NULL; startChain=nextChain)
+   {
+      type      = 0;
+      nextChain = blFindNextChain(startChain);
+      
+      for(startRes=startChain; startRes!=nextChain; startRes=nextRes)
+      {
+         nextRes = blFindNextResidue(startRes);
+         type |= FindResType(startRes);
+      }
+
+      if(ct==NULL)
+      {
+         INIT(chaintypes, CHAINTYPE);
+         ct = chaintypes;
+      }
+      else
+      {
+         ALLOCNEXT(ct, CHAINTYPE);
+      }
+      if(ct==NULL)
+      {
+         fprintf(stderr, "Error: No memory for chaintype information\n");
+         return(NULL);
+      }
+
+      ct->type = type;
+      strncpy(ct->chain, startChain->chain, 8);
+   }
+
+   return(chaintypes);
+}
+
+/************************************************************************/
+int FindResType(PDB *p)
+{
+   int i;
+   for(i=0; gResTypes[i].aa != '\0'; i++)
+   {
+      if(!strncmp(p->resnam, gResTypes[i].resnam, 3))
+      {
+         return(gResTypes[i].type);
+      }
+   }
+   return(RESTYPE_HET);
+}
+
+/************************************************************************/
+/*>STRINGLIST *CreateSEQRES(PDB *pdb, CHAINTYPE *chaintypes)
+   ------------------------------------
+*//**
+   \param[in]   *pdb   Start of PDB linked list
+   \return             STRINGLIST linked list of SEQRES data
+
+   Creates a linked list of strings representing the SEQRES data
+
+   17.11.21  Original   By: ACRM
+*/
+STRINGLIST *CreateSEQRES(PDB *pdb, CHAINTYPE *chaintypes)
+{
+   HASHTABLE  *seqByChain = NULL;
+   STRINGLIST *seqres     = NULL;
+   int        nChains     = 0;
+   char       **chains    = NULL,
+              buffer[MAXBUFF],
+              aa[8];
+   CHAINTYPE  *ct         = chaintypes;
+   
+   if((seqByChain = blPDB2SeqXByChain(pdb))!=NULL)
+   {
+      if((chains = blGetPDBChainLabels(pdb, &nChains))==NULL)
+      {
+         return(NULL);
+      }
+      else
+      {
+         int i;
+
+         /* Prevent blOnethr() from using the nucleic acid info         */
+         gBioplibSeqNucleicAcid = 0;
+         
+         
+         for(i=0; i<nChains; i++)
+         {
+            int  chainLen,
+                 lineNum   = 1,
+                 resNum    = 0;
+            char *sequence = NULL;
+            BOOL Stored    = TRUE;
+
+            /* Skip any non ATOM chains                                 */
+            while(!(ct->type | RESTYPE_PROTEIN) &&
+                  !(ct->type | RESTYPE_DNA) &&
+                  !(ct->type | RESTYPE_RNA))
+            {
+               NEXT(ct);
+            }
+            
+            sequence = blGetHashValueString(seqByChain, chains[i]);
+            if(sequence != NULL)
+            {
+               chainLen = strlen(sequence);
+               for(resNum=0; resNum<chainLen; resNum++)
+               {
+                  if(!(resNum%13))
+                  {
+                     if(!Stored)
+                     {
+                        strcat(buffer, "\n");
+                        seqres = blStoreString(seqres, buffer);
+                        Stored = TRUE;
+                     }
+                     
+                     sprintf(buffer, "SEQRES%4d %c%5d  ",
+                             lineNum++,
+                             chains[i][0],
+                             chainLen);
+                  }
+                  if((ct->type & RESTYPE_PROTEIN))
+                  {
+                     sprintf(aa, "%-4s", blOnethr(sequence[resNum]));
+                  }
+                  else if((ct->type & RESTYPE_RNA))
+                  {
+                     sprintf(aa, "%-4s", OnethrRNA(sequence[resNum]));
+                  }
+                  else
+                  {
+                     sprintf(aa, "%-4s", OnethrDNA(sequence[resNum]));
+                  }
+                  
+                  strcat(buffer, aa);
+                  Stored = FALSE;
+               }
+               if(!Stored)
+               {
+                  strcat(buffer, "\n");
+                  seqres = blStoreString(seqres, buffer);
+                  Stored = TRUE;
+               }
+            }
+            NEXT(ct);  /* Next chaintype                                */
+         }
+      }
+   }
+   
+   if(seqByChain != NULL)
+      blFreeHash(seqByChain);
+   
+   return(seqres);
+}
+
+
+char *OnethrRNA(char one)
+{
+   int i;
+   for(i=0; gResTypes[i].aa != '\0'; i++)
+   {
+      if((gResTypes[i].type == RESTYPE_RNA) &&
+         (gResTypes[i].aa   == one))
+      {
+         return(gResTypes[i].resnam);
+      }
+   }
+   return("UNK");
+}
+
+char *OnethrDNA(char one)
+{
+   int i;
+   for(i=0; gResTypes[i].aa != '\0'; i++)
+   {
+      if((gResTypes[i].type == RESTYPE_DNA) &&
+         (gResTypes[i].aa   == one))
+      {
+         return(gResTypes[i].resnam);
+      }
+   }
+   return("UNK");
 }
 

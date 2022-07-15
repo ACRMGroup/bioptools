@@ -15,7 +15,8 @@ LFILES = bioplib/ReadPDB.o bioplib/throne.o bioplib/fsscanf.o \
 	 bioplib/WritePDB.o bioplib/PDBHeaderInfo.o \
 	 bioplib/strcatalloc.o bioplib/stringcat.o \
 	 bioplib/GetPDBChainLabels.o bioplib/WritePIR.o bioplib/ParseRes.o \
-	 bioplib/FindResidue.o bioplib/BuildConect.o bioplib/IndexPDB.o
+	 bioplib/FindResidue.o bioplib/BuildConect.o bioplib/IndexPDB.o \
+	 bioplib/RdSeqPDB.o
 
 pdb2pir : pdb2pir.o $(LFILES)
 	$(CC) $(COPT) -o $@ $< $(LFILES) $(LIBS)
