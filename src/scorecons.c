@@ -3,13 +3,13 @@
    Program:    scorecons
    File:       scorecons.c
    
-   Version:    V1.6
-   Date:       11.10.19
+   Version:    V1.7
+   Date:       10.08.22
    Function:   Scores conservation from a PIR sequence alignment
                Not to be confused with the program of the same name
                by Will Valdar (this one predates his!)
    
-   Copyright:  (c) Prof. Andrew C. R. Martin 1996-2019
+   Copyright:  (c) Prof. Andrew C. R. Martin 1996-2022
    Author:     Prof. Andrew C. R. Martin
                Tom Northey (implemented Valdar01 scoring)
    Address:    Biomolecular Structure & Modelling Unit,
@@ -80,9 +80,9 @@
               --                        --
 
     This equation has a number of favourable properties:
-    1. If S20 == S8 == 1, then S = 1
-    2. If S8 == 0, then S = S20 x 8/20
-    3. As the information content of the reduced set decreases (i.e.
+    a. If S20 == S8 == 1, then S = 1
+    b. If S8 == 0, then S = S20 x 8/20
+    c. As the information content of the reduced set decreases (i.e.
        we use something like S3 instead of S8), so the influence of
        the reduced set on the value of S decreases.
 
@@ -123,6 +123,8 @@
    V1.5  24.08.15 Implemented the Valdar01 scoring By: TCN
    V1.6  11.10.19 Fixed reading of a specified matrix - it was ignoring
                   -m before!
+   V1.7  10.08.22 Added -s option to score a single position's 
+                  distribution of amino acids
 
 *************************************************************************/
 /* Includes
@@ -165,6 +167,8 @@ typedef struct
 #define METH_ENTROPY8  3
 #define METH_VALDAR    4
 
+#define MINSINLEN      8
+
 #define LAMBDA_UNITIALIZED 0
 #define SEQWEIGHTS_UNITIALIZED NULL
 
@@ -180,7 +184,8 @@ static REAL *sSeqWeights=NULL;
 */
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  char *matrix, int *Method, BOOL *extended);
+                  char *matrix, int *Method, BOOL *extended,
+                  char *single);
 void Usage(void);
 BOOL ReadAndScoreSeqs(FILE *fp, FILE *out, int MaxInMatrix, int Method,
                       BOOL Extended);
@@ -195,8 +200,8 @@ REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix);
 REAL EntropyScore(char **SeqTable, int nseq, int pos, 
                   AMINOACID *aminoacids, int NGroups);
 
-REAL valdarScore (char **SeqTable, int pos, int numSeqs, int seqlen, 
-                  int MaxInMatrix);
+REAL valdarScore(char **SeqTable, int pos, int numSeqs, int seqlen, 
+                 int MaxInMatrix);
 void initLambda(int numSeqs);
 BOOL initSequenceWeights(char **SeqTable, int numSeqs, int seqlen, 
                          int MaxInMatrix);
@@ -207,6 +212,9 @@ REAL getInterSeqDistance(char **SeqTable, int seqAindex, int seqBindex,
 int getNonGapPosCount(char **SeqTable, int seqAindex, int seqBindex, 
                       int seqlen);
 REAL valdarMatrixScore(char res1, char res2, int MaxInMatrix);
+BOOL ReadAndScoreSingle(char *single, FILE *out, int MaxInMatrix,
+                        int Method, BOOL Extended);
+char **ParseSingle(char *single, int *nseq);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -219,6 +227,7 @@ REAL valdarMatrixScore(char res1, char res2, int MaxInMatrix);
    18.09.96 Added check on environment variable if ReadMDM() failed.
    15.07.08 Added -x/Extended handling
    11.10.19 Fixed code to actually read a different matrix if specified!
+   10.08.22 Added code to handle single column mode
 */
 int main(int argc, char **argv)
 {
@@ -226,7 +235,8 @@ int main(int argc, char **argv)
         *out = stdout;
    char InFile[MAXBUFF],
         OutFile[MAXBUFF],
-        matrix[MAXBUFF];
+        matrix[MAXBUFF],
+        single[MAXBUFF];
    int  MaxInMatrix,
         Method = METH_MDM;
    BOOL Extended = FALSE;
@@ -234,7 +244,7 @@ int main(int argc, char **argv)
    strncpy(matrix, MUTMAT, MAXBUFF-1);
    
    if(ParseCmdLine(argc, argv, InFile, OutFile, matrix, &Method,
-                   &Extended))
+                   &Extended, single))
    {
       if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
@@ -249,8 +259,16 @@ int main(int argc, char **argv)
             return(1);
          }
          MaxInMatrix = blZeroMDM();
-         return(ReadAndScoreSeqs(in, out, MaxInMatrix, Method,
-                                 Extended)?0:1);
+         if(single[0] != '\0')
+         {
+            return(ReadAndScoreSingle(single, out, MaxInMatrix, Method,
+                                      Extended)?0:1);
+         }
+         else
+         {
+            return(ReadAndScoreSeqs(in, out, MaxInMatrix, Method,
+                                    Extended)?0:1);
+         }
       }
       else
       {
@@ -267,7 +285,8 @@ int main(int argc, char **argv)
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                     char *matrix, int *Method, BOOL *Extended)
+                     char *matrix, int *Method, BOOL *Extended,
+                     char *single)
    ---------------------------------------------------------------------
    Input:   int    argc         Argument count
             char   **argv       Argument array
@@ -276,6 +295,7 @@ int main(int argc, char **argv)
             char   *matrix      Mutation matrix name
             int    *Method      Scoring method
             BOOL   *Extended    Extended precision printing
+            char   *single      Single position distribution (-s)
    Returns: BOOL                Success?
 
    Parse the command line
@@ -283,14 +303,17 @@ int main(int argc, char **argv)
    17.09.96 Original    By: ACRM
    15.07.08 Added -x
    24.08.15 Added -d    By: TCN
+   10.08.22 Added -s    By: ACRM
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
-                  char *matrix, int *Method, BOOL *Extended)
+                  char *matrix, int *Method, BOOL *Extended,
+                  char *single)
 {
    argc--;
    argv++;
 
    infile[0] = outfile[0] = '\0';
+   single[0] = '\0';
    strncpy(matrix, MUTMAT, MAXBUFF);
    *Extended = FALSE;
    
@@ -321,6 +344,12 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
          case 'x':
             *Extended = TRUE;
             break;
+         case 's':
+            if(--argc < 0)
+               return(FALSE);
+            argv++;
+            strncpy(single,argv[0],MAXBUFF);
+            break;
          default:
             return(FALSE);
             break;
@@ -328,18 +357,29 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
       }
       else
       {
-         /* Check that there are only 1 or 2 arguments left             */
-         if(argc > 2)
-            return(FALSE);
-         
-         /* Copy the first to infile                                    */
-         strcpy(infile, argv[0]);
-         
-         /* If there's another, copy it to outfile                      */
-         argc--;
-         argv++;
-         if(argc)
+         if(single[0] != '\0')
+         {
+            /* Check there is only 1 argument left                      */
+            if(argc > 1)
+               return(FALSE);
+
             strcpy(outfile, argv[0]);
+         }
+         else
+         {
+            /* Check that there are only 1 or 2 arguments left          */
+            if(argc > 2)
+               return(FALSE);
+            
+            /* Copy the first to infile                                 */
+            strcpy(infile, argv[0]);
+            
+            /* If there's another, copy it to outfile                   */
+            argc--;
+            argv++;
+            if(argc)
+               strcpy(outfile, argv[0]);
+         }
             
          return(TRUE);
       }
@@ -889,7 +929,9 @@ BOOL initSequenceWeights(char **SeqTable, int numSeqs, int seqlen,
    ----------------------------------------------------------------
    Get 2d table of inter-sequence evolutionary distances.
    
-   20.08.2015 Original   By: TCN
+   20.08.15 Original   By: TCN
+   10.08.22 Changed to use blArray2D() and fixed bug in second dimension
+            (which was seqlen instead of numSeqs)  By: ACRM
 */
 REAL **getSeqDistTable(char **SeqTable, int numSeqs, int seqlen, 
                        int MaxInMatrix)
@@ -897,20 +939,13 @@ REAL **getSeqDistTable(char **SeqTable, int numSeqs, int seqlen,
    int i, j;
    REAL **seqDistTable;
 
-   if((seqDistTable = malloc(sizeof(REAL *) * numSeqs))==NULL)
-   {
-      return (NULL); 
-   }
+   if((seqDistTable = (REAL **)blArray2D(sizeof(REAL),
+                                         numSeqs, numSeqs))==NULL)
+      return(NULL);
     
-   for(i=0; i<numSeqs; ++i)
+   for(i=0; i<numSeqs; i++)
    {
-      if((seqDistTable[i] = malloc(sizeof(REAL) * seqlen))==NULL)
-         return (NULL);
-   }
-    
-   for(i=0; i<numSeqs; ++i)
-   {
-      for(j=0 ; j<numSeqs; ++j)
+      for(j=0; j<numSeqs; j++)
       {
          if(i == j)
             continue;
@@ -1022,6 +1057,121 @@ REAL valdarMatrixScore(char res1, char res2, int MaxInMatrix)
     return ((REAL)0.0);
 }
 
+
+/************************************************************************/
+/*>BOOL ReadAndScoreSingle(char *single, FILE *out, int MaxInMatrix, 
+                           int Method, BOOL Extended)
+   -----------------------------------------------------------------------
+   Routine which takes the residue distribution for a single position,
+   and calculates and displays the variability scores.
+
+   10.08.22 Original   By: ACRM
+*/
+BOOL ReadAndScoreSingle(char *single, FILE *out, int MaxInMatrix,
+                        int Method, BOOL Extended)
+{
+   char    **SeqTable;
+   int     seqlen, nseq;
+
+   seqlen = 1;
+
+   if((SeqTable = ParseSingle(single, &nseq))==0)
+      return(FALSE);
+   
+   /* Calculate and print scores                                        */
+   DisplayScores(out, SeqTable, nseq, seqlen, MaxInMatrix, Method,
+                 Extended);
+
+   /* Free memory from sequence table                                   */
+   blFreeArray2D((char **)SeqTable, nseq, seqlen);
+
+   return(TRUE);
+}
+
+/************************************************************************/
+/*>char **ParseSingle(char *single, int *nSeq)
+   -------------------------------------------
+   Parses the input single column data (in the form "A:m,C:n,D:o,...")
+   and creates a sequence table which is 1 column wide and m+n+o+...
+   rows long (i.e. in the normal format for full sequences).
+
+   10.08.22  Original   By: ACRM
+*/
+char **ParseSingle(char *single, int *nSeq)
+{
+   char **fields   = NULL,
+        **seqTable = NULL;
+   int  nFields,
+        numAA,
+        row;
+   BOOL error = FALSE;
+   
+
+   /* Split the 'single' string on commas                               */
+   if((fields = blSplitStringOnCommas(single, MINSINLEN))==NULL)
+      return(NULL);
+   
+   /* Count the number of amino acids                                   */
+   numAA=0;
+   for(nFields=0; fields[nFields][0] != '\0'; nFields++)
+   {
+      char *ptr;
+      int  nAA;
+      /* Look for the colon                                             */
+      if((ptr=strchr(fields[nFields],':'))==NULL)
+      {
+         error = TRUE;
+         break;
+      }
+      /* Find the number after the colon                                */
+      if(!sscanf(ptr+1, "%d", &nAA))
+      {
+         error = TRUE;
+         break;
+      }
+      /* Add to the amino acid count                                    */
+      numAA += nAA;
+   }
+   
+   if(error)
+      return(NULL);
+
+   /* Allocate the output 2D array                                      */
+   if((seqTable = (char **)blArray2D(sizeof(char), numAA, 1))==NULL)
+      return(NULL);
+   
+   /* Populate the output 2D array. We don't need the error checking
+      now since we have already checked the data
+   */
+   row = 0;
+   for(nFields=0; fields[nFields][0] != '\0'; nFields++)
+   {
+      char *ptr;
+      int  nAA, i;
+      /* Look for the colon                                             */
+      ptr=strchr(fields[nFields],':');
+      *ptr = '\0';
+      
+      /* Find the number after the colon                                */
+      sscanf(ptr+1, "%d", &nAA);
+
+      /* Populate                                                       */
+      for(i=0; i<nAA; i++)
+      {
+         seqTable[row][0] = fields[nFields][0];
+         row++;
+      }
+   }
+
+   /* Free the field storage                                            */
+   blFreeArray2D((char **)fields, nFields, MINSINLEN);
+
+   /* Output and return                                                 */
+   *nSeq = numAA;
+   return(seqTable);
+}
+
+
 /************************************************************************/
 /*>void Usage(void)
    ----------------
@@ -1032,16 +1182,20 @@ REAL valdarMatrixScore(char res1, char res2, int MaxInMatrix)
    11.08.15 V1.4
    24.08.15 V1.5 (added -d Valdar method)
    11.10.19 V1.6 Fixed reading of matrix with -m
+   10.08.22 V1.7 Added -s
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nScoreCons V1.6 (c) 1996-2019 Prof. Andrew C.R. \
+   fprintf(stderr,"\nScoreCons V1.7 (c) 1996-2022 Prof. Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"          valdar01 scoring implemented by Tom \
 Northey\n");
 
    fprintf(stderr,"\nUsage: scorecons [-m matrixfile] [-a|-g|-e|-d] \
 [-x] [alignment.pir [output.dat]]\n");
+   fprintf(stderr," -or-  scorecons -s A:n,C:n,D:n,... [-m matrixfile] [-a|-g|-e|-d] \
+[-x]\n");
+   fprintf(stderr,"                 [output.dat]\n");
    fprintf(stderr,"       -m Specify the mutation matrix (Default: %s)\n",
            MUTMAT);
    fprintf(stderr,"       -a Score by entropy method per residue\n");
@@ -1050,6 +1204,9 @@ residues\n");
    fprintf(stderr,"       -e Score by combined entropy method\n");
    fprintf(stderr,"       -d Score by the valdar01 method\n");
    fprintf(stderr,"       -x Extended precision output\n");
+   fprintf(stderr,"       -s Score a single column of an alignment \
+specifying residue counts\n");
+   fprintf(stderr,"          on the command line\n");
 
    fprintf(stderr,"\nCalculates a conservation score between 0 and 1 \
 for a PIR format\n");
