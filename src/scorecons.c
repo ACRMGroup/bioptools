@@ -160,6 +160,7 @@ typedef struct
 /* typedef long long int VLONG; */
 #define VLONGMAX 9223372036854775000
 #define LONGMAX  2147483600
+typedef long double LREAL;   
 
 #define DATADIR "DATADIR"
 #define MUTMAT  "pet91.mat"
@@ -845,8 +846,8 @@ REAL valdarScore(char **SeqTable, int pos, int numSeqs, int seqlen,
                  int MaxInMatrix) 
 {
    int  i, j;
-   REAL matrixScore;
-   REAL weightedSum = 0;
+   LREAL matrixScore;
+   LREAL weightedSum = 0;
 
    if(sSeqWeights == SEQWEIGHTS_UNITIALIZED)
    {
