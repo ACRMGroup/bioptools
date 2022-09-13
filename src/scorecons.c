@@ -158,6 +158,8 @@ typedef struct
 }  AMINOACID;
 
 /* typedef long long int VLONG; */
+#define VLONGMAX 9223372036854775000
+#define LONGMAX  2147483600
 
 #define DATADIR "DATADIR"
 #define MUTMAT  "pet91.mat"
@@ -728,8 +730,18 @@ REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix)
          res2 = SeqTable[j][pos];
          if(res2 == ' ')
             res2 = '-';
-         count++;
+         if(++count > LONGMAX)
+         { 
+            fprintf(stderr, "Score count too large to store!\n");
+            exit(1);
+         }
+         
          score += blCalcMDMScore(res1, res2);
+         if(score > LONGMAX)
+         { 
+            fprintf(stderr, "Score too large to store!\n");
+            exit(1);
+         }
       }
    }
 
