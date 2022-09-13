@@ -157,9 +157,10 @@ typedef struct
         group[2];
 }  AMINOACID;
 
-/* typedef long long int VLONG; */
+typedef long long int VLONG;
 #define VLONGMAX 9223372036854775000
 #define LONGMAX  2147483600
+#define MAXCHECK VLONGMAX
 typedef long double LREAL;   
 
 #define DATADIR "DATADIR"
@@ -713,7 +714,7 @@ REAL CalcScore(char **SeqTable, int nseq, int seql, int pos,
 REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix)
 {
    LONG  i, j;
-   LONG  count,
+   VLONG count,
          score;
    char  res1,
          res2;
@@ -731,21 +732,23 @@ REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix)
          res2 = SeqTable[j][pos];
          if(res2 == ' ')
             res2 = '-';
-         if(++count > LONGMAX)
+         if(++count > MAXCHECK)
          { 
             fprintf(stderr, "Score count too large to store!\n");
             exit(1);
          }
          
          score += blCalcMDMScore(res1, res2);
-         if(score > LONGMAX)
+         if(score > MAXCHECK)
          { 
-            fprintf(stderr, "Score too large to store!\n");
+            fprintf(stderr, "Score (%Ld) too large to store!\n", score);
             exit(1);
          }
       }
    }
 
+   printf("Score: %Ld Count: %Ld\n", score, count);
+   
    return(((REAL)score/(REAL)count)/(REAL)MaxInMatrix);
 }
 
