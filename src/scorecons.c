@@ -3,8 +3,8 @@
    Program:    scorecons
    File:       scorecons.c
    
-   Version:    V1.7
-   Date:       10.08.22
+   Version:    V1.7.1
+   Date:       13.09.22
    Function:   Scores conservation from a PIR sequence alignment
                Not to be confused with the program of the same name
                by Will Valdar (this one predates his!)
@@ -114,17 +114,18 @@
 
    Revision History:
    =================
-   V1.0  11.09.96 Original
-   V1.1  17.09.96 Tidied up and improved command line options
-                  Added entropy scoring
-   V1.2  18.09.96 Corrected calcuation of combined entropy score
-   V1.3  15.07.08 Added -x flag
-   V1.4  11.08.15 Modified for new bioplib
-   V1.5  24.08.15 Implemented the Valdar01 scoring By: TCN
-   V1.6  11.10.19 Fixed reading of a specified matrix - it was ignoring
-                  -m before!
-   V1.7  10.08.22 Added -s option to score a single position's 
-                  distribution of amino acids
+   V1.0   11.09.96 Original
+   V1.1   17.09.96 Tidied up and improved command line options
+                   Added entropy scoring
+   V1.2   18.09.96 Corrected calcuation of combined entropy score
+   V1.3   15.07.08 Added -x flag
+   V1.4   11.08.15 Modified for new bioplib
+   V1.5   24.08.15 Implemented the Valdar01 scoring By: TCN
+   V1.6   11.10.19 Fixed reading of a specified matrix - it was ignoring
+                   -m before!
+   V1.7   10.08.22 Added -s option to score a single position's 
+                   distribution of amino acids
+   V1.7.1 13.09.22 Modified int to LONG for very big data setps.
 
 *************************************************************************/
 /* Includes
@@ -139,7 +140,6 @@
 #include "bioplib/array.h"
 #include "bioplib/general.h"
 #include "bioplib/macros.h"
-
 
 /************************************************************************/
 /* Defines and macros
@@ -156,6 +156,8 @@ typedef struct
    int  NGroup,
         group[2];
 }  AMINOACID;
+
+/* typedef long long int VLONG; */
 
 #define DATADIR "DATADIR"
 #define MUTMAT  "pet91.mat"
@@ -702,12 +704,14 @@ REAL CalcScore(char **SeqTable, int nseq, int seql, int pos,
    17.09.96 Changed score to LONG rather than ULONG since return value
             from CalcMDMScore() can be -ve!
             Added MaxInMatrix
+   13.09.22 Changed to LONG for count as well as score - can change 
+            these to VLONG if needed
 */
 REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix)
 {
-   int   i, j,
-         count;
-   LONG  score;
+   LONG  i, j;
+   LONG  count,
+         score;
    char  res1,
          res2;
    
@@ -1183,10 +1187,11 @@ char **ParseSingle(char *single, int *nSeq)
    24.08.15 V1.5 (added -d Valdar method)
    11.10.19 V1.6 Fixed reading of matrix with -m
    10.08.22 V1.7 Added -s
+   13.09.22 V1.7.1
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nScoreCons V1.7 (c) 1996-2022 Prof. Andrew C.R. \
+   fprintf(stderr,"\nScoreCons V1.7.1 (c) 1996-2022 Prof. Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"          valdar01 scoring implemented by Tom \
 Northey\n");
