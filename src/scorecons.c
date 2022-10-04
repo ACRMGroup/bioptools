@@ -3,8 +3,8 @@
    Program:    scorecons
    File:       scorecons.c
    
-   Version:    V1.7.1
-   Date:       13.09.22
+   Version:    V1.8
+   Date:       04.10.22
    Function:   Scores conservation from a PIR sequence alignment
                Not to be confused with the program of the same name
                by Will Valdar (this one predates his!)
@@ -126,6 +126,7 @@
    V1.7   10.08.22 Added -s option to score a single position's 
                    distribution of amino acids
    V1.7.1 13.09.22 Modified int to LONG for very big data setps.
+   V1.8   04.10.22 Added -l (log) option
 
 *************************************************************************/
 /* Includes
@@ -191,7 +192,7 @@ static REAL *sSeqWeights=NULL;
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *matrix, int *Method, BOOL *extended,
-                  char *single);
+                  char *single, BOOL *doLog);
 void Usage(void);
 BOOL ReadAndScoreSeqs(FILE *fp, FILE *out, int MaxInMatrix, int Method,
                       BOOL Extended);
@@ -219,8 +220,8 @@ int getNonGapPosCount(char **SeqTable, int seqAindex, int seqBindex,
                       int seqlen);
 REAL valdarMatrixScore(char res1, char res2, int MaxInMatrix);
 BOOL ReadAndScoreSingle(char *single, FILE *out, int MaxInMatrix,
-                        int Method, BOOL Extended);
-char **ParseSingle(char *single, int *nseq);
+                        int Method, BOOL Extended, BOOL doLog);
+char **ParseSingle(char *single, int *nseq, BOOL doLog);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -245,12 +246,13 @@ int main(int argc, char **argv)
         single[MAXBUFF];
    int  MaxInMatrix,
         Method = METH_MDM;
-   BOOL Extended = FALSE;
+   BOOL Extended = FALSE,
+        doLog    = FALSE;
 
    strncpy(matrix, MUTMAT, MAXBUFF-1);
    
    if(ParseCmdLine(argc, argv, InFile, OutFile, matrix, &Method,
-                   &Extended, single))
+                   &Extended, single, &doLog))
    {
       if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
@@ -268,7 +270,7 @@ int main(int argc, char **argv)
          if(single[0] != '\0')
          {
             return(ReadAndScoreSingle(single, out, MaxInMatrix, Method,
-                                      Extended)?0:1);
+                                      Extended, doLog)?0:1);
          }
          else
          {
@@ -292,7 +294,7 @@ int main(int argc, char **argv)
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                      char *matrix, int *Method, BOOL *Extended,
-                     char *single)
+                     char *single, BOOL *doLog)
    ---------------------------------------------------------------------
    Input:   int    argc         Argument count
             char   **argv       Argument array
@@ -302,6 +304,8 @@ int main(int argc, char **argv)
             int    *Method      Scoring method
             BOOL   *Extended    Extended precision printing
             char   *single      Single position distribution (-s)
+            BOOL   *doLog       Used with -s to take logs of all the
+                                counts
    Returns: BOOL                Success?
 
    Parse the command line
@@ -310,10 +314,11 @@ int main(int argc, char **argv)
    15.07.08 Added -x
    24.08.15 Added -d    By: TCN
    10.08.22 Added -s    By: ACRM
+   04.10.22 Added -l
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *matrix, int *Method, BOOL *Extended,
-                  char *single)
+                  char *single, BOOL *doLog)
 {
    argc--;
    argv++;
@@ -350,6 +355,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
          case 'x':
             *Extended = TRUE;
             break;
+         case 'l':
+            *doLog = TRUE;
+            break;
          case 's':
             if(--argc < 0)
                return(FALSE);
@@ -373,6 +381,12 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
          }
          else
          {
+            if(doLog)
+            {
+               fprintf(stderr,"Error: -l must be used with -s\n");
+               return(FALSE);
+            }
+            
             /* Check that there are only 1 or 2 arguments left          */
             if(argc > 2)
                return(FALSE);
@@ -747,7 +761,9 @@ REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix)
       }
    }
 
+#ifdef DEBUG
    printf("Score: %Ld Count: %Ld\n", score, count);
+#endif
    
    return(((REAL)score/(REAL)count)/(REAL)MaxInMatrix);
 }
@@ -1080,22 +1096,23 @@ REAL valdarMatrixScore(char res1, char res2, int MaxInMatrix)
 
 /************************************************************************/
 /*>BOOL ReadAndScoreSingle(char *single, FILE *out, int MaxInMatrix, 
-                           int Method, BOOL Extended)
+                           int Method, BOOL Extended, BOOL doLog)
    -----------------------------------------------------------------------
    Routine which takes the residue distribution for a single position,
    and calculates and displays the variability scores.
 
    10.08.22 Original   By: ACRM
+   04.10.22 Added doLog   
 */
 BOOL ReadAndScoreSingle(char *single, FILE *out, int MaxInMatrix,
-                        int Method, BOOL Extended)
+                        int Method, BOOL Extended, BOOL doLog)
 {
    char    **SeqTable;
    int     seqlen, nseq;
 
    seqlen = 1;
 
-   if((SeqTable = ParseSingle(single, &nseq))==0)
+   if((SeqTable = ParseSingle(single, &nseq, doLog))==0)
       return(FALSE);
    
    /* Calculate and print scores                                        */
@@ -1109,15 +1126,16 @@ BOOL ReadAndScoreSingle(char *single, FILE *out, int MaxInMatrix,
 }
 
 /************************************************************************/
-/*>char **ParseSingle(char *single, int *nSeq)
-   -------------------------------------------
+/*>char **ParseSingle(char *single, int *nSeq, BOOL doLog)
+   -------------------------------------------------------
    Parses the input single column data (in the form "A:m,C:n,D:o,...")
    and creates a sequence table which is 1 column wide and m+n+o+...
    rows long (i.e. in the normal format for full sequences).
 
    10.08.22  Original   By: ACRM
+   04.10.22  Added doLog code
 */
-char **ParseSingle(char *single, int *nSeq)
+char **ParseSingle(char *single, int *nSeq, BOOL doLog)
 {
    char **fields   = NULL,
         **seqTable = NULL;
@@ -1149,10 +1167,16 @@ char **ParseSingle(char *single, int *nSeq)
          error = TRUE;
          break;
       }
+      if(doLog)
+      {
+         REAL logAA = 1 + 1000*log(nAA);
+         nAA = (int)logAA;
+      }
+         
       /* Add to the amino acid count                                    */
       numAA += nAA;
    }
-   
+
    if(error)
       return(NULL);
 
@@ -1174,6 +1198,11 @@ char **ParseSingle(char *single, int *nSeq)
       
       /* Find the number after the colon                                */
       sscanf(ptr+1, "%d", &nAA);
+      if(doLog)
+      {
+         REAL logAA = 1 + 1000*log(nAA);
+         nAA = (int)logAA;
+      }
 
       /* Populate                                                       */
       for(i=0; i<nAA; i++)
@@ -1214,8 +1243,8 @@ Northey\n");
 
    fprintf(stderr,"\nUsage: scorecons [-m matrixfile] [-a|-g|-e|-d] \
 [-x] [alignment.pir [output.dat]]\n");
-   fprintf(stderr," -or-  scorecons -s A:n,C:n,D:n,... [-m matrixfile] [-a|-g|-e|-d] \
-[-x]\n");
+   fprintf(stderr," -or-  scorecons -s A:n,C:n,D:n,... [-m matrixfile] \
+[-a|-g|-e|-d|-l] [-x]\n");
    fprintf(stderr,"                 [output.dat]\n");
    fprintf(stderr,"       -m Specify the mutation matrix (Default: %s)\n",
            MUTMAT);
@@ -1228,6 +1257,7 @@ residues\n");
    fprintf(stderr,"       -s Score a single column of an alignment \
 specifying residue counts\n");
    fprintf(stderr,"          on the command line\n");
+   fprintf(stderr,"       -l Scale counts by taking logs (with -s)");
 
    fprintf(stderr,"\nCalculates a conservation score between 0 and 1 \
 for a PIR format\n");
