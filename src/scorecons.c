@@ -3,8 +3,8 @@
    Program:    scorecons
    File:       scorecons.c
    
-   Version:    V1.7.1
-   Date:       13.09.22
+   Version:    V1.8
+   Date:       04.10.22
    Function:   Scores conservation from a PIR sequence alignment
                Not to be confused with the program of the same name
                by Will Valdar (this one predates his!)
@@ -126,6 +126,7 @@
    V1.7   10.08.22 Added -s option to score a single position's 
                    distribution of amino acids
    V1.7.1 13.09.22 Modified int to LONG for very big data setps.
+   V1.8   04.10.22 Added -l (log) option
 
 *************************************************************************/
 /* Includes
@@ -166,7 +167,9 @@ typedef long double LREAL;
 #define DATADIR "DATADIR"
 #define MUTMAT  "pet91.mat"
 #define MAXBUFF 160
-
+#define MAXDATA 1000
+#define LOGSCALE 100
+#define TINY    0.000001
 #define METH_MDM       0
 #define METH_ENTROPY   1
 #define METH_ENTROPY20 2
@@ -191,7 +194,8 @@ static REAL *sSeqWeights=NULL;
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *matrix, int *Method, BOOL *extended,
-                  char *single);
+                  char *single, BOOL *doLog, REAL *maxFraction,
+                  BOOL *reduceData);
 void Usage(void);
 BOOL ReadAndScoreSeqs(FILE *fp, FILE *out, int MaxInMatrix, int Method,
                       BOOL Extended);
@@ -219,8 +223,10 @@ int getNonGapPosCount(char **SeqTable, int seqAindex, int seqBindex,
                       int seqlen);
 REAL valdarMatrixScore(char res1, char res2, int MaxInMatrix);
 BOOL ReadAndScoreSingle(char *single, FILE *out, int MaxInMatrix,
-                        int Method, BOOL Extended);
-char **ParseSingle(char *single, int *nseq);
+                        int Method, BOOL Extended, BOOL doLog,
+                        REAL maxFraction, BOOL reduceData);
+char **ParseSingle(char *single, int *nseq, BOOL doLog, REAL maxFraction,
+                   BOOL reduceData);
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -244,13 +250,18 @@ int main(int argc, char **argv)
         matrix[MAXBUFF],
         single[MAXBUFF];
    int  MaxInMatrix,
-        Method = METH_MDM;
-   BOOL Extended = FALSE;
+        Method      = METH_MDM;
+   BOOL Extended    = FALSE,
+        doLog       = FALSE,
+        reduceData  = FALSE;
+   REAL maxFraction = (REAL)0.0;
+   
 
    strncpy(matrix, MUTMAT, MAXBUFF-1);
    
    if(ParseCmdLine(argc, argv, InFile, OutFile, matrix, &Method,
-                   &Extended, single))
+                   &Extended, single, &doLog, &maxFraction,
+                   &reduceData))
    {
       if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
@@ -268,7 +279,8 @@ int main(int argc, char **argv)
          if(single[0] != '\0')
          {
             return(ReadAndScoreSingle(single, out, MaxInMatrix, Method,
-                                      Extended)?0:1);
+                                      Extended, doLog, maxFraction,
+                                      reduceData)?0:1);
          }
          else
          {
@@ -292,7 +304,8 @@ int main(int argc, char **argv)
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                      char *matrix, int *Method, BOOL *Extended,
-                     char *single)
+                     char *single, BOOL *doLog, REAL *maxFraction,
+                     BOOL *reduceData)
    ---------------------------------------------------------------------
    Input:   int    argc         Argument count
             char   **argv       Argument array
@@ -302,6 +315,12 @@ int main(int argc, char **argv)
             int    *Method      Scoring method
             BOOL   *Extended    Extended precision printing
             char   *single      Single position distribution (-s)
+            BOOL   *doLog       -l Used with -s to take logs of all the
+                                counts
+            REAL   *maxFraction First count is scaled down to be no 
+                                more than the specified fraction of the
+                                data
+            BOOL   *reduceData  Reduce the dataset size to MAXDATA
    Returns: BOOL                Success?
 
    Parse the command line
@@ -310,18 +329,24 @@ int main(int argc, char **argv)
    15.07.08 Added -x
    24.08.15 Added -d    By: TCN
    10.08.22 Added -s    By: ACRM
+   04.10.22 Added -l, -f, -r
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *matrix, int *Method, BOOL *Extended,
-                  char *single)
+                  char *single, BOOL *doLog, REAL *maxFraction,
+                  BOOL *reduceData)
 {
+   int nFlags = 0;
+   
    argc--;
    argv++;
 
-   infile[0] = outfile[0] = '\0';
-   single[0] = '\0';
    strncpy(matrix, MUTMAT, MAXBUFF);
-   *Extended = FALSE;
+   infile[0]    = outfile[0] = '\0';
+   single[0]    = '\0';
+   *Extended    = FALSE;
+   *reduceData  = FALSE;
+   *maxFraction = (REAL)0.0;
    
    while(argc)
    {
@@ -350,11 +375,30 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
          case 'x':
             *Extended = TRUE;
             break;
+         case 'l':
+            *doLog = TRUE;
+            nFlags++;
+            break;
+         case 'r':
+            *reduceData = TRUE;
+            nFlags++;
+            break;
          case 's':
             if(--argc < 0)
                return(FALSE);
             argv++;
             strncpy(single,argv[0],MAXBUFF);
+            break;
+         case 'f':
+            nFlags++;
+            *maxFraction = (REAL)0.5;
+            if(argv[0][2] == '=')
+            {
+               if(!sscanf(((argv[0])+3), "%lf", maxFraction))
+                  return(FALSE);
+               if(*maxFraction >= (REAL)1.0)
+                  return(FALSE);
+            }
             break;
          default:
             return(FALSE);
@@ -373,6 +417,22 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
          }
          else
          {
+            if(doLog)
+            {
+               fprintf(stderr,"Error: -l must be used with -s\n");
+               return(FALSE);
+            }
+            if(reduceData)
+            {
+               fprintf(stderr,"Error: -r must be used with -s\n");
+               return(FALSE);
+            }
+            if(*maxFraction > TINY)
+            {
+               fprintf(stderr,"Error: -f must be used with -s\n");
+               return(FALSE);
+            }
+            
             /* Check that there are only 1 or 2 arguments left          */
             if(argc > 2)
                return(FALSE);
@@ -386,12 +446,18 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             if(argc)
                strcpy(outfile, argv[0]);
          }
-            
+
+         if(nFlags > 1)
+            return(FALSE);
+         
          return(TRUE);
       }
       argc--;
       argv++;
    }
+
+   if(nFlags > 1)
+      return(FALSE);
    
    return(TRUE);
 }
@@ -747,7 +813,9 @@ REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix)
       }
    }
 
+#ifdef DEBUG
    printf("Score: %Ld Count: %Ld\n", score, count);
+#endif
    
    return(((REAL)score/(REAL)count)/(REAL)MaxInMatrix);
 }
@@ -1080,22 +1148,26 @@ REAL valdarMatrixScore(char res1, char res2, int MaxInMatrix)
 
 /************************************************************************/
 /*>BOOL ReadAndScoreSingle(char *single, FILE *out, int MaxInMatrix, 
-                           int Method, BOOL Extended)
+                           int Method, BOOL Extended, BOOL doLog,
+                           REAL maxFraction, BOOL reduceData)
    -----------------------------------------------------------------------
    Routine which takes the residue distribution for a single position,
    and calculates and displays the variability scores.
 
    10.08.22 Original   By: ACRM
+   04.10.22 Added doLog, maxFraction and reduceData
 */
 BOOL ReadAndScoreSingle(char *single, FILE *out, int MaxInMatrix,
-                        int Method, BOOL Extended)
+                        int Method, BOOL Extended, BOOL doLog,
+                        REAL maxFraction, BOOL reduceData)
 {
    char    **SeqTable;
    int     seqlen, nseq;
 
    seqlen = 1;
 
-   if((SeqTable = ParseSingle(single, &nseq))==0)
+   if((SeqTable = ParseSingle(single, &nseq, doLog, maxFraction,
+                              reduceData))==0)
       return(FALSE);
    
    /* Calculate and print scores                                        */
@@ -1109,22 +1181,30 @@ BOOL ReadAndScoreSingle(char *single, FILE *out, int MaxInMatrix,
 }
 
 /************************************************************************/
-/*>char **ParseSingle(char *single, int *nSeq)
-   -------------------------------------------
+/*>char **ParseSingle(char *single, int *nSeq, BOOL doLog, 
+                      REAL maxFraction, BOOL reduceData)
+   -------------------------------------------------------
    Parses the input single column data (in the form "A:m,C:n,D:o,...")
    and creates a sequence table which is 1 column wide and m+n+o+...
    rows long (i.e. in the normal format for full sequences).
 
    10.08.22  Original   By: ACRM
+   04.10.22  Added doLog code; 
+             Added maxFraction code
+             Added reduceData code
 */
-char **ParseSingle(char *single, int *nSeq)
+char **ParseSingle(char *single, int *nSeq, BOOL doLog, REAL maxFraction,
+                   BOOL reduceData)
 {
    char **fields   = NULL,
         **seqTable = NULL;
    int  nFields,
         numAA,
-        row;
+        row,
+        firstAA = 0,
+        otherAAs;
    BOOL error = FALSE;
+   REAL reductionFactor = 0.0;
    
 
    /* Split the 'single' string on commas                               */
@@ -1137,6 +1217,7 @@ char **ParseSingle(char *single, int *nSeq)
    {
       char *ptr;
       int  nAA;
+      
       /* Look for the colon                                             */
       if((ptr=strchr(fields[nFields],':'))==NULL)
       {
@@ -1149,12 +1230,47 @@ char **ParseSingle(char *single, int *nSeq)
          error = TRUE;
          break;
       }
+      if(nAA <= 0)
+      {
+         fprintf(stderr, "Error: counts must be >0 (%s)\n",
+                 fields[nFields]);
+         exit(1);
+      }
+      
+      if(doLog)
+      {
+         REAL logAA = 1 + LOGSCALE*log(nAA);
+         nAA = (int)logAA;
+      }
+      if(nFields == 0)
+      {
+         firstAA = nAA;
+      }
+         
       /* Add to the amino acid count                                    */
       numAA += nAA;
    }
    
+   if(reduceData && (numAA > MAXDATA))
+   {
+      reductionFactor = (REAL)MAXDATA / (REAL)numAA;
+   }
+   else
+   {
+      reduceData = FALSE;
+   }
+   
+
    if(error)
       return(NULL);
+
+   if(maxFraction > TINY)
+   {
+      numAA   -= firstAA;
+      otherAAs = numAA;
+      numAA    = (int)(0.5+((REAL)numAA / (1-maxFraction)));
+      firstAA  = (int)(0.5+((maxFraction * otherAAs) / (1-maxFraction)));
+   }
 
    /* Allocate the output 2D array                                      */
    if((seqTable = (char **)blArray2D(sizeof(char), numAA, 1))==NULL)
@@ -1163,7 +1279,8 @@ char **ParseSingle(char *single, int *nSeq)
    /* Populate the output 2D array. We don't need the error checking
       now since we have already checked the data
    */
-   row = 0;
+   row   = 0;
+   numAA = 0;
    for(nFields=0; fields[nFields][0] != '\0'; nFields++)
    {
       char *ptr;
@@ -1175,6 +1292,21 @@ char **ParseSingle(char *single, int *nSeq)
       /* Find the number after the colon                                */
       sscanf(ptr+1, "%d", &nAA);
 
+      if(doLog)
+      {
+         REAL logAA = 1 + LOGSCALE*log(nAA);
+         nAA = (int)logAA;
+      }
+      if((nFields == 0) && (maxFraction > TINY))
+      {
+         nAA = firstAA;
+      }
+      if(reduceData)
+      {
+         nAA = (int)(0.5 + (reductionFactor * nAA));
+      }
+      numAA += nAA;
+      
       /* Populate                                                       */
       for(i=0; i<nAA; i++)
       {
@@ -1204,19 +1336,20 @@ char **ParseSingle(char *single, int *nSeq)
    11.10.19 V1.6 Fixed reading of matrix with -m
    10.08.22 V1.7 Added -s
    13.09.22 V1.7.1
+   04.10.22 V1.8
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nScoreCons V1.7.1 (c) 1996-2022 Prof. Andrew C.R. \
+   fprintf(stderr,"\nScoreCons V1.8 (c) 1996-2022 Prof. Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"          valdar01 scoring implemented by Tom \
 Northey\n");
 
    fprintf(stderr,"\nUsage: scorecons [-m matrixfile] [-a|-g|-e|-d] \
 [-x] [alignment.pir [output.dat]]\n");
-   fprintf(stderr," -or-  scorecons -s A:n,C:n,D:n,... [-m matrixfile] [-a|-g|-e|-d] \
-[-x]\n");
-   fprintf(stderr,"                 [output.dat]\n");
+   fprintf(stderr," -or-  scorecons -s A:n,C:n,D:n,... [-m matrixfile] \
+[-a|-g|-e|-d] [-r|-l|-f[=n]]\n");
+   fprintf(stderr,"                 [-x] [output.dat]\n");
    fprintf(stderr,"       -m Specify the mutation matrix (Default: %s)\n",
            MUTMAT);
    fprintf(stderr,"       -a Score by entropy method per residue\n");
@@ -1228,6 +1361,14 @@ residues\n");
    fprintf(stderr,"       -s Score a single column of an alignment \
 specifying residue counts\n");
    fprintf(stderr,"          on the command line\n");
+   fprintf(stderr,"       -r Reduce dataset sizes for speed \
+(used with -s) - maximum\n");
+   fprintf(stderr,"          datapoints %d\n", MAXDATA);
+   fprintf(stderr,"       -l Scale counts by taking logs \
+(used with -s)\n");
+   fprintf(stderr,"       -f Set the count for the first AA to the \
+specified fraction of the total\n");
+   fprintf(stderr,"          <1.0, (used with -s) [Default: 0.5]\n");
 
    fprintf(stderr,"\nCalculates a conservation score between 0 and 1 \
 for a PIR format\n");
@@ -1263,7 +1404,11 @@ by Will Valdar.\n");
    fprintf(stderr,"It uses a weighting scheme based on the evolutionary \
 distance\n");
    fprintf(stderr,"between aligned sequences.\n");
-    
+
+   fprintf(stderr,"\nNote that to use -r, -l or -f, you must be using \
+-s and that only one\n");
+   fprintf(stderr,"of -r, -l and -f may be used\n");
+   
    fprintf(stderr,"\nThis program should not be confused by the program \
 of the same name by\n");
    fprintf(stderr,"Will Valdar. This program was written first and \
