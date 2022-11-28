@@ -3,8 +3,8 @@
    Program:    scorecons
    File:       scorecons.c
    
-   Version:    V1.8
-   Date:       04.10.22
+   Version:    V1.8.1
+   Date:       28.11.22
    Function:   Scores conservation from a PIR sequence alignment
                Not to be confused with the program of the same name
                by Will Valdar (this one predates his!)
@@ -127,6 +127,8 @@
                    distribution of amino acids
    V1.7.1 13.09.22 Modified int to LONG for very big data setps.
    V1.8   04.10.22 Added -l (log) option
+   V1.8.1 22.11.22 Fixed bug in command parsing - was failing when not
+                   flags given.
 
 *************************************************************************/
 /* Includes
@@ -330,6 +332,7 @@ int main(int argc, char **argv)
    24.08.15 Added -d    By: TCN
    10.08.22 Added -s    By: ACRM
    04.10.22 Added -l, -f, -r
+   22.11.22 Fixed bug when no flags given
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *matrix, int *Method, BOOL *Extended,
@@ -417,12 +420,12 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
          }
          else
          {
-            if(doLog)
+            if(*doLog)
             {
                fprintf(stderr,"Error: -l must be used with -s\n");
                return(FALSE);
             }
-            if(reduceData)
+            if(*reduceData)
             {
                fprintf(stderr,"Error: -r must be used with -s\n");
                return(FALSE);
@@ -1337,10 +1340,11 @@ char **ParseSingle(char *single, int *nSeq, BOOL doLog, REAL maxFraction,
    10.08.22 V1.7 Added -s
    13.09.22 V1.7.1
    04.10.22 V1.8
+   22.11.22 V1.8.1
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nScoreCons V1.8 (c) 1996-2022 Prof. Andrew C.R. \
+   fprintf(stderr,"\nScoreCons V1.8.1 (c) 1996-2022 Prof. Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"          valdar01 scoring implemented by Tom \
 Northey\n");
