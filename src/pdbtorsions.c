@@ -3,12 +3,12 @@
 
    \file       pdbtorsions.c
    
-   \version    V2.3
-   \date       13.03.19
+   \version    V2.4
+   \date       12.12.22
    \brief      Calculate torsion angles for a PDB file
    
-   \copyright  (c) Dr. Andrew C. R. Martin 1996-2019
-   \author     Dr. Andrew C. R. Martin
+   \copyright  (c) Prof. Andrew C. R. Martin 1996-2022
+   \author     Prof. Andrew C. R. Martin
    \par
                Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -124,18 +124,22 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   BOOL *oldStyle, BOOL *scTorsions);
 BOOL CalculateAndDisplayTorsions(FILE *out, PDB *fullpdb, 
                                  BOOL CATorsions, BOOL terse, 
-                                 BOOL Radians, BOOL oldStyle);
+                                 BOOL Radians, BOOL oldStyle,
+                                 BOOL scTorsions);
 void doCATorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians, 
                   BOOL oldStyle);
 void doFullTorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians, 
-                    BOOL oldStyle);
+                    BOOL oldStyle, BOOL scTorsions);
 void PrintCARecord(FILE *out, PDB *p, REAL tor, BOOL terse, 
                    BOOL showLabel, BOOL dummy);
 BOOL SetOldStyle(char *progname);
 REAL CalcTorsion(PDB *p1, PDB *p2, PDB *p3, PDB *p4, BOOL Radians);
 void PrintFullRecord(FILE *out, PDB *p, REAL phi, REAL psi, REAL omega, 
-                     BOOL terse, BOOL showLabel);
+                     BOOL terse, BOOL showLabel, BOOL scTorsions,
+                     REAL chi1, REAL chi2);
 void BuildLabel(char *label, PDB *p, int width, BOOL LeftJustify);
+void doSCTorsions(PDB *startRes, PDB **N, PDB **CA, BOOL Radians, REAL *pChi1, REAL *pChi2);
+
 
 
 /************************************************************************/
@@ -179,7 +183,8 @@ int main(int argc, char **argv)
          if((pdb=blReadPDB(in, &natoms))!=NULL)
          {
             if(!CalculateAndDisplayTorsions(out, pdb, CATorsions, terse, 
-                                            Radians, oldStyle))
+                                            Radians, oldStyle,
+                                            scTorsions))
                return(1);
          }
          else
@@ -209,7 +214,8 @@ output file\n");
 /************************************************************************/
 /*>BOOL CalculateAndDisplayTorsions(FILE *out, PDB *fullpdb, 
                                     BOOL CATorsions, BOOL terse, 
-                                    BOOL Radians, BOOL oldStyle)
+                                    BOOL Radians, BOOL oldStyle,
+                                    BOOL scTorsions)
    -----------------------------------------------------------------------
 *//**
 
@@ -219,13 +225,16 @@ output file\n");
    \param[in]    terse         Terse (single letter code AAs) output
    \param[in]    Radians       Use radians instead of degrees
    \param[in]    oldStyle      Old style output
+   \param[in]    scTorsions    Do sidechain torsions too
 
    Calculate and display the torsion angles as required
 
 - 27.11.14 Original   By: ACRM
+- 12.12.22 Added scTorsions
 */
 BOOL CalculateAndDisplayTorsions(FILE *out, PDB *fullpdb, BOOL CATorsions,
-                                 BOOL terse, BOOL Radians, BOOL oldStyle)
+                                 BOOL terse, BOOL Radians, BOOL oldStyle,
+                                 BOOL scTorsions)
 {
    char *sel[4];
    int  natoms;
@@ -253,7 +262,14 @@ atoms from PDB file (no memory?)\n");
    }
    else
    {
-      doFullTorsions(out, pdb, terse, Radians, oldStyle);
+      if(scTorsions)
+      {
+         doFullTorsions(out, fullpdb, terse, Radians, oldStyle, scTorsions);
+      }
+      else
+      {
+         doFullTorsions(out, pdb, terse, Radians, oldStyle, scTorsions);
+      }
    }
 
    return(TRUE);
@@ -396,7 +412,7 @@ void PrintCARecord(FILE *out, PDB *p, REAL tor, BOOL terse,
 
 /************************************************************************/
 /*>void doFullTorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians, 
-                       BOOL oldStyle)
+                       BOOL oldStyle, BOOL scTorsions)
    -------------------------------------------------------------------
 *//**
    \param[in]    *out       Output file pointer
@@ -408,30 +424,40 @@ void PrintCARecord(FILE *out, PDB *p, REAL tor, BOOL terse,
    Main routine for doing normal full torsion angles
 
 - 27.11.14 Original   By: ACRM
+- 12.12.22 Added scTorsions
 */
 void doFullTorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians, 
-                    BOOL oldStyle)
+                    BOOL oldStyle, BOOL scTorsions)
 {
    PDB  *startChain,
         *stopChain,
         *startRes,
         *stopRes,
+        *prevRes = NULL,
         *N[3],
         *CA[3],
         *C[3];
-   REAL phi, psi, omega, omega2;
+   REAL phi, psi, omega, omega2, chi1, chi2;
 
 
    /* Print title                                                       */
    if(oldStyle)
    {
-      fprintf(out,"               PHI      PSI     OMEGA\n");
-      fprintf(out,"--------------------------------------\n");
+      fprintf(out,"                 PHI      PSI    OMEGA");
+      if(scTorsions) fprintf(out, "     CHI1     CHI2");
+      fprintf(out,"\n");
+      fprintf(out,"--------------------------------------");
+      if(scTorsions) fprintf(out, "------------------");
+      fprintf(out,"\n");
    }
    else
    {
-      fprintf(out,"#Resnum  Resnam     PHI      PSI     OMEGA\n");
-      fprintf(out,"#------------------------------------------\n");
+      fprintf(out,"#Resnum  Resnam       PHI      PSI    OMEGA");
+      if(scTorsions) fprintf(out, "     CHI1     CHI2");
+      fprintf(out,"\n");
+      fprintf(out,"#------------------------------------------");
+      if(scTorsions) fprintf(out, "------------------");
+      fprintf(out,"\n");
    }
 
    /* Step through the chains                                           */
@@ -441,6 +467,7 @@ void doFullTorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians,
       CLEARVALUES(N);
       CLEARVALUES(CA);
       CLEARVALUES(C);
+      chi1 = chi2 = ERROR_VALUE;
 
       stopChain = blFindNextChain(startChain);
 
@@ -465,10 +492,18 @@ void doFullTorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians,
          psi    = CalcTorsion(N[1],  CA[1], C[1],  N[2],  Radians);
          omega2 = CalcTorsion(CA[1], C[1],  N[2],  CA[2], Radians);
 
+         if(scTorsions)
+         {
+            doSCTorsions(prevRes, N, CA, Radians, &chi1, &chi2);
+         }
+         
          if(oldStyle)
-            PrintFullRecord(out, N[1], phi, psi, omega2, terse, oldStyle);
+            PrintFullRecord(out, N[1], phi, psi, omega2, terse, oldStyle,
+                            scTorsions, chi1, chi2);
          else
-            PrintFullRecord(out, N[1], phi, psi, omega, terse, oldStyle);
+            PrintFullRecord(out, N[1], phi, psi, omega, terse, oldStyle,
+                            scTorsions, chi1, chi2);
+         prevRes = startRes;
       }
 
       /* Deal with the last amino acid                                  */
@@ -476,36 +511,47 @@ void doFullTorsions(FILE *out, PDB *pdb, BOOL terse, BOOL Radians,
       phi    = CalcTorsion(C[1],  N[2],  CA[2], C[2],  Radians);
       psi    = ERROR_VALUE;
       omega2 = ERROR_VALUE;
+      if(scTorsions)
+      {
+         doSCTorsions(prevRes, N, CA, Radians, &chi1, &chi2);
+      }
 
       if(oldStyle)
-         PrintFullRecord(out, N[2], phi, psi, omega2, terse, oldStyle);
+         PrintFullRecord(out, N[2], phi, psi, omega2, terse, oldStyle,
+                         scTorsions, chi1, chi2);
       else
-         PrintFullRecord(out, N[2], phi, psi, omega, terse, oldStyle);
+         PrintFullRecord(out, N[2], phi, psi, omega, terse, oldStyle,
+                         scTorsions, chi1, chi2);
    }
 }
 
-
 /************************************************************************/
 /*>void PrintFullRecord(FILE *out, PDB *p, REAL phi, REAL psi, 
-                        REAL omega, BOOL terse, BOOL oldStyle)
+                        REAL omega, BOOL terse, BOOL oldStyle,
+                        BOOL scTorsions, REAL chi1, REAL chi2)
    -----------------------------------------------------------
 *//**
-   \param[in]    *out      Output file pointer
-   \param[in]    *p        Pointer to PDB record
-   \param[in]    phi       Phi angle to print
-   \param[in]    psi       Psi angle to print
-   \param[in]    omega     Omega angle to print
-   \param[in]    terse     Terse output
-   \param[in]    oldStyle  Old style output
+   \param[in]    *out       Output file pointer
+   \param[in]    *p         Pointer to PDB record
+   \param[in]    phi        Phi angle to print
+   \param[in]    psi        Psi angle to print
+   \param[in]    omega      Omega angle to print
+   \param[in]    terse      Terse output
+   \param[in]    oldStyle   Old style output
+   \param[in]    scTorsions Do sidechain torsions
+   \param[in]    chi1       Chi1 angle to print
+   \param[in]    chi2       Chi2 angle to print
 
    Does the work of printing a record for a normal full torsion angle
 
 - 27.11.14 Original   By: ACRM
 - 28.01.18 label[32] instead of label[16]
 - 13.03.19 Now uses MAXLABEL 
+- 12.12.22 Added chi1 and chi2
 */
 void PrintFullRecord(FILE *out, PDB *p, REAL phi, REAL psi, REAL omega, 
-                     BOOL terse, BOOL oldStyle)
+                     BOOL terse, BOOL oldStyle,
+                     BOOL scTorsions, REAL chi1, REAL chi2)
 {
    char label[MAXLABEL];
    char resnam[16];
@@ -524,15 +570,21 @@ void PrintFullRecord(FILE *out, PDB *p, REAL phi, REAL psi, REAL omega,
 
       if(oldStyle)
       {
-         fprintf(out, "%5d%c %-4s %8.3f %8.3f %8.3f\n", 
+         fprintf(out, "%5d%c %-4s %8.3f %8.3f %8.3f", 
                  p->resnum, p->insert[0], resnam, phi, psi, omega);
       }
       else
       {
          BuildLabel(label, p, 6, FALSE);
-         fprintf(out, "%-8s %-4s    %8.3f %8.3f %8.3f\n", 
+         fprintf(out, "%-8s %-4s    %8.3f %8.3f %8.3f", 
                  label, resnam, phi, psi, omega);
       }
+      if(scTorsions)
+      {
+         if(chi1 < (ERROR_VALUE - 1)) fprintf(out, " %8.3f", chi1);
+         if(chi2 < (ERROR_VALUE - 1)) fprintf(out, " %8.3f", chi2);
+      }
+      fprintf(out, "\n");
    }
 }
 
@@ -618,6 +670,58 @@ REAL CalcTorsion(PDB *p1, PDB *p2, PDB *p3, PDB *p4, BOOL Radians)
       tor *= 180/PI;
 
    return(tor);
+}
+
+/************************************************************************/
+/*>void doSCTorsions(PDB *startRes, PDB **N, PDB **CA, BOOL Radians, 
+                     REAL *pChi1, REAL *pChi2)
+   -----------------------------------------------------------------
+*//**
+
+   \param[in]   startRes   The start of the residue of interest
+   \param[in]   N          Array of 3 N positions
+   \param[in]   CA         Array of 3 CA positions
+   \param[in]   Radians    Display angles in radians
+   \param[out]  pChi1      calculated chi1 angle
+   \param[out]  pChi2      calculated chi2 angle
+
+   Calculates the sidechain torsion angles. Note that the residue of
+   interest is the one before the 'current' residue in the main loop.
+
+   12.12.22  Original   By: ACRM
+*/
+void doSCTorsions(PDB *startRes, PDB **N, PDB **CA, BOOL Radians,
+                  REAL *pChi1, REAL *pChi2)
+{
+   PDB *Beta  = NULL,
+       *Gamma = NULL,
+       *Delta = NULL;
+
+   *pChi1 = *pChi2 = ERROR_VALUE;
+   
+   /* Find sidechain atoms                                              */
+   Beta  = blFindAtomWildcardInRes(startRes, "?B  ");
+   if(Beta != NULL)
+   {
+      Gamma = blFindAtomWildcardInRes(startRes, "?G  ");
+      if(Gamma == NULL)
+         Gamma = blFindAtomWildcardInRes(startRes, "?G1 ");
+      if(Gamma != NULL)
+      {
+         Delta = blFindAtomWildcardInRes(startRes, "?D  ");
+         if(Delta == NULL)
+            Delta = blFindAtomWildcardInRes(startRes, "?D1 ");
+      }
+   }
+   /* Calculate sidechain torsions                                      */
+   if(Gamma != NULL)
+   {
+      *pChi1 = CalcTorsion(N[1], CA[1], Beta, Gamma, Radians);
+   }
+   if(Delta != NULL)
+   {
+      *pChi2 = CalcTorsion(CA[1], Beta, Gamma, Delta, Radians);
+   }
 }
 
 
@@ -729,12 +833,13 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 -  27.11.14 V2.0
 -  04.03.15 V2.1
 -  28.01.18 V2.2
+-  12.12.22 V2.4
 */
 void Usage(void)
 {
-   fprintf(stderr,"\npdbtorsions V2.2 (c) 1994-2018 Andrew Martin, \
+   fprintf(stderr,"\npdbtorsions V2.4 (c) 1994-2022 Andrew Martin, \
 UCL.\n");
-   fprintf(stderr,"\nUsage: pdbtorsions [-h][-r][-c][-t][-o][-n] \
+   fprintf(stderr,"\nUsage: pdbtorsions [-h][-r][-c][-t][-o][-n][-s] \
 [in.pdb [out.tor]]\n");
    fprintf(stderr,"       -h   This help message\n");
    fprintf(stderr,"       -r   Give results in radians\n");
@@ -742,6 +847,7 @@ UCL.\n");
    fprintf(stderr,"       -t   Terse format - use 1-letter code\n");
    fprintf(stderr,"       -o   Old format (see below)\n");
    fprintf(stderr,"       -n   New format (see below)\n");
+   fprintf(stderr,"       -s   Also do sidechain torsions\n");
 
    fprintf(stderr,"\nGenerates a set of backbone torsions from a PDB \
 file.\n\n");
