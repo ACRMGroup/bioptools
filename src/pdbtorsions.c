@@ -69,6 +69,7 @@
 -  V2.2  28.01.17 Updated size of label array
 -  V2.3  13.03.19 Made a local copy in MakeLabel() to avoid -Wrestrict
                   for GCC V8. Introduced MAXLABEL rather than 32
+-  V2.4  12.12.22 Added -s for sidechain torsions
 
 *************************************************************************/
 /* Includes
@@ -120,7 +121,7 @@ int main(int argc, char **argv);
 void Usage(void);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   BOOL *CATorsions, BOOL *terse, BOOL *Radians, 
-                  BOOL *oldStyle);
+                  BOOL *oldStyle, BOOL *scTorsions);
 BOOL CalculateAndDisplayTorsions(FILE *out, PDB *fullpdb, 
                                  BOOL CATorsions, BOOL terse, 
                                  BOOL Radians, BOOL oldStyle);
@@ -163,6 +164,7 @@ int main(int argc, char **argv)
    BOOL    terse      = FALSE;
    BOOL    Radians    = FALSE;
    BOOL    oldStyle   = FALSE;
+   BOOL    scTorsions = FALSE;
 
    /* Set the default output style based on whether the program is called
       pdbtorsions or torsions
@@ -170,7 +172,7 @@ int main(int argc, char **argv)
    oldStyle = blCheckProgName(argv[0], "torsions");
 
    if(ParseCmdLine(argc, argv, inFile, outFile, 
-                   &CATorsions, &terse, &Radians, &oldStyle))
+                   &CATorsions, &terse, &Radians, &oldStyle, &scTorsions))
    {
       if(blOpenStdFiles(inFile, outFile, &in, &out))
       {
@@ -622,7 +624,7 @@ REAL CalcTorsion(PDB *p1, PDB *p2, PDB *p3, PDB *p4, BOOL Radians)
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                      BOOL *CATorsions, BOOL *terse, BOOL *Radians, 
-                     BOOL *oldStyle)
+                     BOOL *oldStyle, BOOL *scTorsions)
    ---------------------------------------------------------------------
 *//**
 
@@ -634,16 +636,18 @@ REAL CalcTorsion(PDB *p1, PDB *p2, PDB *p3, PDB *p4, BOOL Radians)
    \param[out]    *terse       Terse (1-letter AA code) output
    \param[out]    *Radians     Output radians rather than degrees
    \param[out]    *oldStyle    Old style output
+   \param[out]    *scTorsions  Also do sidechain torsions
    \return                     Success?
 
    Parse the command line
    
 -  05.02.96 Original    By: ACRM
 -  27.02.14 V2.0
+-  12.12.22 V2.4 - added -s
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   BOOL *CATorsions, BOOL *terse, BOOL *Radians, 
-                  BOOL *oldStyle)
+                  BOOL *oldStyle, BOOL *scTorsions)
 {
    argc--;
    argv++;
@@ -670,6 +674,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             break;
          case 'n':
             *oldStyle = FALSE;
+            break;
+         case 's':
+            *scTorsions = TRUE;
             break;
          default:
             return(FALSE);
