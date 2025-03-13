@@ -213,7 +213,7 @@ REAL CalcScore(char **SeqTable, int nseq, int seqlen, int pos,
 REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix,
                    BOOL ignoreGaps);
 REAL EntropyScore(char **SeqTable, int nseq, int pos, 
-                  AMINOACID *aminoacids, int NGroups);
+                  AMINOACID *aminoacids, int NGroups, BOOL ignoreGaps);
 
 REAL valdarScore(char **SeqTable, int pos, int numSeqs, int seqlen, 
                  int MaxInMatrix);
@@ -754,10 +754,10 @@ REAL CalcScore(char **SeqTable, int nseq, int seql, int pos,
       return(MDMBasedScore(SeqTable, nseq, pos, MaxInMatrix, ignoreGaps));
    case METH_ENTROPY20:
       return((REAL)1.0 -
-             EntropyScore(SeqTable, nseq, pos, AA21Groups, 21));
+             EntropyScore(SeqTable, nseq, pos, AA21Groups, 21, ignoreGaps));
    case METH_ENTROPY8:
       return((REAL)1.0 -
-             EntropyScore(SeqTable, nseq, pos, AA9Groups, 9)); 
+             EntropyScore(SeqTable, nseq, pos, AA9Groups, 9, ignoreGaps)); 
    case METH_ENTROPY:
 /*
       e21 = (REAL)1.0 - EntropyScore(SeqTable, nseq, pos, AA21Groups, 21);
@@ -767,8 +767,8 @@ REAL CalcScore(char **SeqTable, int nseq, int seql, int pos,
                                 ((REAL)20.0/(REAL)8.0)));
       return(e);
 */
-      e21 = EntropyScore(SeqTable, nseq, pos, AA21Groups, 21);
-      e9  = EntropyScore(SeqTable, nseq, pos, AA9Groups,  9);
+      e21 = EntropyScore(SeqTable, nseq, pos, AA21Groups, 21, ignoreGaps);
+      e9  = EntropyScore(SeqTable, nseq, pos, AA9Groups,  9, ignoreGaps);
       e   = e21 * ((1.0 - (8.0/20.0))*e9 + (8.0/20.0));
       e   = 1.0 - e;
       return((REAL)e);
@@ -851,8 +851,8 @@ REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix,
 
 /************************************************************************/
 /*>REAL EntropyScore(char **SeqTable, int nseq, int pos, 
-                     AMINOACID *aminoacids, int NGroups)
-   -----------------------------------------------------
+                     AMINOACID *aminoacids, int NGroups, BOOL ignoreGaps)
+   ----------------------------------------------------------------------
    Calculates an entropy score based on the equation:
    S = - \sum_i p_i \log p_i
    where p_i is n_i/N
@@ -866,13 +866,15 @@ REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix,
    to 1.0 (maximum variability)
 
    17.09.96 Original   By: ACRM
+   13.03.25 Added ignoreGaps
 */
 REAL EntropyScore(char **SeqTable, int nseq, int pos, 
-                  AMINOACID *aminoacids, int NGroups)
+                  AMINOACID *aminoacids, int NGroups, BOOL ignoreGaps)
 {
    REAL entropy = (REAL)0.0,
         *count;
-   int  type, i, j;
+   int  type, i, j,
+        includedResidues = 0;
 
    /* Allocate memory to store the counts and zero them                 */
    if((count = (REAL *)malloc(NGroups * sizeof(REAL)))==NULL)
@@ -888,21 +890,26 @@ REAL EntropyScore(char **SeqTable, int nseq, int pos,
       */
       for(i=0; i<nseq; i++)
       {
-         /* We've got an amino acid of this type                        */
-         if(SeqTable[i][pos] == aminoacids[type].res)
+         if(!ignoreGaps || (SeqTable[i][pos] != '-'))
          {
-            /* We allow amino acids to belong to more than one group to
-               handle B (ASX) and Z (GLX).
-
-               For each group to which this residue belongs             
-            */
-            for(j=0; j<aminoacids[type].NGroup; j++)
+            /* We've got an amino acid of this type                        */
+            if(SeqTable[i][pos] == aminoacids[type].res)
             {
-               /* Increment the count by 1 over the number of groups to
-                  which this residue belongs
+               includedResidues++;
+            
+               /* We allow amino acids to belong to more than one group to
+                  handle B (ASX) and Z (GLX).
+                  
+                  For each group to which this residue belongs             
                */
-               count[aminoacids[type].group[j]] += 
-                  (REAL)1.0/(REAL)aminoacids[type].NGroup;
+               for(j=0; j<aminoacids[type].NGroup; j++)
+               {
+                  /* Increment the count by 1 over the number of groups to
+                     which this residue belongs
+                  */
+                  count[aminoacids[type].group[j]] += 
+                     (REAL)1.0/(REAL)aminoacids[type].NGroup;
+               }
             }
          }
       }
@@ -910,7 +917,7 @@ REAL EntropyScore(char **SeqTable, int nseq, int pos,
 
    /* Now run through all the counts and convert them to fractions      */
    for(i=0; i<NGroups; i++)
-      count[i] /= nseq;
+      count[i] /= includedResidues;
 
    /* Add up the entropy score                                          */
    for(i=0; i<NGroups; i++)
