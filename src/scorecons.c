@@ -933,7 +933,7 @@ REAL EntropyScore(char **SeqTable, int nseq, int pos,
       We now divide by log of the number of sequences or number of
       groups (whichever is smaller) such that the maximum value is 1.0
    */
-   entropy /= log(MIN(nseq,NGroups));
+   entropy /= log(MIN(includedResidues,NGroups));
    
    return(entropy);
 }
