@@ -380,12 +380,16 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             *Method = METH_ENTROPY8;
             break;
          case 'd':
+            if(*ignoreGaps)
+               return(FALSE);
             *Method = METH_VALDAR;
             break;
          case 'x':
             *Extended = TRUE;
             break;
          case 'i':
+            if(*Method == METH_VALDAR)
+               return(FALSE);
             *ignoreGaps = TRUE;
             break;
          case 'l':
@@ -1396,7 +1400,7 @@ residues\n");
    fprintf(stderr,"       -e Score by combined entropy method\n");
    fprintf(stderr,"       -d Score by the valdar01 method\n");
    fprintf(stderr,"       -x Extended precision output\n");
-   fprintf(stderr,"       -i Ignore gaps\n");
+   fprintf(stderr,"       -i Ignore gaps (doesn't work with valdar01)\n");
    
    fprintf(stderr,"       -s Score a single column of an alignment \
 specifying residue counts\n");
@@ -1439,11 +1443,17 @@ together, but\n");
 less owing to the\n");
    fprintf(stderr,"loss of information content.\n");
 
+   fprintf(stderr,"\nThe -i flag can be used with the Dayhoff or entropy \
+methods to ignore gaps\n");
+   fprintf(stderr,"in the calculations. Note that this cannot be used \
+with the valdar01 method.\n");
+
+   
    fprintf(stderr,"\nThe valdar01 method is a scoring method developed \
-by Will Valdar.\n");
-   fprintf(stderr,"It uses a weighting scheme based on the evolutionary \
-distance\n");
-   fprintf(stderr,"between aligned sequences.\n");
+by Will Valdar. It uses\n");
+   fprintf(stderr,"a weighting scheme based on the evolutionary \
+distance between aligned\n");
+   fprintf(stderr,"sequences. This cannot be used with -i.\n");
 
    fprintf(stderr,"\nNote that to use -r, -l or -f, you must be using \
 -s and that only one\n");
