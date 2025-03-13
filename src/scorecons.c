@@ -3,13 +3,13 @@
    Program:    scorecons
    File:       scorecons.c
    
-   Version:    V1.8.1
-   Date:       28.11.22
+   Version:    V1.9
+   Date:       13.03.25
    Function:   Scores conservation from a PIR sequence alignment
                Not to be confused with the program of the same name
                by Will Valdar (this one predates his!)
    
-   Copyright:  (c) Prof. Andrew C. R. Martin 1996-2022
+   Copyright:  (c) Prof. Andrew C. R. Martin 1996-2025
    Author:     Prof. Andrew C. R. Martin
                Tom Northey (implemented Valdar01 scoring)
    Address:    Biomolecular Structure & Modelling Unit,
@@ -127,8 +127,9 @@
                    distribution of amino acids
    V1.7.1 13.09.22 Modified int to LONG for very big data setps.
    V1.8   04.10.22 Added -l (log) option
-   V1.8.1 22.11.22 Fixed bug in command parsing - was failing when not
+   V1.8.1 22.11.22 Fixed bug in command parsing - was failing when no
                    flags given.
+   V1.9   13.03.25 Added -i flag to skip deletions
 
 *************************************************************************/
 /* Includes
@@ -197,18 +198,20 @@ int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *matrix, int *Method, BOOL *extended,
                   char *single, BOOL *doLog, REAL *maxFraction,
-                  BOOL *reduceData);
+                  BOOL *reduceData, BOOL *ignoreGaps);
 void Usage(void);
 BOOL ReadAndScoreSeqs(FILE *fp, FILE *out, int MaxInMatrix, int Method,
-                      BOOL Extended);
+                      BOOL Extended, BOOL ignoreGaps);
 SEQDATA *ReadAllSeqs(FILE *fp);
 char **ListToTable(SEQDATA *SeqList, int *nseq, int *seqlen);
 void PadSeqs(char **SeqTable, int nseq, int seqlen);
 void DisplayScores(FILE *fp, char **SeqTable, int nseq, int seqlen, 
-                   int MaxInMatrix, int Method, BOOL Extended);
-REAL CalcScore(char **SeqTable, int nseq, int seqlen, int pos, int MaxInMatrix,
-               int Method);
-REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix);
+                   int MaxInMatrix, int Method, BOOL Extended,
+                   BOOL ignoreGaps);
+REAL CalcScore(char **SeqTable, int nseq, int seqlen, int pos,
+               int MaxInMatrix, int Method, BOOL ignoreGaps);
+REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix,
+                   BOOL ignoreGaps);
 REAL EntropyScore(char **SeqTable, int nseq, int pos, 
                   AMINOACID *aminoacids, int NGroups);
 
@@ -255,6 +258,7 @@ int main(int argc, char **argv)
         Method      = METH_MDM;
    BOOL Extended    = FALSE,
         doLog       = FALSE,
+        ignoreGaps  = FALSE,
         reduceData  = FALSE;
    REAL maxFraction = (REAL)0.0;
    
@@ -263,7 +267,7 @@ int main(int argc, char **argv)
    
    if(ParseCmdLine(argc, argv, InFile, OutFile, matrix, &Method,
                    &Extended, single, &doLog, &maxFraction,
-                   &reduceData))
+                   &reduceData, &ignoreGaps))
    {
       if(blOpenStdFiles(InFile, OutFile, &in, &out))
       {
@@ -287,7 +291,7 @@ int main(int argc, char **argv)
          else
          {
             return(ReadAndScoreSeqs(in, out, MaxInMatrix, Method,
-                                    Extended)?0:1);
+                                    Extended, ignoreGaps)?0:1);
          }
       }
       else
@@ -307,7 +311,7 @@ int main(int argc, char **argv)
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                      char *matrix, int *Method, BOOL *Extended,
                      char *single, BOOL *doLog, REAL *maxFraction,
-                     BOOL *reduceData)
+                     BOOL *reduceData, BOOL *ignoreGaps)
    ---------------------------------------------------------------------
    Input:   int    argc         Argument count
             char   **argv       Argument array
@@ -323,6 +327,7 @@ int main(int argc, char **argv)
                                 more than the specified fraction of the
                                 data
             BOOL   *reduceData  Reduce the dataset size to MAXDATA
+            BOOL   *ignoreGaps  Ignore gaps in the alignment scoring
    Returns: BOOL                Success?
 
    Parse the command line
@@ -333,11 +338,12 @@ int main(int argc, char **argv)
    10.08.22 Added -s    By: ACRM
    04.10.22 Added -l, -f, -r
    22.11.22 Fixed bug when no flags given
+   13.03.25 Added -i
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile, 
                   char *matrix, int *Method, BOOL *Extended,
                   char *single, BOOL *doLog, REAL *maxFraction,
-                  BOOL *reduceData)
+                  BOOL *reduceData, BOOL *ignoreGaps)
 {
    int nFlags = 0;
    
@@ -349,6 +355,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    single[0]    = '\0';
    *Extended    = FALSE;
    *reduceData  = FALSE;
+   *ignoreGaps  = FALSE;
    *maxFraction = (REAL)0.0;
    
    while(argc)
@@ -377,6 +384,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             break;
          case 'x':
             *Extended = TRUE;
+            break;
+         case 'i':
+            *ignoreGaps = TRUE;
             break;
          case 'l':
             *doLog = TRUE;
@@ -468,7 +478,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
 /************************************************************************/
 /*>BOOL ReadAndScoreSeqs(FILE *fp, FILE *out, int MaxInMatrix, int Method,
-                         BOOL Extended)
+                         BOOL Extended, BOOL ignoreGaps)
    -----------------------------------------------------------------------
    Routine which reads in files, calculates and displays the variability
    scores.
@@ -476,9 +486,10 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    11.09.96 Original   By: ACRM
    17.09.96 Added out parameter and MaxInMatrix
    15.07.08 Added Extended parameter
+   13.03.25 Added ignoreGaps parameter
 */
 BOOL ReadAndScoreSeqs(FILE *fp, FILE *out, int MaxInMatrix, int Method,
-                      BOOL Extended)
+                      BOOL Extended, BOOL ignoreGaps)
 {
    SEQDATA *SeqList;
    char    **SeqTable;
@@ -500,7 +511,7 @@ BOOL ReadAndScoreSeqs(FILE *fp, FILE *out, int MaxInMatrix, int Method,
 
    /* Calculate and print scores                                        */
    DisplayScores(out, SeqTable, nseq, seqlen, MaxInMatrix, Method,
-                 Extended);
+                 Extended, ignoreGaps);
 
    /* Free memory from sequence table                                   */
    blFreeArray2D((char **)SeqTable, nseq, seqlen);
@@ -617,16 +628,19 @@ void PadSeqs(char **SeqTable, int nseq, int seqlen)
 
 /************************************************************************/
 /*>void DisplayScores(FILE *fp, char **SeqTable, int nseq, int seqlen,
-                      int MaxInMatrix, int Method, BOOL Extended)
+                      int MaxInMatrix, int Method, BOOL Extended,
+                      BOOL ignoreGaps)
    -------------------------------------------------------------------
    Display the variability scores for each position in the alignment
 
    11.09.96 Original   By: ACRM
    17.09.96 Added MaxInMatrix and prints amino acid list
    15.07.08 Added Extended parameter and printing
+   13.03.25 Added ignoreGaps
 */
 void DisplayScores(FILE *fp, char **SeqTable, int nseq, int seqlen, 
-                   int MaxInMatrix, int Method, BOOL Extended)
+                   int MaxInMatrix, int Method, BOOL Extended,
+                   BOOL ignoreGaps)
 {
    int i, j;
 
@@ -637,14 +651,14 @@ void DisplayScores(FILE *fp, char **SeqTable, int nseq, int seqlen,
          fprintf(fp,"%4d %9.6f ",
                  i+1,
                  CalcScore(SeqTable, nseq, seqlen, i, 
-                           MaxInMatrix, Method));
+                           MaxInMatrix, Method, ignoreGaps));
       }
       else
       {
          fprintf(fp,"%4d %6.3f ",
                  i+1,
                  CalcScore(SeqTable, nseq, seqlen, i, 
-                           MaxInMatrix, Method));
+                           MaxInMatrix, Method, ignoreGaps));
       }
       
       for(j=0; j<nseq; j++)
@@ -658,7 +672,7 @@ void DisplayScores(FILE *fp, char **SeqTable, int nseq, int seqlen,
 
 /************************************************************************/
 /*>REAL CalcScore(char **SeqTable, int nseq, int seql, int pos, 
-                  int MaxInMatrix, int Method)
+                  int MaxInMatrix, int Method, BOOL ignoreGaps)
    ------------------------------------------------------------
    Calculate the score for a given position in the alignment
 
@@ -669,9 +683,10 @@ void DisplayScores(FILE *fp, char **SeqTable, int nseq, int seqlen,
    18.09.96 Changed calculation of combined score
    11.08.15 Initialize e
    24.08.15 Add seql parameter and valdar01 method.  By: TCN
+   13.03.25 Added ignoreGaps.   By: ACRM
 */
 REAL CalcScore(char **SeqTable, int nseq, int seql, int pos, 
-               int MaxInMatrix, int Method)
+               int MaxInMatrix, int Method, BOOL ignoreGaps)
 {
    REAL e = 0.0,
         e9, e21;
@@ -736,7 +751,7 @@ REAL CalcScore(char **SeqTable, int nseq, int seql, int pos,
    switch(Method)
    {
    case METH_MDM:
-      return(MDMBasedScore(SeqTable, nseq, pos, MaxInMatrix));
+      return(MDMBasedScore(SeqTable, nseq, pos, MaxInMatrix, ignoreGaps));
    case METH_ENTROPY20:
       return((REAL)1.0 -
              EntropyScore(SeqTable, nseq, pos, AA21Groups, 21));
@@ -768,7 +783,8 @@ REAL CalcScore(char **SeqTable, int nseq, int seql, int pos,
 
 
 /************************************************************************/
-/*>REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix)
+/*>REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix,
+                      BOOL ignoreGaps)
    -----------------------------------------------------------------------
    Calculate the score for a given position in the alignment using the
    MDM Method
@@ -779,8 +795,10 @@ REAL CalcScore(char **SeqTable, int nseq, int seql, int pos,
             Added MaxInMatrix
    13.09.22 Changed to LONG for count as well as score - can change 
             these to VLONG if needed
+   13.03.25 Added ignoreGaps
 */
-REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix)
+REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix,
+                   BOOL ignoreGaps)
 {
    LONG  i, j;
    VLONG count,
@@ -795,23 +813,31 @@ REAL MDMBasedScore(char **SeqTable, int nseq, int pos, int MaxInMatrix)
       res1 = SeqTable[i][pos];
       if(res1 == ' ')
          res1 = '-';
-      
-      for(j=i+1; j<nseq; j++)
+
+      if(!ignoreGaps || (res1 != '-'))
       {
-         res2 = SeqTable[j][pos];
-         if(res2 == ' ')
-            res2 = '-';
-         if(++count > MAXCHECK)
-         { 
-            fprintf(stderr, "Score count too large to store!\n");
-            exit(1);
-         }
-         
-         score += blCalcMDMScore(res1, res2);
-         if(score > MAXCHECK)
-         { 
-            fprintf(stderr, "Score (%Ld) too large to store!\n", score);
-            exit(1);
+         for(j=i+1; j<nseq; j++)
+         {
+            res2 = SeqTable[j][pos];
+            if(res2 == ' ')
+               res2 = '-';
+
+            if(!ignoreGaps || (res2 != '-'))
+            {
+               if(++count > MAXCHECK)
+               { 
+                  fprintf(stderr, "Score count too large to store!\n");
+                  exit(1);
+               }
+               
+               score += blCalcMDMScore(res1, res2);
+               if(score > MAXCHECK)
+               { 
+                  fprintf(stderr, "Score (%Ld) too large to store!\n",
+                          score);
+                  exit(1);
+               }
+            }
          }
       }
    }
@@ -1175,7 +1201,7 @@ BOOL ReadAndScoreSingle(char *single, FILE *out, int MaxInMatrix,
    
    /* Calculate and print scores                                        */
    DisplayScores(out, SeqTable, nseq, seqlen, MaxInMatrix, Method,
-                 Extended);
+                 Extended, FALSE);
 
    /* Free memory from sequence table                                   */
    blFreeArray2D((char **)SeqTable, nseq, seqlen);
@@ -1341,18 +1367,19 @@ char **ParseSingle(char *single, int *nSeq, BOOL doLog, REAL maxFraction,
    13.09.22 V1.7.1
    04.10.22 V1.8
    22.11.22 V1.8.1
+   13.03.25 V1.9
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nScoreCons V1.8.1 (c) 1996-2022 Prof. Andrew C.R. \
+   fprintf(stderr,"\nScoreCons V1.9 (c) 1996-2025 Prof. Andrew C.R. \
 Martin, UCL\n");
    fprintf(stderr,"          valdar01 scoring implemented by Tom \
 Northey\n");
 
    fprintf(stderr,"\nUsage: scorecons [-m matrixfile] [-a|-g|-e|-d] \
-[-x] [alignment.pir [output.dat]]\n");
+[-x] [-i] [alignment.pir [output.dat]]\n");
    fprintf(stderr," -or-  scorecons -s A:n,C:n,D:n,... [-m matrixfile] \
-[-a|-g|-e|-d] [-r|-l|-f[=n]]\n");
+[-a|-g|-e|-d] [-i] [-r|-l|-f[=n]]\n");
    fprintf(stderr,"                 [-x] [output.dat]\n");
    fprintf(stderr,"       -m Specify the mutation matrix (Default: %s)\n",
            MUTMAT);
@@ -1362,6 +1389,8 @@ residues\n");
    fprintf(stderr,"       -e Score by combined entropy method\n");
    fprintf(stderr,"       -d Score by the valdar01 method\n");
    fprintf(stderr,"       -x Extended precision output\n");
+   fprintf(stderr,"       -i Ignore gaps\n");
+   
    fprintf(stderr,"       -s Score a single column of an alignment \
 specifying residue counts\n");
    fprintf(stderr,"          on the command line\n");
