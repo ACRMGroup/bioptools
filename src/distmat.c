@@ -737,6 +737,6 @@ the PDB files to be processed.\n");
 file.\n");
 
    fprintf(stderr,"\nIf -c is specified it is followed by a comma-separated \
-list if chain names to analyze.\n\n");
+list of chain names to analyze.\n\n");
 }
 
