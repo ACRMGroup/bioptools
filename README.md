@@ -14,7 +14,11 @@ can get all contacts or contacts between specified chains.
 
 checkpdb
 --------
-Start of a program for performing various checks on a PDB file
+Start of a program for performing various checks on a PDB file.
+
+distmat
+-------
+Analyses inter-CA distances in one or more PDB files.
 
 naccess2bval
 ------------
@@ -42,6 +46,11 @@ pdb2xyz
 -------
 Convert PDB format to GROMOS XYZ. N.B. Does NOT correct atom order.
 
+pdbaddhet
+---------
+Adds HETATMs back from a whole PDB file when the ATOM records of a region
+of that file has been extracted.
+
 pdbatomcount 
 ------------
 Counts the number of atoms within the specified radius of each atom in
@@ -52,8 +61,8 @@ pdbatoms
 Extracts only the coordinates (i.e. ATOM and HETATM records) from a
 PDB file, discarding the header and footer records
 
-pdbatomsel
-----------
+pdbatomselect
+-------------
 Selects specfied atom types from a PDB file. Assumes C-alpha if no atoms
 are specified.
 
@@ -105,6 +114,11 @@ Takes a PDB file as input and given a key residue and a number of
 residues will return the residue identifiers for residues this number
 of positions before and width after the key residue.
 
+pdbfit
+------
+Fit two PDB files containing identical atoms but with different
+coordinates.
+
 pdbflip
 -------
 pdbflip is a rather crude and simple program for correcting the atom
@@ -127,6 +141,12 @@ Extracts a specified zone from a PDB file
 pdbhadd
 -------
 Add hydrogens to a PDB file.
+
+pdbhbond
+--------
+
+Identifies hydrogen bonds using the Baker and Hubbard rules for
+the definition of a hydrogen bond.
 
 pdbheader
 ---------
@@ -180,6 +200,11 @@ residue numbers.
 pdbrenum
 --------
 Renumber a PDB file
+
+pdbrepair
+---------
+Start of a repair program. Currently just adds missing ATOM records for
+atoms based on the SEQRES records, setting coordinates to 9999.999
 
 pdbrotate
 ---------
@@ -240,3 +265,7 @@ for scoring conservation in a sequence alignment.
 setpdbnumbering
 ---------------
 Applies a standard numbering scheme to a set of PDB files.
+
+sixft
+-----
+Perform simple six-frame translation.
